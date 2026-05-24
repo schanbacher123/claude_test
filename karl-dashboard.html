@@ -22,540 +22,577 @@
     th { background:#0f172a; color:#64748b; font-size:0.75rem; text-transform:uppercase; padding:0.6rem 0.75rem; text-align:left; }
     td { padding:0.6rem 0.75rem; font-size:0.875rem; border-top:1px solid #1e293b; }
     tr:hover td { background:#1e293b44; }
-    ::-webkit-scrollbar { width:6px; } ::-webkit-scrollbar-track { background:#0f172a; } ::-webkit-scrollbar-thumb { background:#334155; border-radius:3px; }
+    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0f172a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
   </style>
 </head>
 <body>
 <div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#64748b">Lade Dashboard…</div></div>
-<script type="module">
-import React, { useState, useReducer, useMemo, useRef, useCallback } from 'https://esm.sh/react@18.2.0';
-import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
-import htm from 'https://esm.sh/htm@3.1.1';
-import {
-  ComposedChart, BarChart, LineChart, PieChart,
-  Area, Bar, Line, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine
-} from 'https://esm.sh/recharts@2.12.0?deps=react@18.2.0,react-dom@18.2.0';
 
-const html = htm.bind(React.createElement);
+<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/recharts@2.12.0/umd/Recharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
 
-const KARL_LIMITS = {
-  CSB:  { GK1:150, GK2:125, GK3:90,  GK4:75, GK5:75 },
-  BSB5: { GK1:25,  GK2:25,  GK3:20,  GK4:15, GK5:10 },
-  SS:   { GK1:150, GK2:35,  GK3:35,  GK4:20, GK5:20 },
-  TN:   {                   GK3:15,  GK4:13, GK5:10 },
-  TP:   {                   GK3:2,   GK4:1,  GK5:1  },
-  NH4:  {                   GK3:10,  GK4:10, GK5:10 },
+<script>
+(function(){
+'use strict';
+
+// Show any error on screen so we can debug
+window.onerror = function(msg,src,line,col,err){
+  document.getElementById('root').innerHTML =
+    '<div style="color:#f87171;padding:2rem;font-family:monospace;background:#1e293b;margin:2rem;border-radius:8px">'+
+    '<strong>JS-Fehler:</strong> '+msg+'<br><small>'+src+':'+line+'</small></div>';
 };
-const SIZE_CLASSES = ['GK1','GK2','GK3','GK4','GK5'];
-const COLORS = ['#0ea5e9','#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6'];
-const SCOPE_COLORS = { scope1:'#ef4444', scope2:'#f59e0b', scope3:'#6366f1' };
-const MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
-const DEFAULT_SETTINGS = {
-  gwp_n2o: 273, gwp_ch4: 27.9,
-  ef_transport: 0.092, ef_ironsulfate: 0.3, ef_polyelectrolyte: 2.5,
-  plantName: 'Kläranlage Musterstadt', sizeClass: 'GK4',
+var html = htm.bind(React.createElement);
+var useState = React.useState;
+var useReducer = React.useReducer;
+var useMemo = React.useMemo;
+var useRef = React.useRef;
+var useCallback = React.useCallback;
+var createRoot = ReactDOM.createRoot;
+var RC = Recharts;
+
+// ── Constants ────────────────────────────────────────────────────────────
+var KARL_LIMITS = {
+  CSB:  {GK1:150,GK2:125,GK3:90, GK4:75, GK5:75},
+  BSB5: {GK1:25, GK2:25, GK3:20, GK4:15, GK5:10},
+  SS:   {GK1:150,GK2:35, GK3:35, GK4:20, GK5:20},
+  TN:   {                GK3:15, GK4:13, GK5:10},
+  TP:   {                GK3:2,  GK4:1,  GK5:1},
+  NH4:  {                GK3:10, GK4:10, GK5:10},
 };
-const INIT = { readings:[], activeTab:'dashboard', settings: DEFAULT_SETTINGS };
+var SIZE_CLASSES = ['GK1','GK2','GK3','GK4','GK5'];
+var SC = {scope1:'#ef4444',scope2:'#f59e0b',scope3:'#6366f1'};
+var MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 
-function reducer(st, a) {
-  if (a.type==='SET_READINGS') return { ...st, readings: a.payload };
-  if (a.type==='ADD_READING')  return { ...st, readings: [...st.readings, a.payload] };
-  if (a.type==='SET_TAB')      return { ...st, activeTab: a.payload };
-  if (a.type==='UPD_SETTINGS') return { ...st, settings: { ...st.settings, ...a.payload } };
-  if (a.type==='CLEAR')        return { ...st, readings: [] };
+var DEFAULT_SETTINGS = {
+  gwp_n2o:273, gwp_ch4:27.9,
+  ef_transport:0.092, ef_ironsulfate:0.3, ef_polyelectrolyte:2.5,
+  plantName:'Kläranlage Musterstadt', sizeClass:'GK4',
+};
+var INIT = {readings:[],activeTab:'dashboard',settings:DEFAULT_SETTINGS};
+
+// ── Reducer ──────────────────────────────────────────────────────────────
+function reducer(st,a){
+  if(a.type==='SET_READINGS') return Object.assign({},st,{readings:a.payload});
+  if(a.type==='ADD_READING')  return Object.assign({},st,{readings:st.readings.concat([a.payload])});
+  if(a.type==='SET_TAB')      return Object.assign({},st,{activeTab:a.payload});
+  if(a.type==='UPD_SETTINGS') return Object.assign({},st,{settings:Object.assign({},st.settings,a.payload)});
+  if(a.type==='CLEAR')        return Object.assign({},st,{readings:[]});
   return st;
 }
 
-function calcEm(r, s) {
-  const n2o    = (r.inflowTN/1000)*r.inflowVolume*0.016*(44/28)*(s.gwp_n2o)/1000;
-  const ch4    = r.biogas*(r.biogasMethane/100)*0.02*0.717*(s.gwp_ch4)/1000;
-  const heatoil= (r.heatOil||0)*2.65/1000;
-  const scope1 = n2o+ch4+heatoil;
-  const power  = (r.powerConsumption-r.powerGeneration)*r.gridEmissionFactor/1e6;
-  const scope2 = Math.max(0,power);
-  const sludge = (r.sludgeDisposal*r.sludgeTransport*(s.ef_transport))/1000;
-  const chem   = r.ironSulfate*(s.ef_ironsulfate)+r.polyelectrolyte*(s.ef_polyelectrolyte);
-  const scope3 = sludge+chem;
-  const total  = scope1+scope2+scope3;
-  return { scope1, scope2, scope3, total, n2o, ch4, heatoil, power, sludge, chem,
-           specific: r.connectedEW>0 ? total/(r.connectedEW/1000) : 0 };
+// ── Calculations ─────────────────────────────────────────────────────────
+function calcEm(r,s){
+  var n2o=(r.inflowTN/1000)*r.inflowVolume*0.016*(44/28)*s.gwp_n2o/1000;
+  var ch4=r.biogas*(r.biogasMethane/100)*0.02*0.717*s.gwp_ch4/1000;
+  var heatoil=(r.heatOil||0)*2.65/1000;
+  var scope1=n2o+ch4+heatoil;
+  var power=Math.max(0,(r.powerConsumption-r.powerGeneration)*r.gridEmissionFactor/1e6);
+  var scope2=power;
+  var sludge=(r.sludgeDisposal*r.sludgeTransport*s.ef_transport)/1000;
+  var chem=r.ironSulfate*s.ef_ironsulfate+r.polyelectrolyte*s.ef_polyelectrolyte;
+  var scope3=sludge+chem;
+  var total=scope1+scope2+scope3;
+  return {scope1:scope1,scope2:scope2,scope3:scope3,total:total,
+          n2o:n2o,ch4:ch4,heatoil:heatoil,power:power,sludge:sludge,chem:chem,
+          specific:r.connectedEW>0?total/(r.connectedEW/1000):0};
+}
+function calcComp(r,sc){
+  var checks=[
+    {param:'CSB', value:r.effluentCSB, limit:KARL_LIMITS.CSB[sc]},
+    {param:'BSB5',value:r.effluentBSB5,limit:KARL_LIMITS.BSB5[sc]},
+    {param:'SS',  value:r.effluentSS,  limit:KARL_LIMITS.SS[sc]},
+    {param:'TN',  value:r.effluentTN,  limit:KARL_LIMITS.TN[sc]},
+    {param:'TP',  value:r.effluentTP,  limit:KARL_LIMITS.TP[sc]},
+    {param:'NH4', value:r.effluentNH4, limit:KARL_LIMITS.NH4[sc]},
+  ].filter(function(c){return c.limit!=null;});
+  var viol=checks.filter(function(c){return c.value>c.limit;});
+  var score=checks.length?Math.round(((checks.length-viol.length)/checks.length)*100):100;
+  return {score:score,violations:viol,status:score>=95?'green':score>=80?'yellow':'red',checks:checks};
 }
 
-function calcComp(r, sc) {
-  const checks = [
-    { param:'CSB',  value:r.effluentCSB,  limit:KARL_LIMITS.CSB[sc]  },
-    { param:'BSB5', value:r.effluentBSB5, limit:KARL_LIMITS.BSB5[sc] },
-    { param:'SS',   value:r.effluentSS,   limit:KARL_LIMITS.SS[sc]   },
-    { param:'TN',   value:r.effluentTN,   limit:KARL_LIMITS.TN[sc]   },
-    { param:'TP',   value:r.effluentTP,   limit:KARL_LIMITS.TP[sc]   },
-    { param:'NH4',  value:r.effluentNH4,  limit:KARL_LIMITS.NH4[sc]  },
-  ].filter(c => c.limit != null);
-  const viol  = checks.filter(c => c.value > c.limit);
-  const score = checks.length ? Math.round(((checks.length-viol.length)/checks.length)*100) : 100;
-  return { score, violations:viol, status:score>=95?'green':score>=80?'yellow':'red', checks };
-}
-
-function lcg(seed) { let s=seed; return ()=>{ s=(1664525*s+1013904223)&0xffffffff; return (s>>>0)/0xffffffff; }; }
-
-function genSamples(sc='GK4') {
-  const rng = lcg(42);
-  const lim = KARL_LIMITS;
-  return Array.from({length:24},(_,i)=>{
-    const y=2023+Math.floor((i+6)/12), m=(i+6)%12;
-    const EW=50000+Math.round(rng()*5000);
-    const vol=EW*0.15*(0.9+rng()*0.2);
-    return {
-      id: i, year:y, month:m,
-      connectedEW:EW, inflowVolume:Math.round(vol),
-      inflowTN: 40+rng()*10, inflowCSB:400+rng()*100, inflowBSB5:200+rng()*50,
-      effluentCSB:  (lim.CSB[sc]||75)*(0.5+rng()*0.6),
-      effluentBSB5: (lim.BSB5[sc]||15)*(0.4+rng()*0.7),
-      effluentSS:   (lim.SS[sc]||20)*(0.4+rng()*0.7),
-      effluentTN:   (lim.TN[sc]||13)*(0.5+rng()*0.6),
-      effluentTP:   (lim.TP[sc]||1)*(0.4+rng()*0.8),
-      effluentNH4:  (lim.NH4[sc]||10)*(0.3+rng()*0.7),
-      powerConsumption: EW*0.04*(0.85+rng()*0.3),
-      powerGeneration:  EW*0.015*(0.8+rng()*0.4),
-      gridEmissionFactor: 380+rng()*40,
-      biogas:       EW*0.008*(0.8+rng()*0.4),
-      biogasMethane:62+rng()*8,
-      heatOil:      1000+rng()*500,
-      sludgeDisposal: EW*0.00015*(0.9+rng()*0.2),
-      sludgeTransport:30+rng()*20,
-      ironSulfate:  EW*0.0002*(0.9+rng()*0.2),
-      polyelectrolyte:EW*0.00003*(0.9+rng()*0.2),
+// ── Sample data ───────────────────────────────────────────────────────────
+function lcg(seed){var s=seed;return function(){s=(1664525*s+1013904223)&0xffffffff;return (s>>>0)/0xffffffff;};}
+function genSamples(sc){
+  sc=sc||'GK4';
+  var rng=lcg(42),lim=KARL_LIMITS;
+  return Array.from({length:24},function(_,i){
+    var y=2023+Math.floor((i+6)/12),m=(i+6)%12;
+    var EW=50000+Math.round(rng()*5000),vol=EW*0.15*(0.9+rng()*0.2);
+    return {id:i,year:y,month:m,connectedEW:EW,inflowVolume:Math.round(vol),
+      inflowTN:40+rng()*10,inflowCSB:400+rng()*100,inflowBSB5:200+rng()*50,
+      effluentCSB:(lim.CSB[sc]||75)*(0.5+rng()*0.6),
+      effluentBSB5:(lim.BSB5[sc]||15)*(0.4+rng()*0.7),
+      effluentSS:(lim.SS[sc]||20)*(0.4+rng()*0.7),
+      effluentTN:(lim.TN[sc]||13)*(0.5+rng()*0.6),
+      effluentTP:(lim.TP[sc]||1)*(0.4+rng()*0.8),
+      effluentNH4:(lim.NH4[sc]||10)*(0.3+rng()*0.7),
+      powerConsumption:EW*0.04*(0.85+rng()*0.3),
+      powerGeneration:EW*0.015*(0.8+rng()*0.4),
+      gridEmissionFactor:380+rng()*40,
+      biogas:EW*0.008*(0.8+rng()*0.4),biogasMethane:62+rng()*8,
+      heatOil:1000+rng()*500,
+      sludgeDisposal:EW*0.00015*(0.9+rng()*0.2),sludgeTransport:30+rng()*20,
+      ironSulfate:EW*0.0002*(0.9+rng()*0.2),polyelectrolyte:EW*0.00003*(0.9+rng()*0.2),
     };
   });
 }
 
-function fmt(n,d=1) { return typeof n==='number' && !isNaN(n) ? n.toFixed(d) : '–'; }
-function fmtDate(r) { return `${MONTHS[r.month]} ${r.year}`; }
+function fmt(n,d){d=d==null?1:d;return typeof n==='number'&&!isNaN(n)?n.toFixed(d):'–';}
+function fmtDate(r){return MONTHS[r.month]+' '+r.year;}
+var TT_STYLE={background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'};
 
-function KPICard({ title, value, unit, sub, color='text-sky-400' }) {
-  return html`
+// ── Small components ──────────────────────────────────────────────────────
+function KPICard(p){
+  return html`<div class="card">
+    <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">${p.title}</div>
+    <div class=${'kpi-val '+(p.color||'text-sky-400')}>${p.value} <span class="text-sm font-normal text-gray-400">${p.unit}</span></div>
+    ${p.sub&&html`<div class="text-xs text-gray-500 mt-1">${p.sub}</div>`}
+  </div>`;
+}
+function Badge(p){
+  var cls=p.status==='green'?'badge-green':p.status==='yellow'?'badge-yellow':'badge-red';
+  return html`<span class=${cls}>${p.label}</span>`;
+}
+function NavBtn(p){
+  return html`<button class=${'nav-btn '+(p.active?'nav-active':'nav-inactive')}
+    onClick=${function(){p.onClick(p.id);}}>${p.label}</button>`;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────
+function Dashboard(p){
+  var data=useMemo(function(){
+    return p.readings.map(function(r){
+      return Object.assign({},r,{em:calcEm(r,p.settings),comp:calcComp(r,p.settings.sizeClass)});
+    });
+  },[p.readings,p.settings]);
+
+  if(!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten – Tab "Daten" öffnen und <strong class="text-sky-400">Demodaten laden</strong> klicken.</div>`;
+
+  var last=data[data.length-1];
+  var avgScore=Math.round(data.reduce(function(a,d){return a+d.comp.score;},0)/data.length);
+  var violCount=data.reduce(function(a,d){return a+d.comp.violations.length;},0);
+  var chartData=data.slice(-12).map(function(d){
+    return {name:fmtDate(d),
+      scope1:+d.em.scope1.toFixed(2),scope2:+d.em.scope2.toFixed(2),scope3:+d.em.scope3.toFixed(2),
+      total:+d.em.total.toFixed(2)};
+  });
+
+  return html`<div class="space-y-6">
+    <h2 class="text-lg font-semibold text-sky-300">${p.settings.plantName} – Übersicht</h2>
+    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(175px,1fr))">
+      <${KPICard} title="THG gesamt (letzter Monat)" value=${fmt(last.em.total)} unit="t CO₂e" color="text-red-400"/>
+      <${KPICard} title="Spezifische Emission" value=${fmt(last.em.specific)} unit="kg CO₂e/EW" color="text-orange-400"/>
+      <${KPICard} title="Compliance-Score (Ø)" value=${avgScore} unit="%" color=${avgScore>=95?'text-green-400':avgScore>=80?'text-yellow-400':'text-red-400'}/>
+      <${KPICard} title="Grenzwertverstöße" value=${violCount} unit="Stk." color=${violCount===0?'text-green-400':'text-red-400'}/>
+      <${KPICard} title="Strombezug (netto)" value=${fmt(last.powerConsumption-last.powerGeneration,0)} unit="kWh" color="text-sky-400"/>
+      <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
+    </div>
     <div class="card">
-      <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">${title}</div>
-      <div class="kpi-val ${color}">${value} <span class="text-sm font-normal text-gray-400">${unit}</span></div>
-      ${sub && html`<div class="text-xs text-gray-500 mt-1">${sub}</div>`}
-    </div>`;
+      <div class="text-sm font-semibold text-gray-300 mb-4">THG-Emissionen (letzte 12 Monate) in t CO₂e</div>
+      <${RC.ResponsiveContainer} width="100%" height=${260}>
+        <${RC.BarChart} data=${chartData}>
+          <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+          <${RC.XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          <${RC.Legend} wrapperStyle=${{fontSize:'12px'}}/>
+          <${RC.Bar} dataKey="scope1" stackId="a" fill=${SC.scope1} name="Scope 1"/>
+          <${RC.Bar} dataKey="scope2" stackId="a" fill=${SC.scope2} name="Scope 2"/>
+          <${RC.Bar} dataKey="scope3" stackId="a" fill=${SC.scope3} name="Scope 3" radius=${[4,4,0,0]}/>
+        </${RC.BarChart}>
+      </${RC.ResponsiveContainer}>
+    </div>
+    <div class="card overflow-x-auto">
+      <div class="text-sm font-semibold text-gray-300 mb-3">Monatliche Übersicht (letzte 6 Monate)</div>
+      <table><thead><tr>
+        <th>Monat</th><th>Scope 1</th><th>Scope 2</th><th>Scope 3</th><th>Gesamt (t)</th><th>kg/EW</th><th>Compliance</th>
+      </tr></thead><tbody>
+        ${data.slice(-6).reverse().map(function(d){return html`<tr key=${d.id}>
+          <td>${fmtDate(d)}</td>
+          <td>${fmt(d.em.scope1)}</td><td>${fmt(d.em.scope2)}</td><td>${fmt(d.em.scope3)}</td>
+          <td class="font-semibold">${fmt(d.em.total)}</td>
+          <td>${fmt(d.em.specific)}</td>
+          <td><${Badge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
+        </tr>`;})}
+      </tbody></table>
+    </div>
+  </div>`;
 }
 
-function StatusBadge({ status, label }) {
-  const cls = status==='green'?'badge-green':status==='yellow'?'badge-yellow':'badge-red';
-  return html`<span class=${cls}>${label}</span>`;
-}
+// ── Klimabilanz ───────────────────────────────────────────────────────────
+function Klimabilanz(p){
+  var data=useMemo(function(){
+    return p.readings.map(function(r){return Object.assign({},r,{em:calcEm(r,p.settings)});});
+  },[p.readings,p.settings]);
+  if(!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
 
-function NavBtn({ id, label, active, onClick }) {
-  return html`<button class=${'nav-btn '+(active?'nav-active':'nav-inactive')} onClick=${()=>onClick(id)}>${label}</button>`;
-}
-
-function Dashboard({ readings, settings }) {
-  const data = useMemo(()=>readings.map(r=>({...r, em:calcEm(r,settings), comp:calcComp(r,settings.sizeClass)})),[readings,settings]);
-  if (!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten – Demomodus laden oder CSV importieren.</div>`;
-  const last = data[data.length-1];
-  const yearly = Object.values(data.reduce((acc,d)=>{
-    const k=d.year; if(!acc[k]) acc[k]={year:k,total:0,scope1:0,scope2:0,scope3:0,n:0};
-    acc[k].total+=d.em.total; acc[k].scope1+=d.em.scope1; acc[k].scope2+=d.em.scope2; acc[k].scope3+=d.em.scope3; acc[k].n++;
+  var yearly=Object.values(data.reduce(function(acc,d){
+    var k=d.year;
+    if(!acc[k])acc[k]={year:k,scope1:0,scope2:0,scope3:0};
+    acc[k].scope1+=d.em.scope1;acc[k].scope2+=d.em.scope2;acc[k].scope3+=d.em.scope3;
     return acc;
   },{}));
-  const avgScore = Math.round(data.reduce((a,d)=>a+d.comp.score,0)/data.length);
-  const violCount = data.reduce((a,d)=>a+d.comp.violations.length,0);
-  const chartData = data.slice(-12).map(d=>({
-    name:fmtDate(d), scope1:+d.em.scope1.toFixed(2), scope2:+d.em.scope2.toFixed(2), scope3:+d.em.scope3.toFixed(2),
-    total:+d.em.total.toFixed(2), specific:+d.em.specific.toFixed(2),
-  }));
-  return html`
-    <div class="space-y-6">
-      <h2 class="text-lg font-semibold text-sky-300">${settings.plantName} – Übersicht</h2>
-      <div class="grid grid-cols-2 gap-4" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <${KPICard} title="THG gesamt (letzter Monat)" value=${fmt(last.em.total)} unit="t CO₂e" color="text-red-400"/>
-        <${KPICard} title="Spezifische Emission" value=${fmt(last.em.specific)} unit="kg CO₂e/EW" color="text-orange-400"/>
-        <${KPICard} title="Compliance-Score (Ø)" value=${avgScore} unit="%" color=${avgScore>=95?'text-green-400':avgScore>=80?'text-yellow-400':'text-red-400'}/>
-        <${KPICard} title="Grenzwertverstöße" value=${violCount} unit="Stk." color=${violCount===0?'text-green-400':'text-red-400'}/>
-        <${KPICard} title="Strombezug letzter Monat" value=${fmt(last.powerConsumption-last.powerGeneration,0)} unit="kWh" color="text-sky-400"/>
-        <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-4">THG-Emissionen (letzte 12 Monate) in t CO₂e</div>
-        <${ResponsiveContainer} width="100%" height=${260}>
-          <${ComposedChart} data=${chartData}>
-            <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-            <${XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
-            <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-            <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            <${Legend} wrapperStyle=${{fontSize:'12px'}}/>
-            <${Bar} dataKey="scope1" stackId="a" fill=${SCOPE_COLORS.scope1} name="Scope 1"/>
-            <${Bar} dataKey="scope2" stackId="a" fill=${SCOPE_COLORS.scope2} name="Scope 2"/>
-            <${Bar} dataKey="scope3" stackId="a" fill=${SCOPE_COLORS.scope3} name="Scope 3" radius=${[4,4,0,0]}/>
-            <${Line} dataKey="specific" yAxisId="1" type="monotone" stroke="#22d3ee" dot=${false} name="Spezifisch (kg/EW)" strokeWidth=${2}/>
-          </${ComposedChart}>
-        </${ResponsiveContainer}>
-      </div>
-      <div class="card overflow-x-auto">
-        <div class="text-sm font-semibold text-gray-300 mb-3">Monatliche Übersicht</div>
-        <table>
-          <thead><tr>
-            <th>Monat</th><th>Scope 1</th><th>Scope 2</th><th>Scope 3</th><th>Gesamt (t)</th><th>Spezifisch</th><th>Compliance</th>
-          </tr></thead>
-          <tbody>${data.slice(-6).reverse().map(d=>html`
-            <tr key=${d.id}>
-              <td>${fmtDate(d)}</td>
-              <td>${fmt(d.em.scope1)}</td>
-              <td>${fmt(d.em.scope2)}</td>
-              <td>${fmt(d.em.scope3)}</td>
-              <td class="font-semibold">${fmt(d.em.total)}</td>
-              <td>${fmt(d.em.specific)} kg/EW</td>
-              <td><${StatusBadge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
-            </tr>`)}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-function Klimabilanz({ readings, settings }) {
-  const data = useMemo(()=>readings.map(r=>({ ...r, em:calcEm(r,settings) })),[readings,settings]);
-  if (!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
-  const yearly = Object.entries(data.reduce((acc,d)=>{
-    const k=d.year; if(!acc[k]) acc[k]={year:k,scope1:0,scope2:0,scope3:0,n2o:0,ch4:0,power:0,sludge:0,chem:0};
-    ['scope1','scope2','scope3','n2o','ch4','power','sludge','chem'].forEach(f=>acc[k][f]+=d.em[f]);
-    acc[k].n=(acc[k].n||0)+1; return acc;
-  },{})).map(([,v])=>v);
-  const last=data[data.length-1];
-  const pieData=[
+  var last=data[data.length-1];
+  var pieData=[
     {name:'N₂O',value:+last.em.n2o.toFixed(2),cf:'#ef4444'},
     {name:'CH₄',value:+last.em.ch4.toFixed(2),cf:'#f97316'},
     {name:'Strom',value:+last.em.power.toFixed(2),cf:'#f59e0b'},
     {name:'Klärschlamm',value:+last.em.sludge.toFixed(2),cf:'#6366f1'},
     {name:'Chemikalien',value:+last.em.chem.toFixed(2),cf:'#8b5cf6'},
-  ].filter(d=>d.value>0);
-  return html`
-    <div class="space-y-6">
-      <h2 class="text-lg font-semibold text-sky-300">Klimabilanz – THG-Emissionen</h2>
-      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-        <div class="card">
-          <div class="text-xs text-gray-500 uppercase mb-2">Scope 1 (letzte Messung)</div>
-          <div class="text-2xl font-bold text-red-400">${fmt(last.em.scope1)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-          <div class="text-xs text-gray-500 mt-2">N₂O: ${fmt(last.em.n2o)} | CH₄: ${fmt(last.em.ch4)} | Heizöl: ${fmt(last.em.heatoil)}</div>
-        </div>
-        <div class="card">
-          <div class="text-xs text-gray-500 uppercase mb-2">Scope 2</div>
-          <div class="text-2xl font-bold text-yellow-400">${fmt(last.em.scope2)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-          <div class="text-xs text-gray-500 mt-2">Strombezug: ${fmt(last.powerConsumption-last.powerGeneration,0)} kWh × ${fmt(last.gridEmissionFactor,0)} g/kWh</div>
-        </div>
-        <div class="card">
-          <div class="text-xs text-gray-500 uppercase mb-2">Scope 3</div>
-          <div class="text-2xl font-bold text-indigo-400">${fmt(last.em.scope3)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-          <div class="text-xs text-gray-500 mt-2">Transport: ${fmt(last.em.sludge)} | Chemikalien: ${fmt(last.em.chem)}</div>
-        </div>
-      </div>
-      <div class="grid gap-4" style="grid-template-columns:1fr 1fr">
-        <div class="card">
-          <div class="text-sm font-semibold text-gray-300 mb-4">Jährliche Emissionen nach Scope</div>
-          <${ResponsiveContainer} width="100%" height=${220}>
-            <${BarChart} data=${yearly}>
-              <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-              <${XAxis} dataKey="year" tick=${{fill:'#64748b',fontSize:11}}/>
-              <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-              <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-              <${Legend} wrapperStyle=${{fontSize:'12px'}}/>
-              <${Bar} dataKey="scope1" stackId="a" fill=${SCOPE_COLORS.scope1} name="Scope 1"/>
-              <${Bar} dataKey="scope2" stackId="a" fill=${SCOPE_COLORS.scope2} name="Scope 2"/>
-              <${Bar} dataKey="scope3" stackId="a" fill=${SCOPE_COLORS.scope3} name="Scope 3" radius=${[4,4,0,0]}/>
-            </${BarChart}>
-          </${ResponsiveContainer}>
-        </div>
-        <div class="card">
-          <div class="text-sm font-semibold text-gray-300 mb-4">Emissionsquellen (letzter Monat)</div>
-          <${ResponsiveContainer} width="100%" height=${220}>
-            <${PieChart}>
-              <${Pie} data=${pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius=${80} label=${d=>`${d.name}: ${fmt(d.value)}`} labelLine=${true}>
-                ${pieData.map((d,i)=>html`<${Cell} key=${i} fill=${d.cf}/>`)}
-              </${Pie}>
-              <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            </${PieChart}>
-          </${ResponsiveContainer}>
-        </div>
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-4">N₂O &amp; CH₄ Zeitreihe (t CO₂e)</div>
-        <${ResponsiveContainer} width="100%" height=${200}>
-          <${LineChart} data=${data.slice(-12).map(d=>({ name:fmtDate(d), n2o:+d.em.n2o.toFixed(2), ch4:+d.em.ch4.toFixed(2) }))}>
-            <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-            <${XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
-            <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-            <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            <${Legend} wrapperStyle=${{fontSize:'12px'}}/>
-            <${Line} type="monotone" dataKey="n2o" stroke="#ef4444" dot=${false} strokeWidth=${2} name="N₂O"/>
-            <${Line} type="monotone" dataKey="ch4" stroke="#f97316" dot=${false} strokeWidth=${2} name="CH₄"/>
-          </${LineChart}>
-        </${ResponsiveContainer}>
-      </div>
-    </div>`;
-}
-
-function Grenzwerte({ readings, settings }) {
-  const data = useMemo(()=>readings.map(r=>({ ...r, comp:calcComp(r,settings.sizeClass) })),[readings,settings]);
-  if (!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
-  const params=['CSB','BSB5','SS','TN','TP','NH4'];
-  const efKeys={ CSB:'effluentCSB', BSB5:'effluentBSB5', SS:'effluentSS', TN:'effluentTN', TP:'effluentTP', NH4:'effluentNH4' };
-  const sc=settings.sizeClass;
-  return html`
-    <div class="space-y-6">
-      <h2 class="text-lg font-semibold text-sky-300">EU-KARL Grenzwert-Tracking (${sc})</h2>
-      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-        ${params.filter(p=>KARL_LIMITS[p][sc]!=null).map(p=>{
-          const limit=KARL_LIMITS[p][sc];
-          const vals=data.map(d=>d[efKeys[p]]);
-          const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
-          const viol=vals.filter(v=>v>limit).length;
-          const pct=Math.min(100,(avg/limit)*100);
-          return html`
-            <div class="card" key=${p}>
-              <div class="flex justify-between items-center mb-2">
-                <span class="font-semibold text-gray-200">${p}</span>
-                <span class="text-xs text-gray-500">Grenzwert: ${limit} mg/L</span>
-              </div>
-              <div class="text-xl font-bold ${avg>limit?'text-red-400':'text-green-400'}">${fmt(avg,1)} mg/L</div>
-              <div class="mt-2 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div class=${'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500')}
-                     style=${'width:'+Math.min(pct,100)+'%'}></div>
-              </div>
-              <div class="text-xs text-gray-500 mt-1">${viol} Verstöße / ${vals.length} Messungen</div>
-            </div>`;
-        })}
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-4">CSB-Verlauf vs. Grenzwert (${sc})</div>
-        <${ResponsiveContainer} width="100%" height=${220}>
-          <${ComposedChart} data=${data.slice(-12).map(d=>({ name:fmtDate(d), CSB:+d.effluentCSB.toFixed(1) }))}>
-            <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-            <${XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
-            <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-            <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            <${Legend} wrapperStyle=${{fontSize:'12px'}}/>
-            <${Bar} dataKey="CSB" fill="#0ea5e9" name="CSB Ablauf"/>
-            <${ReferenceLine} y=${KARL_LIMITS.CSB[sc]} stroke="#ef4444" strokeDasharray="4 2" label=${{value:'Limit',fill:'#ef4444',fontSize:11}}/>
-          </${ComposedChart}>
-        </${ResponsiveContainer}>
-      </div>
-      <div class="card overflow-x-auto">
-        <div class="text-sm font-semibold text-gray-300 mb-3">Compliance-Details</div>
-        <table>
-          <thead><tr>
-            <th>Monat</th>
-            ${params.filter(p=>KARL_LIMITS[p][sc]!=null).map(p=>html`<th key=${p}>${p}</th>`)}
-            <th>Score</th>
-          </tr></thead>
-          <tbody>${data.slice(-8).reverse().map(d=>html`
-            <tr key=${d.id}>
-              <td>${fmtDate(d)}</td>
-              ${params.filter(p=>KARL_LIMITS[p][sc]!=null).map(p=>{
-                const v=d[efKeys[p]], lim=KARL_LIMITS[p][sc];
-                return html`<td key=${p} class=${v>lim?'text-red-400 font-semibold':'text-green-400'}>${fmt(v,1)}</td>`;
-              })}
-              <td><${StatusBadge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
-            </tr>`)}</tbody>
-        </table>
-      </div>
-    </div>`;
-}
-
-function Energie({ readings, settings }) {
-  const data = useMemo(()=>readings,[readings]);
-  if (!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
-  const last=data[data.length-1];
-  const netPower=last.powerConsumption-last.powerGeneration;
-  const selfCoverage=last.powerConsumption>0 ? Math.round((last.powerGeneration/last.powerConsumption)*100) : 0;
-  const chartData=data.slice(-12).map(d=>({
-    name:fmtDate(d),
-    Bezug:+d.powerConsumption.toFixed(0),
-    Einspeisung:+d.powerGeneration.toFixed(0),
-    Netto:+(d.powerConsumption-d.powerGeneration).toFixed(0),
-    Biogas:+d.biogas.toFixed(0),
-  }));
-  return html`
-    <div class="space-y-6">
-      <h2 class="text-lg font-semibold text-sky-300">Energie-Monitoring</h2>
-      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-        <${KPICard} title="Strombezug (netto)" value=${fmt(netPower,0)} unit="kWh" color="text-yellow-400"/>
-        <${KPICard} title="Eigendeckungsgrad" value=${selfCoverage} unit="%" color=${selfCoverage>60?'text-green-400':selfCoverage>40?'text-yellow-400':'text-red-400'}/>
-        <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
-        <${KPICard} title="Methangehalt" value=${fmt(last.biogasMethane,1)} unit="%" color="text-sky-400"/>
-        <${KPICard} title="Netzemissionsfaktor" value=${fmt(last.gridEmissionFactor,0)} unit="g CO₂/kWh" color="text-gray-400"/>
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-4">Strombezug vs. Eigenproduktion (kWh)</div>
-        <${ResponsiveContainer} width="100%" height=${240}>
-          <${ComposedChart} data=${chartData}>
-            <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-            <${XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
-            <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-            <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            <${Legend} wrapperStyle=${{fontSize:'12px'}}/>
-            <${Bar} dataKey="Bezug" fill="#f59e0b" name="Strombezug" opacity=${0.85}/>
-            <${Bar} dataKey="Einspeisung" fill="#10b981" name="Eigenproduktion" opacity=${0.85}/>
-            <${Line} type="monotone" dataKey="Netto" stroke="#ef4444" dot=${false} strokeWidth=${2} name="Nettobezug"/>
-          </${ComposedChart}>
-        </${ResponsiveContainer}>
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-4">Biogasproduktion (m³)</div>
-        <${ResponsiveContainer} width="100%" height=${180}>
-          <${BarChart} data=${chartData}>
-            <${CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
-            <${XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
-            <${YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
-            <${Tooltip} contentStyle=${{background:'#1e293b',border:'1px solid #334155',borderRadius:'8px'}}/>
-            <${Bar} dataKey="Biogas" fill="#10b981" radius=${[4,4,0,0]} name="Biogas (m³)"/>
-          </${BarChart}>
-        </${ResponsiveContainer}>
-      </div>
-    </div>`;
-}
-
-function Datenimport({ dispatch, settings, onLoadDemo }) {
-  const fileRef = useRef(null);
-  const [msg, setMsg] = useState('');
-  const [form, setForm] = useState({
-    year:new Date().getFullYear(), month:new Date().getMonth(),
-    connectedEW:50000, inflowVolume:7500,
-    inflowTN:45, inflowCSB:430, inflowBSB5:220,
-    effluentCSB:55, effluentBSB5:10, effluentSS:12, effluentTN:9, effluentTP:0.8, effluentNH4:6,
-    powerConsumption:1900, powerGeneration:750, gridEmissionFactor:390,
-    biogas:400, biogasMethane:65, heatOil:1200,
-    sludgeDisposal:7.5, sludgeTransport:40, ironSulfate:10, polyelectrolyte:1.5,
+  ].filter(function(d){return d.value>0;});
+  var lineData=data.slice(-12).map(function(d){
+    return {name:fmtDate(d),n2o:+d.em.n2o.toFixed(2),ch4:+d.em.ch4.toFixed(2)};
   });
-  const handleCSV = e => {
-    const f=e.target.files[0]; if(!f) return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try {
-        const lines=ev.target.result.split('\n').filter(Boolean);
-        const headers=lines[0].split(';').map(h=>h.trim());
-        const rows=lines.slice(1).map((l,id)=>{
-          const vals=l.split(';');
-          const obj={id};
-          headers.forEach((h,i)=>{ obj[h]=isNaN(vals[i])?vals[i]:Number(vals[i]); });
+
+  return html`<div class="space-y-6">
+    <h2 class="text-lg font-semibold text-sky-300">Klimabilanz – THG-Emissionen</h2>
+    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      <div class="card">
+        <div class="text-xs text-gray-500 uppercase mb-2">Scope 1</div>
+        <div class="text-2xl font-bold text-red-400">${fmt(last.em.scope1)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
+        <div class="text-xs text-gray-500 mt-2">N₂O: ${fmt(last.em.n2o)} | CH₄: ${fmt(last.em.ch4)} | Heizöl: ${fmt(last.em.heatoil)}</div>
+      </div>
+      <div class="card">
+        <div class="text-xs text-gray-500 uppercase mb-2">Scope 2</div>
+        <div class="text-2xl font-bold text-yellow-400">${fmt(last.em.scope2)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
+        <div class="text-xs text-gray-500 mt-2">Nettostrom: ${fmt(last.powerConsumption-last.powerGeneration,0)} kWh × ${fmt(last.gridEmissionFactor,0)} g/kWh</div>
+      </div>
+      <div class="card">
+        <div class="text-xs text-gray-500 uppercase mb-2">Scope 3</div>
+        <div class="text-2xl font-bold text-indigo-400">${fmt(last.em.scope3)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
+        <div class="text-xs text-gray-500 mt-2">Transport: ${fmt(last.em.sludge)} | Chemikalien: ${fmt(last.em.chem)}</div>
+      </div>
+    </div>
+    <div class="grid gap-4" style="grid-template-columns:1fr 1fr">
+      <div class="card">
+        <div class="text-sm font-semibold text-gray-300 mb-4">Jährliche Emissionen nach Scope</div>
+        <${RC.ResponsiveContainer} width="100%" height=${220}>
+          <${RC.BarChart} data=${yearly}>
+            <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+            <${RC.XAxis} dataKey="year" tick=${{fill:'#64748b',fontSize:11}}/>
+            <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+            <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+            <${RC.Legend} wrapperStyle=${{fontSize:'12px'}}/>
+            <${RC.Bar} dataKey="scope1" stackId="a" fill=${SC.scope1} name="Scope 1"/>
+            <${RC.Bar} dataKey="scope2" stackId="a" fill=${SC.scope2} name="Scope 2"/>
+            <${RC.Bar} dataKey="scope3" stackId="a" fill=${SC.scope3} name="Scope 3" radius=${[4,4,0,0]}/>
+          </${RC.BarChart}>
+        </${RC.ResponsiveContainer}>
+      </div>
+      <div class="card">
+        <div class="text-sm font-semibold text-gray-300 mb-4">Emissionsquellen (letzter Monat)</div>
+        <${RC.ResponsiveContainer} width="100%" height=${220}>
+          <${RC.PieChart}>
+            <${RC.Pie} data=${pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius=${80}
+              label=${function(d){return d.name+': '+fmt(d.value);}} labelLine>
+              ${pieData.map(function(d,i){return html`<${RC.Cell} key=${i} fill=${d.cf}/>`;}) }
+            </${RC.Pie}>
+            <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          </${RC.PieChart}>
+        </${RC.ResponsiveContainer}>
+      </div>
+    </div>
+    <div class="card">
+      <div class="text-sm font-semibold text-gray-300 mb-4">N₂O &amp; CH₄ Zeitreihe (t CO₂e)</div>
+      <${RC.ResponsiveContainer} width="100%" height=${200}>
+        <${RC.LineChart} data=${lineData}>
+          <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+          <${RC.XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          <${RC.Legend} wrapperStyle=${{fontSize:'12px'}}/>
+          <${RC.Line} type="monotone" dataKey="n2o" stroke="#ef4444" dot=${false} strokeWidth=${2} name="N₂O"/>
+          <${RC.Line} type="monotone" dataKey="ch4" stroke="#f97316" dot=${false} strokeWidth=${2} name="CH₄"/>
+        </${RC.LineChart}>
+      </${RC.ResponsiveContainer}>
+    </div>
+  </div>`;
+}
+
+// ── Grenzwerte ────────────────────────────────────────────────────────────
+function Grenzwerte(p){
+  var data=useMemo(function(){
+    return p.readings.map(function(r){return Object.assign({},r,{comp:calcComp(r,p.settings.sizeClass)});});
+  },[p.readings,p.settings]);
+  if(!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
+
+  var params=['CSB','BSB5','SS','TN','TP','NH4'];
+  var efKeys={CSB:'effluentCSB',BSB5:'effluentBSB5',SS:'effluentSS',TN:'effluentTN',TP:'effluentTP',NH4:'effluentNH4'};
+  var sc=p.settings.sizeClass;
+  var csbData=data.slice(-12).map(function(d){return {name:fmtDate(d),CSB:+d.effluentCSB.toFixed(1)};});
+
+  return html`<div class="space-y-6">
+    <h2 class="text-lg font-semibold text-sky-300">EU-KARL Grenzwert-Tracking (${sc})</h2>
+    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      ${params.filter(function(p){return KARL_LIMITS[p][sc]!=null;}).map(function(pm){
+        var limit=KARL_LIMITS[pm][sc];
+        var vals=data.map(function(d){return d[efKeys[pm]];});
+        var avg=vals.reduce(function(a,b){return a+b;},0)/vals.length;
+        var viol=vals.filter(function(v){return v>limit;}).length;
+        var pct=Math.min(100,(avg/limit)*100);
+        return html`<div class="card" key=${pm}>
+          <div class="flex justify-between items-center mb-2">
+            <span class="font-semibold text-gray-200">${pm}</span>
+            <span class="text-xs text-gray-500">Limit: ${limit} mg/L</span>
+          </div>
+          <div class=${'text-xl font-bold '+(avg>limit?'text-red-400':'text-green-400')}>${fmt(avg,1)} mg/L</div>
+          <div class="mt-2 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div class=${'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500')}
+                 style=${'width:'+Math.min(pct,100)+'%'}></div>
+          </div>
+          <div class="text-xs text-gray-500 mt-1">${viol} Verstöße / ${vals.length} Messungen</div>
+        </div>`;
+      })}
+    </div>
+    <div class="card">
+      <div class="text-sm font-semibold text-gray-300 mb-4">CSB-Verlauf vs. Grenzwert</div>
+      <${RC.ResponsiveContainer} width="100%" height=${220}>
+        <${RC.BarChart} data=${csbData}>
+          <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+          <${RC.XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          <${RC.ReferenceLine} y=${KARL_LIMITS.CSB[sc]} stroke="#ef4444" strokeDasharray="4 2"
+            label=${{value:'Limit',fill:'#ef4444',fontSize:11}}/>
+          <${RC.Bar} dataKey="CSB" fill="#0ea5e9" name="CSB Ablauf"/>
+        </${RC.BarChart}>
+      </${RC.ResponsiveContainer}>
+    </div>
+    <div class="card overflow-x-auto">
+      <div class="text-sm font-semibold text-gray-300 mb-3">Compliance-Details</div>
+      <table><thead><tr>
+        <th>Monat</th>
+        ${params.filter(function(pm){return KARL_LIMITS[pm][sc]!=null;}).map(function(pm){
+          return html`<th key=${pm}>${pm}</th>`;
+        })}
+        <th>Score</th>
+      </tr></thead><tbody>
+        ${data.slice(-8).reverse().map(function(d){return html`<tr key=${d.id}>
+          <td>${fmtDate(d)}</td>
+          ${params.filter(function(pm){return KARL_LIMITS[pm][sc]!=null;}).map(function(pm){
+            var v=d[efKeys[pm]],lim=KARL_LIMITS[pm][sc];
+            return html`<td key=${pm} class=${v>lim?'text-red-400 font-semibold':'text-green-400'}>${fmt(v,1)}</td>`;
+          })}
+          <td><${Badge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
+        </tr>`;})}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+
+// ── Energie ───────────────────────────────────────────────────────────────
+function Energie(p){
+  if(!p.readings.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
+  var last=p.readings[p.readings.length-1];
+  var net=last.powerConsumption-last.powerGeneration;
+  var cov=last.powerConsumption>0?Math.round((last.powerGeneration/last.powerConsumption)*100):0;
+  var chartData=p.readings.slice(-12).map(function(d){
+    return {name:fmtDate(d),Bezug:+d.powerConsumption.toFixed(0),
+      Eigen:+d.powerGeneration.toFixed(0),Netto:+(d.powerConsumption-d.powerGeneration).toFixed(0),
+      Biogas:+d.biogas.toFixed(0)};
+  });
+
+  return html`<div class="space-y-6">
+    <h2 class="text-lg font-semibold text-sky-300">Energie-Monitoring</h2>
+    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(175px,1fr))">
+      <${KPICard} title="Strombezug (netto)" value=${fmt(net,0)} unit="kWh" color="text-yellow-400"/>
+      <${KPICard} title="Eigendeckungsgrad" value=${cov} unit="%" color=${cov>60?'text-green-400':cov>40?'text-yellow-400':'text-red-400'}/>
+      <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
+      <${KPICard} title="Methangehalt" value=${fmt(last.biogasMethane,1)} unit="%" color="text-sky-400"/>
+      <${KPICard} title="Emissionsfaktor" value=${fmt(last.gridEmissionFactor,0)} unit="g/kWh" color="text-gray-400"/>
+    </div>
+    <div class="card">
+      <div class="text-sm font-semibold text-gray-300 mb-4">Strombezug vs. Eigenproduktion (kWh)</div>
+      <${RC.ResponsiveContainer} width="100%" height=${240}>
+        <${RC.ComposedChart} data=${chartData}>
+          <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+          <${RC.XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          <${RC.Legend} wrapperStyle=${{fontSize:'12px'}}/>
+          <${RC.Bar} dataKey="Bezug" fill="#f59e0b" name="Strombezug" opacity=${0.85}/>
+          <${RC.Bar} dataKey="Eigen" fill="#10b981" name="Eigenproduktion" opacity=${0.85}/>
+          <${RC.Line} type="monotone" dataKey="Netto" stroke="#ef4444" dot=${false} strokeWidth=${2} name="Nettobezug"/>
+        </${RC.ComposedChart}>
+      </${RC.ResponsiveContainer}>
+    </div>
+    <div class="card">
+      <div class="text-sm font-semibold text-gray-300 mb-4">Biogasproduktion (m³)</div>
+      <${RC.ResponsiveContainer} width="100%" height=${180}>
+        <${RC.BarChart} data=${chartData}>
+          <${RC.CartesianGrid} strokeDasharray="3 3" stroke="#1e293b"/>
+          <${RC.XAxis} dataKey="name" tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.YAxis} tick=${{fill:'#64748b',fontSize:11}}/>
+          <${RC.Tooltip} contentStyle=${TT_STYLE}/>
+          <${RC.Bar} dataKey="Biogas" fill="#10b981" radius=${[4,4,0,0]} name="Biogas (m³)"/>
+        </${RC.BarChart}>
+      </${RC.ResponsiveContainer}>
+    </div>
+  </div>`;
+}
+
+// ── Datenimport ───────────────────────────────────────────────────────────
+var EMPTY_FORM={
+  year:new Date().getFullYear(),month:new Date().getMonth(),
+  connectedEW:50000,inflowVolume:7500,inflowTN:45,inflowCSB:430,inflowBSB5:220,
+  effluentCSB:55,effluentBSB5:10,effluentSS:12,effluentTN:9,effluentTP:0.8,effluentNH4:6,
+  powerConsumption:1900,powerGeneration:750,gridEmissionFactor:390,
+  biogas:400,biogasMethane:65,heatOil:1200,
+  sludgeDisposal:7.5,sludgeTransport:40,ironSulfate:10,polyelectrolyte:1.5,
+};
+
+function Datenimport(p){
+  var fileRef=useRef(null);
+  var msgState=useState('');
+  var msg=msgState[0],setMsg=msgState[1];
+  var formState=useState(Object.assign({},EMPTY_FORM));
+  var form=formState[0],setForm=formState[1];
+
+  function handleCSV(e){
+    var f=e.target.files[0];if(!f)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var lines=ev.target.result.split('\n').filter(Boolean);
+        var headers=lines[0].split(';').map(function(h){return h.trim();});
+        var rows=lines.slice(1).map(function(l,id){
+          var vals=l.split(';'),obj={id:id};
+          headers.forEach(function(h,i){obj[h]=isNaN(vals[i])?vals[i]:Number(vals[i]);});
           return obj;
-        }).filter(r=>r.year && r.month!=null);
-        dispatch({type:'SET_READINGS',payload:rows});
-        setMsg(`${rows.length} Einträge importiert.`);
-      } catch(err) { setMsg('Fehler beim Importieren: '+err.message); }
+        }).filter(function(r){return r.year&&r.month!=null;});
+        p.dispatch({type:'SET_READINGS',payload:rows});
+        setMsg(rows.length+' Einträge importiert.');
+      }catch(err){setMsg('Fehler: '+err.message);}
     };
     reader.readAsText(f);
-  };
-  const addManual = () => {
-    dispatch({type:'ADD_READING', payload:{...form,id:Date.now()}});
+  }
+
+  function addManual(){
+    p.dispatch({type:'ADD_READING',payload:Object.assign({},form,{id:Date.now()})});
     setMsg('Eintrag hinzugefügt.');
-  };
-  const inp=(key)=>({
-    value:form[key],
-    onChange:e=>setForm(prev=>({...prev,[key]:Number(e.target.value)||e.target.value})),
-  });
-  return html`
-    <div class="space-y-6">
-      <h2 class="text-lg font-semibold text-sky-300">Datenimport</h2>
-      <div class="grid gap-4" style="grid-template-columns:1fr 1fr 1fr">
-        <button class="card text-center cursor-pointer hover:border-sky-500 transition-colors" onClick=${onLoadDemo}>
-          <div class="text-2xl mb-2">🗃️</div>
-          <div class="font-semibold text-sky-300">Demodaten laden</div>
-          <div class="text-xs text-gray-500 mt-1">24 Monate synthetische Daten</div>
-        </button>
-        <div class="card">
-          <div class="font-semibold text-gray-300 mb-2">📂 CSV importieren</div>
-          <div class="text-xs text-gray-500 mb-3">Trennzeichen: Semikolon. Kopfzeile muss Feldnamen enthalten.</div>
-          <input type="file" accept=".csv" ref=${fileRef} onChange=${handleCSV} style="display:none"/>
-          <button class="nav-btn nav-inactive w-full" onClick=${()=>fileRef.current.click()}>Datei wählen…</button>
-        </div>
-        <button class="card text-center cursor-pointer hover:border-red-500 transition-colors" onClick=${()=>{ dispatch({type:'CLEAR'}); setMsg('Daten gelöscht.'); }}>
-          <div class="text-2xl mb-2">🗑️</div>
-          <div class="font-semibold text-red-400">Daten löschen</div>
-          <div class="text-xs text-gray-500 mt-1">Alle Einträge entfernen</div>
-        </button>
-      </div>
-      ${msg && html`<div class="card text-sm text-green-400">${msg}</div>`}
+  }
+
+  function inp(key){
+    return {value:form[key],
+      onChange:function(e){
+        var v=e.target.value;
+        setForm(function(prev){var n=Object.assign({},prev);n[key]=isNaN(v)?v:Number(v);return n;});
+      }};
+  }
+
+  var FIELDS=[
+    ['year','Jahr'],['month','Monat (0-11)'],['connectedEW','Angeschl. EW'],
+    ['inflowVolume','Zufluss (m³)'],['inflowTN','TN Zulauf (mg/L)'],
+    ['effluentCSB','CSB Ablauf'],['effluentBSB5','BSB5 Ablauf'],['effluentSS','SS Ablauf'],
+    ['effluentTN','TN Ablauf'],['effluentTP','TP Ablauf'],['effluentNH4','NH4 Ablauf'],
+    ['powerConsumption','Strom Bezug (kWh)'],['powerGeneration','Strom Eigen (kWh)'],
+    ['gridEmissionFactor','Netzfaktor (g/kWh)'],['biogas','Biogas (m³)'],
+    ['biogasMethane','CH4-Gehalt (%)'],['heatOil','Heizöl (L)'],
+    ['sludgeDisposal','Schlamm (t)'],['sludgeTransport','Transport (km)'],
+    ['ironSulfate','Eisensulfat (kg)'],['polyelectrolyte','Polyelektrolyt (kg)'],
+  ];
+  var SET_FIELDS=[
+    ['plantName','Anlagenname','text'],['gwp_n2o','GWP N₂O','number'],
+    ['gwp_ch4','GWP CH₄','number'],['ef_transport','EF Transport (kg/t·km)','number'],
+    ['ef_ironsulfate','EF Eisensulfat','number'],['ef_polyelectrolyte','EF Polyelektrolyt','number'],
+  ];
+
+  return html`<div class="space-y-6">
+    <h2 class="text-lg font-semibold text-sky-300">Datenimport</h2>
+    <div class="grid gap-4" style="grid-template-columns:1fr 1fr 1fr">
+      <button class="card text-center cursor-pointer hover:border-sky-500 transition-colors" onClick=${p.onLoadDemo}>
+        <div class="text-2xl mb-2">🗃️</div>
+        <div class="font-semibold text-sky-300">Demodaten laden</div>
+        <div class="text-xs text-gray-500 mt-1">24 Monate synthetische Daten</div>
+      </button>
       <div class="card">
-        <div class="font-semibold text-gray-300 mb-4">Manuelle Dateneingabe</div>
-        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-          ${[
-            ['year','Jahr'],['month','Monat (0-11)'],['connectedEW','Angeschl. EW'],
-            ['inflowVolume','Zufluss (m³)'],['inflowTN','TN Zulauf (mg/L)'],
-            ['effluentCSB','CSB Ablauf'],['effluentBSB5','BSB5 Ablauf'],['effluentSS','SS Ablauf'],
-            ['effluentTN','TN Ablauf'],['effluentTP','TP Ablauf'],['effluentNH4','NH4 Ablauf'],
-            ['powerConsumption','Strom Bezug (kWh)'],['powerGeneration','Strom Eigen (kWh)'],
-            ['gridEmissionFactor','Netzfaktor (g/kWh)'],
-            ['biogas','Biogas (m³)'],['biogasMethane','CH4-Gehalt (%)'],['heatOil','Heizöl (L)'],
-            ['sludgeDisposal','Schlamm (t)'],['sludgeTransport','Transport (km)'],
-            ['ironSulfate','Eisensulfat (kg)'],['polyelectrolyte','Polyelektrolyt (kg)'],
-          ].map(([k,label])=>html`
-            <div key=${k}>
-              <label class="text-xs text-gray-500 block mb-1">${label}</label>
-              <input type="number" ...${inp(k)} class="w-full"/>
-            </div>`)}
-        </div>
-        <button class="nav-btn nav-active mt-4" onClick=${addManual}>Eintrag speichern</button>
+        <div class="font-semibold text-gray-300 mb-2">📂 CSV importieren</div>
+        <div class="text-xs text-gray-500 mb-3">Semikolon als Trennzeichen, erste Zeile = Feldnamen.</div>
+        <input type="file" accept=".csv" ref=${fileRef} onChange=${handleCSV} style="display:none"/>
+        <button class="nav-btn nav-inactive w-full" onClick=${function(){fileRef.current.click();}}>Datei wählen…</button>
       </div>
-      <div class="card">
-        <div class="font-semibold text-gray-300 mb-2">Anlageneinstellungen</div>
-        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-          ${[
-            ['plantName','Anlagenname','text'],['gwp_n2o','GWP N₂O','number'],
-            ['gwp_ch4','GWP CH₄','number'],['ef_transport','EF Transport (kg/t·km)','number'],
-            ['ef_ironsulfate','EF Eisensulfat (kg/kg)','number'],['ef_polyelectrolyte','EF Polyelektrolyt','number'],
-          ].map(([k,label,type='number'])=>html`
-            <div key=${k}>
-              <label class="text-xs text-gray-500 block mb-1">${label}</label>
-              <input type=${type} value=${settings[k]} onChange=${e=>dispatch({type:'UPD_SETTINGS',payload:{[k]:type==='number'?Number(e.target.value):e.target.value}})} class="w-full"/>
-            </div>`)}
-          <div>
-            <label class="text-xs text-gray-500 block mb-1">Größenklasse</label>
-            <select value=${settings.sizeClass} onChange=${e=>dispatch({type:'UPD_SETTINGS',payload:{sizeClass:e.target.value}})} class="w-full">
-              ${SIZE_CLASSES.map(sc=>html`<option key=${sc} value=${sc}>${sc}</option>`)}
-            </select>
-          </div>
+      <button class="card text-center cursor-pointer hover:border-red-500 transition-colors"
+        onClick=${function(){p.dispatch({type:'CLEAR'});setMsg('Daten gelöscht.');}}>
+        <div class="text-2xl mb-2">🗑️</div>
+        <div class="font-semibold text-red-400">Daten löschen</div>
+        <div class="text-xs text-gray-500 mt-1">Alle Einträge entfernen</div>
+      </button>
+    </div>
+    ${msg&&html`<div class="card text-sm text-green-400">${msg}</div>`}
+    <div class="card">
+      <div class="font-semibold text-gray-300 mb-4">Manuelle Dateneingabe</div>
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+        ${FIELDS.map(function(f){return html`<div key=${f[0]}>
+          <label class="text-xs text-gray-500 block mb-1">${f[1]}</label>
+          <input type="number" value=${inp(f[0]).value} onChange=${inp(f[0]).onChange} class="w-full"/>
+        </div>`;})}
+      </div>
+      <button class="nav-btn nav-active mt-4" onClick=${addManual}>Eintrag speichern</button>
+    </div>
+    <div class="card">
+      <div class="font-semibold text-gray-300 mb-3">Anlageneinstellungen</div>
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+        ${SET_FIELDS.map(function(f){return html`<div key=${f[0]}>
+          <label class="text-xs text-gray-500 block mb-1">${f[1]}</label>
+          <input type=${f[2]} value=${p.settings[f[0]]}
+            onChange=${function(e){
+              p.dispatch({type:'UPD_SETTINGS',payload:(function(){var o={};o[f[0]]=f[2]==='number'?Number(e.target.value):e.target.value;return o;})()});
+            }} class="w-full"/>
+        </div>`;})}
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Größenklasse</label>
+          <select value=${p.settings.sizeClass}
+            onChange=${function(e){p.dispatch({type:'UPD_SETTINGS',payload:{sizeClass:e.target.value}});}}
+            class="w-full">
+            ${SIZE_CLASSES.map(function(s){return html`<option key=${s} value=${s}>${s}</option>`;})}
+          </select>
         </div>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 }
 
-function App() {
-  const [st, dispatch] = useReducer(reducer, INIT);
-  const loadDemo = useCallback(()=>{
-    dispatch({type:'SET_READINGS', payload:genSamples(st.settings.sizeClass)});
+// ── App ───────────────────────────────────────────────────────────────────
+var TABS=[
+  {id:'dashboard',label:'📊 Dashboard'},
+  {id:'klimabilanz',label:'🌡️ Klimabilanz'},
+  {id:'grenzwerte',label:'⚠️ Grenzwerte'},
+  {id:'energie',label:'⚡ Energie'},
+  {id:'import',label:'📥 Daten'},
+];
+
+function App(){
+  var stateArr=useReducer(reducer,INIT);
+  var st=stateArr[0],dispatch=stateArr[1];
+  var loadDemo=useCallback(function(){
+    dispatch({type:'SET_READINGS',payload:genSamples(st.settings.sizeClass)});
   },[st.settings.sizeClass]);
-  const tabs=[
-    {id:'dashboard', label:'📊 Dashboard'},
-    {id:'klimabilanz', label:'🌡️ Klimabilanz'},
-    {id:'grenzwerte', label:'⚠️ Grenzwerte'},
-    {id:'energie', label:'⚡ Energie'},
-    {id:'import', label:'📥 Daten'},
-  ];
-  return html`
-    <div style="max-width:1100px;margin:0 auto;padding:1.5rem">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 class="text-2xl font-bold text-sky-400">KARL-Dashboard</h1>
-          <p class="text-xs text-gray-500">EU-Richtlinie 2024/3019 · GHG-Protocol · IPCC AR6</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          ${tabs.map(t=>html`
-            <${NavBtn} key=${t.id} id=${t.id} label=${t.label}
-              active=${st.activeTab===t.id}
-              onClick=${id=>dispatch({type:'SET_TAB',payload:id})}/>`)}
-        </div>
+
+  return html`<div style="max-width:1100px;margin:0 auto;padding:1.5rem">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-sky-400">KARL-Dashboard</h1>
+        <p class="text-xs text-gray-500">EU-Richtlinie 2024/3019 · GHG-Protocol · IPCC AR6</p>
       </div>
-      ${st.activeTab==='dashboard'   && html`<${Dashboard}   readings=${st.readings} settings=${st.settings}/>`}
-      ${st.activeTab==='klimabilanz' && html`<${Klimabilanz} readings=${st.readings} settings=${st.settings}/>`}
-      ${st.activeTab==='grenzwerte'  && html`<${Grenzwerte}  readings=${st.readings} settings=${st.settings}/>`}
-      ${st.activeTab==='energie'     && html`<${Energie}     readings=${st.readings} settings=${st.settings}/>`}
-      ${st.activeTab==='import'      && html`<${Datenimport} dispatch=${dispatch} settings=${st.settings} onLoadDemo=${loadDemo}/>`}
-    </div>`;
+      <div class="flex flex-wrap gap-2">
+        ${TABS.map(function(t){return html`<${NavBtn} key=${t.id} id=${t.id} label=${t.label}
+          active=${st.activeTab===t.id} onClick=${function(id){dispatch({type:'SET_TAB',payload:id});}}/>`;}) }
+      </div>
+    </div>
+    ${st.activeTab==='dashboard'  &&html`<${Dashboard}   readings=${st.readings} settings=${st.settings}/>`}
+    ${st.activeTab==='klimabilanz'&&html`<${Klimabilanz} readings=${st.readings} settings=${st.settings}/>`}
+    ${st.activeTab==='grenzwerte' &&html`<${Grenzwerte}  readings=${st.readings} settings=${st.settings}/>`}
+    ${st.activeTab==='energie'    &&html`<${Energie}     readings=${st.readings} settings=${st.settings}/>`}
+    ${st.activeTab==='import'     &&html`<${Datenimport} dispatch=${dispatch} settings=${st.settings} onLoadDemo=${loadDemo}/>`}
+  </div>`;
 }
 
 createRoot(document.getElementById('root')).render(html`<${App}/>`);
+
+})();
 </script>
 </body>
 </html>
