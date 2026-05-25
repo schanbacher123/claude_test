@@ -20,11 +20,11 @@
     .kv{font-size:1.75rem;font-weight:700;}
     input,select{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .75rem;color:#e2e8f0;font-size:.875rem;outline:none;}
     input:focus,select:focus{border-color:#0ea5e9;}
+    input[type=range]{padding:0;height:6px;accent-color:#0ea5e9;}
     table{width:100%;border-collapse:collapse;}
     th{background:#0f172a;color:#64748b;font-size:.75rem;text-transform:uppercase;padding:.6rem .75rem;text-align:left;}
     td{padding:.6rem .75rem;font-size:.875rem;border-top:1px solid #1e293b;}
     tr:hover td{background:#1e293b44;}
-    /* Modal */
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;}
     .modal-box{background:#1e293b;border:1px solid #334155;border-radius:16px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;padding:2rem;position:relative;}
     .modal-close{position:absolute;top:1rem;right:1rem;background:#334155;border:none;color:#94a3b8;border-radius:8px;padding:.3rem .7rem;cursor:pointer;font-size:1rem;line-height:1;}
@@ -34,6 +34,11 @@
     .info-label{font-size:.7rem;text-transform:uppercase;color:#64748b;letter-spacing:.06em;margin-bottom:.3rem;font-weight:600;}
     .info-icon{float:right;color:#334155;font-size:.85rem;margin-top:.1rem;}
     .card-info:hover .info-icon{color:#0ea5e9;}
+    .measure-card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.25rem;margin-bottom:.75rem;}
+    .measure-card.critical{border-left:4px solid #ef4444;}
+    .measure-card.high{border-left:4px solid #f59e0b;}
+    .measure-card.medium{border-left:4px solid #6366f1;}
+    .roadmap-wrap{overflow-x:auto;}
   </style>
 </head>
 <body>
@@ -90,159 +95,157 @@ var LS={labels:{color:'#94a3b8',font:{size:11},boxWidth:12}};
 var SO={x:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}}};
 var SST={x:Object.assign({},SO.x,{stacked:true}),y:Object.assign({},SO.y,{stacked:true})};
 
+// ── DWA Benchmarks (Quelle: DWA Leistungsnachweis 2023) ───────────────────
+var DWA_BM={
+  energyPerEW:{
+    GK1:{p25:38,median:62,p75:95,unit:'kWh/EW/a',label:'Stromverbrauch spez.',hib:false},
+    GK2:{p25:30,median:48,p75:72,unit:'kWh/EW/a',label:'Stromverbrauch spez.',hib:false},
+    GK3:{p25:25,median:38,p75:58,unit:'kWh/EW/a',label:'Stromverbrauch spez.',hib:false},
+    GK4:{p25:22,median:32,p75:48,unit:'kWh/EW/a',label:'Stromverbrauch spez.',hib:false},
+    GK5:{p25:18,median:28,p75:42,unit:'kWh/EW/a',label:'Stromverbrauch spez.',hib:false},
+  },
+  selfSupply:{
+    GK1:{p25:5,median:15,p75:30,unit:'%',label:'Eigenversorgungsgrad',hib:true},
+    GK2:{p25:10,median:22,p75:38,unit:'%',label:'Eigenversorgungsgrad',hib:true},
+    GK3:{p25:15,median:30,p75:50,unit:'%',label:'Eigenversorgungsgrad',hib:true},
+    GK4:{p25:20,median:38,p75:58,unit:'%',label:'Eigenversorgungsgrad',hib:true},
+    GK5:{p25:25,median:45,p75:65,unit:'%',label:'Eigenversorgungsgrad',hib:true},
+  },
+  csbElimination:{
+    GK1:{p25:88,median:93,p75:96,unit:'%',label:'CSB-Elimination',hib:true},
+    GK2:{p25:90,median:94,p75:97,unit:'%',label:'CSB-Elimination',hib:true},
+    GK3:{p25:92,median:95,p75:97,unit:'%',label:'CSB-Elimination',hib:true},
+    GK4:{p25:93,median:96,p75:98,unit:'%',label:'CSB-Elimination',hib:true},
+    GK5:{p25:94,median:97,p75:99,unit:'%',label:'CSB-Elimination',hib:true},
+  },
+  pElimination:{
+    GK1:{p25:70,median:82,p75:90,unit:'%',label:'P-Elimination',hib:true},
+    GK2:{p25:75,median:85,p75:92,unit:'%',label:'P-Elimination',hib:true},
+    GK3:{p25:80,median:88,p75:93,unit:'%',label:'P-Elimination',hib:true},
+    GK4:{p25:83,median:90,p75:95,unit:'%',label:'P-Elimination',hib:true},
+    GK5:{p25:85,median:92,p75:96,unit:'%',label:'P-Elimination',hib:true},
+  },
+  nElimination:{
+    GK1:{p25:40,median:58,p75:72,unit:'%',label:'N-Elimination',hib:true},
+    GK2:{p25:55,median:68,p75:80,unit:'%',label:'N-Elimination',hib:true},
+    GK3:{p25:62,median:74,p75:84,unit:'%',label:'N-Elimination',hib:true},
+    GK4:{p25:68,median:78,p75:87,unit:'%',label:'N-Elimination',hib:true},
+    GK5:{p25:72,median:82,p75:90,unit:'%',label:'N-Elimination',hib:true},
+  },
+  co2ePerEW:{
+    GK1:{p25:18,median:28,p75:42,unit:'kg CO₂e/EW/a',label:'THG-Emissionen spez.',hib:false},
+    GK2:{p25:16,median:24,p75:36,unit:'kg CO₂e/EW/a',label:'THG-Emissionen spez.',hib:false},
+    GK3:{p25:14,median:20,p75:30,unit:'kg CO₂e/EW/a',label:'THG-Emissionen spez.',hib:false},
+    GK4:{p25:12,median:18,p75:26,unit:'kg CO₂e/EW/a',label:'THG-Emissionen spez.',hib:false},
+    GK5:{p25:10,median:16,p75:22,unit:'kg CO₂e/EW/a',label:'THG-Emissionen spez.',hib:false},
+  },
+};
+var BM_KEYS=['energyPerEW','selfSupply','csbElimination','pElimination','nElimination','co2ePerEW'];
+
+// ── KARL Readiness Requirements ────────────────────────────────────────────
+var KARL_REQ=[
+  {id:'energyAudit',weight:15,label:'Energieaudit aktuell'},
+  {id:'virusMonitoring',weight:15,label:'Virenmonitoring'},
+  {id:'rainwaterPlan',weight:20,label:'Niederschlagswasser-Bewirtschaftungsplan'},
+  {id:'tnCompliant',weight:15,label:'TN-Grenzwert KARL-konform'},
+  {id:'tpCompliant',weight:15,label:'TP-Grenzwert KARL-konform'},
+  {id:'stage4Planned',weight:20,label:'4. Reinigungsstufe geplant'},
+];
+
+// ── Roadmap events ────────────────────────────────────────────────────────
+var ROADMAP=[
+  {year:2025,label:'EU-Richtlinie in Kraft',above:true,color:'#6366f1'},
+  {year:2027,label:'Bewirtschaftungsplan + Energieaudit',above:false,color:'#f59e0b'},
+  {year:2028,label:'Virenmonitoring Pflicht',above:true,color:'#ef4444'},
+  {year:2030,label:'4. Stufe >150k EW',above:false,color:'#ef4444'},
+  {year:2035,label:'N/P-Grenzwerte verschärft + 4. Stufe 10-150k EW',above:true,color:'#ef4444'},
+  {year:2039,label:'4. Stufe alle >10k EW',above:false,color:'#ef4444'},
+  {year:2040,label:'Energieneutralität',above:true,color:'#10b981'},
+];
+
 // ── Info content ──────────────────────────────────────────────────────────
 var INFO={
-  ghg_total:{
-    title:'THG-Gesamtemissionen',sub:'Treibhausgase nach GHG-Protocol',
-    secs:[
-      {l:'Berechnung',f:'Gesamt = Scope 1 + Scope 2 + Scope 3  [t CO₂e]'},
-      {l:'Scope 1 – Direkte Emissionen',t:'Prozessemissionen aus N₂O (Nitrifikation/Denitrifikation), CH₄ (Faulgasanlage, offene Becken) sowie Verbrennung fossiler Brennstoffe (Heizöl, Erdgas).'},
-      {l:'Scope 2 – Indirekte Emissionen',t:'Netto-Stromverbrauch × nationalem Emissionsfaktor des Stromnetzes.'},
-      {l:'Scope 3 – Vorgelagerte Kette',t:'Klärschlammtransport/-entsorgung und Emissionen aus Betriebschemikalien (Eisensulfat, Polyelektrolyt).'},
-      {l:'Referenz',t:'GHG-Protocol Corporate Standard · IPCC AR6 GWP-Werte · DWA-Merkblatt M 230'}
-    ]
-  },
-  specific_em:{
-    title:'Spezifische Emission',sub:'Normierte Kennzahl für den Anlagenvergleich',
-    secs:[
-      {l:'Formel',f:'sp = Gesamt-THG [t CO₂e] / (angeschl. EW / 1000)\n→ Einheit: kg CO₂e / EW'},
-      {l:'Benchmarks (Literatur)',f:'< 20 kg CO₂e/EW  →  sehr gut\n20–35 kg CO₂e/EW  →  gut\n35–50 kg CO₂e/EW  →  durchschnittlich\n> 50 kg CO₂e/EW  →  Optimierungsbedarf'},
-      {l:'Hinweis',t:'Abhängig von EW, Industrieeinleitern und Schmutzfracht. Vergleiche nur innerhalb ähnlicher Größenklassen.'}
-    ]
-  },
-  compliance:{
-    title:'Compliance-Score',sub:'Prozentsatz eingehaltener Grenzwerte',
-    secs:[
-      {l:'Formel',f:'Score = (Anzahl eingehaltener Parameter / Gesamtparameter) × 100  [%]'},
-      {l:'Bewertung',f:'≥ 95 %  →  Grün (compliant)\n80–94 % →  Gelb (Warnung)\n< 80 %  →  Rot (Verstoß)'},
-      {l:'Prüfparameter',t:'CSB, BSB₅, Abfiltrierbare Stoffe (SS), TN, TP, NH₄-N – je nach Größenklasse GK1–GK5.'},
-      {l:'Rechtsgrundlage',t:'EU-Richtlinie 2024/3019 (Neufassung UWRL) · Anhang I Tabelle 1 und 2 · AbwV Anhang 1'}
-    ]
-  },
-  violations:{
-    title:'Grenzwertverstöße',sub:'Anzahl der Überschreitungen über alle Monate',
-    secs:[
-      {l:'Definition',t:'Ein Verstoß liegt vor, wenn der Ablaufwert den Grenzwert der EU-Richtlinie 2024/3019 für die jeweilige Größenklasse überschreitet.'},
-      {l:'Konsequenzen',f:'1–2 Verstöße/Jahr → Verwarnungsbereich\n3+ Verstöße/Jahr → Zwangsmaßnahmen möglich\nSchwerwiegend → Bußgeld bis 2 % des Jahresumsatzes'},
-      {l:'CSB-Grenzwerte nach Größenklasse',f:'GK1: 150 mg/L\nGK2: 125 mg/L\nGK3:  90 mg/L\nGK4:  75 mg/L\nGK5:  75 mg/L'}
-    ]
-  },
-  net_power:{
-    title:'Strombezug (netto)',sub:'Aus dem Netz bezogener Strom nach Eigenproduktion',
-    secs:[
-      {l:'Formel',f:'Netto = Strombezug gesamt − Eigenproduktion (BHKW)  [kWh]'},
-      {l:'Bedeutung',t:'Nur der Nettostromverbrauch fließt in Scope-2-Emissionen ein. Eigenproduktion aus Biogas/BHKW reduziert den Nettobezug direkt.'},
-      {l:'Benchmark (DWA M 271)',t:'30–60 kWh/(EW·a) für kommunale Kläranlagen der GK 4/5.'}
-    ]
-  },
-  biogas:{
-    title:'Biogasproduktion',sub:'Faulgas aus der anaeroben Schlammstabilisierung',
-    secs:[
-      {l:'Typische Zusammensetzung',f:'CH₄:  60–70 %\nCO₂:  30–40 %\nSpuren: H₂S, N₂, H₂'},
-      {l:'Energiegehalt',f:'Hu(CH₄) ≈ 9,97 kWh/m³\nHeizwert Biogas ≈ 6,5 kWh/m³ (bei 65 % CH₄)'},
-      {l:'CH₄-Emissionen (Scope 1)',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000\nρ(CH₄) = 0,717 kg/m³ | Leckagefaktor = 2 %'},
-      {l:'Benchmark',t:'20–30 L Biogas/(EW·d) bei Faulungsanlagen mit Primär- und Überschussschlamm.'}
-    ]
-  },
-  scope1:{
-    title:'Scope 1 – Direkte Emissionen',sub:'Prozess- und Verbrennungsemissionen der Anlage',
-    secs:[
-      {l:'N₂O-Formel (IPCC 2019)',f:'E_N2O = (TN_Zulauf/1000) × V_Zufluss × 0,016 × (44/28) × GWP_N2O / 1000\n→ Einheit: t CO₂e'},
-      {l:'Erläuterung N₂O',t:'EF = 0,016 kg N₂O-N/kg TN (IPCC 2019 Refinement). Faktor 44/28 konvertiert N₂O-N → N₂O. GWP₁₀₀ = 273 (IPCC AR6).'},
-      {l:'CH₄-Formel',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000\n→ Einheit: t CO₂e'},
-      {l:'Heizöl',f:'E_Öl = V_Heizöl [L] × 2,65 [kg CO₂e/L] / 1000\n→ Einheit: t CO₂e'}
-    ]
-  },
-  scope2:{
-    title:'Scope 2 – Indirekte Emissionen',sub:'Strombezogene Treibhausgase',
-    secs:[
-      {l:'Formel',f:'E_Strom = max(0, Bezug − Eigenproduktion) [kWh] × EF_Netz [g/kWh] / 1.000.000\n→ Einheit: t CO₂e'},
-      {l:'Emissionsfaktoren Stromnetz 2023',f:'Deutschland: ~380–420 g CO₂e/kWh (UBA)\nÖsterreich: ~158 g CO₂e/kWh\nSchweiz:    ~42 g CO₂e/kWh\nEU-27-Ø:   ~233 g CO₂e/kWh'},
-      {l:'Market vs. Location Based',t:'GHG-Protocol erlaubt wahlweise den standortbezogenen Netzfaktor (location-based) oder einen vertragsbasierten Wert z. B. bei Herkunftsnachweisen (market-based).'}
-    ]
-  },
-  scope3:{
-    title:'Scope 3 – Vorgelagerte Emissionen',sub:'Indirekte Emissionen aus der Wertschöpfungskette',
-    secs:[
-      {l:'Klärschlamm-Transport',f:'E_Transport = m_Schlamm [t] × d_Transport [km] × EF [kg CO₂e/(t·km)] / 1000\nEF_LKW ≈ 0,092 kg CO₂e/(t·km) (TREMOD/ifeu)'},
-      {l:'Chemikalien',f:'E_Chem = m_FeSO4 × EF_FeSO4 + m_Poly × EF_Poly  [kg CO₂e]\nEF_FeSO4 ≈ 0,30 kg CO₂e/kg\nEF_Poly  ≈ 2,50 kg CO₂e/kg'},
-      {l:'Hinweis',t:'Scope-3-Emissionen aus Chemikalien oft unterschätzt: Polyelektrolyt hat einen 8× höheren EF als Eisensulfat.'}
-    ]
-  },
-  CSB:{
-    title:'CSB – Chemischer Sauerstoffbedarf',sub:'Chemical Oxygen Demand (COD)',
-    secs:[
-      {l:'Definition',t:'Maß für die Gesamtheit oxidierbarer organischer Substanzen im Wasser. Gibt den Sauerstoffbedarf zur vollständigen chemischen Oxidation an.'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 150 mg/L\nGK2: 125 mg/L\nGK3:  90 mg/L\nGK4:  75 mg/L\nGK5:  75 mg/L'},
-      {l:'Analysemethode',t:'Dichromatverfahren (ISO 6060). Dauer: 2 h Aufschluss. Messung im Ablauf als 2-h-Mischprobe oder qualifizierte Stichprobe.'}
-    ]
-  },
-  BSB5:{
-    title:'BSB₅ – Biochemischer Sauerstoffbedarf (5 Tage)',sub:'Biological Oxygen Demand – 5 days',
-    secs:[
-      {l:'Definition',t:'Sauerstoffmenge, die Mikroorganismen bei 20°C in 5 Tagen zur Oxidation organischer Substanz benötigen. Maß für biologisch abbaubare Organik.'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 25 mg/L\nGK2: 25 mg/L\nGK3: 20 mg/L\nGK4: 15 mg/L\nGK5: 10 mg/L'},
-      {l:'BSB/CSB-Verhältnis',t:'BSB₅/CSB ≈ 0,5 für kommunales Abwasser (gut abbaubar). Verhältnis < 0,3 deutet auf schwer abbaubare Verbindungen hin (Industrieabwasser).'}
-    ]
-  },
-  SS:{
-    title:'SS – Abfiltrierbare Stoffe (Schwebstoffe)',sub:'Suspended Solids',
-    secs:[
-      {l:'Definition',t:'Masse aller Stoffe, die auf einem Membranfilter (0,45 µm) zurückgehalten werden. Umfasst Schwebstoffe und suspendierte Partikel.'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 150 mg/L\nGK2:  35 mg/L\nGK3:  35 mg/L\nGK4:  20 mg/L\nGK5:  20 mg/L'},
-      {l:'Zusammenhang BSB/CSB',t:'Hohe SS-Werte erhöhen auch CSB und BSB₅. Ursachen: Nachklärer-Probleme, Blähschlamm (SVI > 150 mL/g), Schwimmschlamm.'}
-    ]
-  },
-  TN:{
-    title:'TN – Gesamtstickstoff',sub:'Total Nitrogen',
-    secs:[
-      {l:'Zusammensetzung',f:'TN = NH₄-N + NO₃-N + NO₂-N + organisch-N\nBei gut behandeltem Ablauf dominiert NO₃-N.'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3: 15 mg/L\nGK4: 13 mg/L\nGK5: 10 mg/L'},
-      {l:'Eutrophierung',t:'Stickstoff ist Hauptursache für Eutrophierung in Küstengewässern (HELCOM). N-Elimination über Nitrifikation → Denitrifikation.'},
-      {l:'N₂O-Relevanz',t:'Hohe TN-Zulauflast erhöht N₂O-Emissionsrisiko (Scope 1). IPCC-EF: 0,016 kg N₂O-N / kg N_Zulauf.'}
-    ]
-  },
-  TP:{
-    title:'TP – Gesamtphosphor',sub:'Total Phosphorus',
-    secs:[
-      {l:'Fraktionen',t:'TP = Ortho-P + Polyphosphat-P + organisch-P. Ortho-P (PO₄³⁻) ist biologisch direkt verfügbar und eutrophierungsrelevant.'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3: 2,0 mg/L\nGK4: 1,0 mg/L\nGK5: 1,0 mg/L'},
-      {l:'Eliminationsverfahren',t:'Biologisch (PAO-Bakterien, Luxury Uptake) oder chemisch (Simultanfällung mit FeSO₄/AlCl₃). Chemische Fällung erzeugt Scope-3-Emissionen.'}
-    ]
-  },
-  NH4:{
-    title:'NH₄-N – Ammoniumstickstoff',sub:'Ammonium Nitrogen',
-    secs:[
-      {l:'Definition',t:'Ammonium (NH₄⁺) und freies Ammoniak (NH₃) als Summenparameter NH₄-N. Toxisch für Fische ab ~0,02 mg NH₃-N/L (pH-abhängig).'},
-      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3–GK5: 10 mg/L\n(Jahresmittel, gültig bei T > 12°C)'},
-      {l:'Nitrifikation',t:'NH₄⁺ → NO₂⁻ → NO₃⁻ durch Nitrosomonas/Nitrobacter. Vollständige Nitrifikation bei SRT > 10 d und T > 8°C.'},
-      {l:'N₂O-Bildung',t:'Unvollständige Nitrifikation/Denitrifikation erzeugt N₂O (Scope 1). Ammoniumspitzen im Zulauf erhöhen das Emissionsrisiko.'}
-    ]
-  },
-  coverage:{
-    title:'Eigendeckungsgrad',sub:'Anteil selbsterzeugten Stroms am Gesamtverbrauch',
-    secs:[
-      {l:'Formel',f:'Eigendeckung = (Eigenproduktion / Strombezug gesamt) × 100  [%]'},
-      {l:'Benchmarks (DWA M 271)',f:'< 30 %  →  Verbesserungspotenzial\n30–50 % →  durchschnittlich\n50–80 % →  gut\n> 80 %  →  sehr gut (annähernd energieautark)'},
-      {l:'Maßnahmen zur Steigerung',t:'1. Kofermentation (Fette, Speisereste) zur Biogaserhöhung\n2. Verbesserung des BHKW-Wirkungsgrads (η_el > 40 %)\n3. Senkung des Eigenverbrauchs (Belüftungsoptimierung)\n4. PV-Anlage auf Betriebsgebäuden'}
-    ]
-  },
-  methane:{
-    title:'Methangehalt im Biogas',sub:'Qualitätsmerkmal des Faulgases',
-    secs:[
-      {l:'Typischer Bereich',t:'60–70 % CH₄ für kommunalen Klärschlamm. Werte < 58 % deuten auf Betriebsprobleme hin (Überlastung, Temperaturabfall im Faulturm).'},
-      {l:'Energieberechnung',f:'P_BHKW = V_Biogas [m³/h] × (CH4%/100) × 9,97 kWh/m³ × η_el\nη_el ≈ 0,38–0,42 für moderne BHKW'},
-      {l:'CH₄-Schlupf (Scope 1)',t:'Ungenutztes CH₄ (Fackel, Leckagen) trägt zu Scope-1-Emissionen bei. Leckagerate typisch 1–3 %. GWP(CH₄) = 27,9 (IPCC AR6).'}
-    ]
-  },
-  ef:{
-    title:'Emissionsfaktor Stromnetz',sub:'Spezifische CO₂-Emissionen der Stromerzeugung',
-    secs:[
-      {l:'Verwendung in Scope 2',f:'E = P_netto [kWh] × EF [g CO₂e/kWh] / 1.000.000\n→ Einheit: t CO₂e'},
-      {l:'Aktuelle Werte (2023)',f:'Deutschland:  ~380–420 g/kWh (UBA 2023)\nÖsterreich:    ~158 g/kWh\nSchweiz:        ~42 g/kWh\nEU-27-Ø:       ~233 g/kWh\nFrankreich:     ~56 g/kWh (hoher Kernkraftanteil)'},
-      {l:'Trend',t:'Der EF sinkt durch Ausbau erneuerbarer Energien. Prognose DE 2030: ~200 g/kWh bei 80 % EE-Ziel (EEG 2023).'}
-    ]
-  }
+  ghg_total:{title:'THG-Gesamtemissionen',sub:'Treibhausgase nach GHG-Protocol',secs:[
+    {l:'Berechnung',f:'Gesamt = Scope 1 + Scope 2 + Scope 3  [t CO₂e]'},
+    {l:'Scope 1 – Direkte Emissionen',t:'Prozessemissionen aus N₂O, CH₄ sowie Verbrennung fossiler Brennstoffe.'},
+    {l:'Scope 2 – Indirekte Emissionen',t:'Netto-Stromverbrauch × nationalem Emissionsfaktor.'},
+    {l:'Scope 3 – Vorgelagerte Kette',t:'Klärschlammtransport/-entsorgung + Betriebschemikalien.'},
+    {l:'Referenz',t:'GHG-Protocol Corporate Standard · IPCC AR6 · DWA M 230'}
+  ]},
+  specific_em:{title:'Spezifische Emission',sub:'Normierte Kennzahl für den Anlagenvergleich',secs:[
+    {l:'Formel',f:'sp = Gesamt-THG [t CO₂e] / (angeschl. EW / 1000)  →  [kg CO₂e / EW]'},
+    {l:'Benchmarks',f:'< 20 kg CO₂e/EW  → sehr gut\n20–35  → gut\n35–50  → durchschnittlich\n> 50  → Optimierungsbedarf'},
+    {l:'Hinweis',t:'Nur innerhalb ähnlicher Größenklassen vergleichen.'}
+  ]},
+  compliance:{title:'Compliance-Score',sub:'Prozentsatz eingehaltener Grenzwerte',secs:[
+    {l:'Formel',f:'Score = (eingehaltene Parameter / Gesamtparameter) × 100  [%]'},
+    {l:'Bewertung',f:'≥ 95 % → Grün\n80–94 % → Gelb\n< 80 % → Rot'},
+    {l:'Rechtsgrundlage',t:'EU-Richtlinie 2024/3019 · Anhang I · AbwV Anhang 1'}
+  ]},
+  violations:{title:'Grenzwertverstöße',sub:'Anzahl der Überschreitungen',secs:[
+    {l:'Definition',t:'Ablaufwert überschreitet den EU-KARL-Grenzwert der Größenklasse.'},
+    {l:'Konsequenzen',f:'1–2/Jahr → Verwarnung\n3+/Jahr → Zwangsmaßnahmen möglich\nSchwerwiegend → Bußgeld bis 2 % Jahresumsatz'},
+    {l:'CSB-Grenzwerte',f:'GK1: 150 | GK2: 125 | GK3: 90 | GK4: 75 | GK5: 75  [mg/L]'}
+  ]},
+  net_power:{title:'Strombezug (netto)',sub:'Aus dem Netz bezogener Strom nach Eigenproduktion',secs:[
+    {l:'Formel',f:'Netto = Strombezug gesamt − Eigenproduktion (BHKW)  [kWh]'},
+    {l:'Benchmark (DWA)',t:'30–60 kWh/(EW·a) für kommunale Kläranlagen GK4/5.'}
+  ]},
+  biogas:{title:'Biogasproduktion',sub:'Faulgas aus der anaeroben Schlammstabilisierung',secs:[
+    {l:'Zusammensetzung',f:'CH₄: 60–70 %  |  CO₂: 30–40 %  |  Spuren: H₂S, N₂'},
+    {l:'CH₄-Emissionen',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000'},
+    {l:'Benchmark',t:'20–30 L Biogas/(EW·d) bei Faulungsanlagen.'}
+  ]},
+  scope1:{title:'Scope 1 – Direkte Emissionen',sub:'Prozess- und Verbrennungsemissionen',secs:[
+    {l:'N₂O-Formel',f:'E_N2O = (TN_Zulauf/1000) × V_Zufluss × 0,016 × (44/28) × GWP_N2O / 1000'},
+    {l:'CH₄-Formel',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000'},
+    {l:'Heizöl',f:'E_Öl = V_Heizöl [L] × 2,65 [kg CO₂e/L] / 1000'}
+  ]},
+  scope2:{title:'Scope 2 – Indirekte Emissionen',sub:'Strombezogene Treibhausgase',secs:[
+    {l:'Formel',f:'E = max(0, Bezug − Erzeugung) [kWh] × EF_Netz [g/kWh] / 1.000.000'},
+    {l:'EF Stromnetz 2023',f:'DE: ~400 g/kWh | AT: ~158 | CH: ~42 | EU-Ø: ~233'}
+  ]},
+  scope3:{title:'Scope 3 – Vorgelagerte Emissionen',sub:'Indirekte Wertschöpfungskette',secs:[
+    {l:'Transport',f:'E = m_Schlamm [t] × km × 0,092 [kg CO₂e/(t·km)] / 1000'},
+    {l:'Chemikalien',f:'EF_FeSO4 ≈ 0,30 kg CO₂e/kg | EF_Poly ≈ 2,50 kg CO₂e/kg'}
+  ]},
+  CSB:{title:'CSB – Chemischer Sauerstoffbedarf',sub:'Chemical Oxygen Demand',secs:[
+    {l:'Definition',t:'Sauerstoffbedarf zur vollständigen chemischen Oxidation organischer Substanzen.'},
+    {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 150 | GK2: 125 | GK3: 90 | GK4: 75 | GK5: 75  [mg/L]'}
+  ]},
+  BSB5:{title:'BSB₅ – Biochemischer Sauerstoffbedarf',sub:'Biological Oxygen Demand – 5 days',secs:[
+    {l:'Definition',t:'Sauerstoffbedarf von Mikroorganismen bei 20°C in 5 Tagen.'},
+    {l:'Grenzwerte',f:'GK1: 25 | GK2: 25 | GK3: 20 | GK4: 15 | GK5: 10  [mg/L]'}
+  ]},
+  SS:{title:'SS – Abfiltrierbare Stoffe',sub:'Suspended Solids',secs:[
+    {l:'Definition',t:'Auf Membranfilter (0,45 µm) zurückgehaltene Stoffe.'},
+    {l:'Grenzwerte',f:'GK1: 150 | GK2: 35 | GK3: 35 | GK4: 20 | GK5: 20  [mg/L]'}
+  ]},
+  TN:{title:'TN – Gesamtstickstoff',sub:'Total Nitrogen',secs:[
+    {l:'Zusammensetzung',f:'TN = NH₄-N + NO₃-N + NO₂-N + org.-N'},
+    {l:'Grenzwerte',f:'GK3: 15 | GK4: 13 | GK5: 10  [mg/L]'},
+    {l:'N₂O-Relevanz',t:'IPCC-EF: 0,016 kg N₂O-N / kg N_Zulauf → Scope-1-Emission.'}
+  ]},
+  TP:{title:'TP – Gesamtphosphor',sub:'Total Phosphorus',secs:[
+    {l:'Grenzwerte',f:'GK3: 2,0 | GK4: 1,0 | GK5: 1,0  [mg/L]'},
+    {l:'Elimination',t:'Biologisch (PAO) oder chemisch (Simultanfällung mit FeSO₄).'}
+  ]},
+  NH4:{title:'NH₄-N – Ammoniumstickstoff',sub:'Ammonium Nitrogen',secs:[
+    {l:'Grenzwerte',f:'GK3–GK5: 10 mg/L (T > 12°C, Jahresmittel)'},
+    {l:'Nitrifikation',t:'NH₄⁺ → NO₂⁻ → NO₃⁻ durch Nitrosomonas/Nitrobacter. SRT > 10 d, T > 8°C.'}
+  ]},
+  coverage:{title:'Eigendeckungsgrad',sub:'Anteil selbsterzeugten Stroms',secs:[
+    {l:'Formel',f:'Eigendeckung = (Eigenproduktion / Strombezug gesamt) × 100  [%]'},
+    {l:'Benchmarks (DWA M 271)',f:'< 30 % → Potenzial | 30–50 % → durchschnittlich\n50–80 % → gut | > 80 % → sehr gut'}
+  ]},
+  methane:{title:'Methangehalt im Biogas',sub:'Qualitätsmerkmal des Faulgases',secs:[
+    {l:'Typischer Bereich',t:'60–70 % CH₄. Werte < 58 % deuten auf Betriebsprobleme hin.'},
+    {l:'Energieberechnung',f:'P_BHKW = V_Biogas × (CH4%/100) × 9,97 kWh/m³ × η_el\nη_el ≈ 0,38–0,42'}
+  ]},
+  ef:{title:'Emissionsfaktor Stromnetz',sub:'Spezifische CO₂-Emissionen der Stromerzeugung',secs:[
+    {l:'Formel',f:'E = P_netto [kWh] × EF [g/kWh] / 1.000.000  [t CO₂e]'},
+    {l:'Werte 2023',f:'DE: ~400 g/kWh | AT: ~158 | EU-Ø: ~233 | CH: ~42'}
+  ]},
 };
 
 // ── Reducer ───────────────────────────────────────────────────────────────
@@ -271,12 +274,9 @@ function calcEm(r,s){
 }
 function calcComp(r,sc){
   var chk=[
-    {p:'CSB',v:r.effluentCSB,lim:KL.CSB[sc]},
-    {p:'BSB5',v:r.effluentBSB5,lim:KL.BSB5[sc]},
-    {p:'SS',v:r.effluentSS,lim:KL.SS[sc]},
-    {p:'TN',v:r.effluentTN,lim:KL.TN[sc]},
-    {p:'TP',v:r.effluentTP,lim:KL.TP[sc]},
-    {p:'NH4',v:r.effluentNH4,lim:KL.NH4[sc]},
+    {p:'CSB',v:r.effluentCSB,lim:KL.CSB[sc]},{p:'BSB5',v:r.effluentBSB5,lim:KL.BSB5[sc]},
+    {p:'SS',v:r.effluentSS,lim:KL.SS[sc]},{p:'TN',v:r.effluentTN,lim:KL.TN[sc]},
+    {p:'TP',v:r.effluentTP,lim:KL.TP[sc]},{p:'NH4',v:r.effluentNH4,lim:KL.NH4[sc]},
   ].filter(function(c){return c.lim!=null;});
   var viol=chk.filter(function(c){return c.v>c.lim;});
   var score=chk.length?Math.round(((chk.length-viol.length)/chk.length)*100):100;
@@ -312,6 +312,171 @@ function f(n,d){d=d==null?1:d;return typeof n==='number'&&!isNaN(n)?n.toFixed(d)
 function fd(r){return MO[r.month]+' '+r.year;}
 function g(cond,a,b){return cond?a:(b||null);}
 
+// ── Benchmark helpers ─────────────────────────────────────────────────────
+function avgField(readings,k){
+  if(!readings.length)return 0;
+  return readings.reduce(function(a,r){return a+(r[k]||0);},0)/readings.length;
+}
+function calculateAnnualKPIs(readings,settings){
+  if(!readings.length)return null;
+  var r=readings.slice(-12);
+  var sumF=function(k){return r.reduce(function(a,x){return a+(x[k]||0);},0);};
+  var avgF=function(k){return r.reduce(function(a,x){return a+(x[k]||0);},0)/r.length;};
+  var totPwr=sumF('powerConsumption');
+  var totGen=sumF('powerGeneration');
+  var avgEW=avgF('connectedEW');
+  var totEm=r.reduce(function(a,x){return a+calcEm(x,settings).tot;},0);
+  var avgCSBin=avgF('inflowCSB');var avgCSBout=avgF('effluentCSB');
+  var avgTNin=avgF('inflowTN');var avgTNout=avgF('effluentTN');
+  var avgTPout=avgF('effluentTP');
+  var typTPinlet=8;
+  return{
+    energyPerEW:avgEW>0?totPwr/avgEW:0,
+    selfSupply:totPwr>0?(totGen/totPwr*100):0,
+    csbElimination:avgCSBin>0?(avgCSBin-avgCSBout)/avgCSBin*100:0,
+    pElimination:Math.max(0,(typTPinlet-avgTPout)/typTPinlet*100),
+    nElimination:avgTNin>0?(avgTNin-avgTNout)/avgTNin*100:0,
+    co2ePerEW:avgEW>0?(totEm*1000/avgEW):0,
+    connectedEW:avgEW,
+    selfSupplyRaw:totPwr>0?(totGen/totPwr*100):0,
+    avgTPout:avgTPout,
+    avgTNout:avgTNout,
+    bmEnergyMedian:(DWA_BM.energyPerEW['GK4']||{median:32}).median,
+  };
+}
+function getRating(value,bm,hib){
+  if(hib===false){
+    if(value<=bm.p25)return{label:'🏆 Vorbildlich',cls:'text-green-400',txt:'Besser als 75% der Anlagen'};
+    if(value<=bm.median)return{label:'✅ Gut',cls:'text-green-300',txt:'Besser als 50% der Anlagen'};
+    if(value<=bm.p75)return{label:'⚠️ Durchschnitt',cls:'text-yellow-400',txt:'Schlechter als 50% der Anlagen'};
+    return{label:'🔴 Handlungsbedarf',cls:'text-red-400',txt:'Im untersten Quartil'};
+  }else{
+    if(value>=bm.p75)return{label:'🏆 Vorbildlich',cls:'text-green-400',txt:'Besser als 75% der Anlagen'};
+    if(value>=bm.median)return{label:'✅ Gut',cls:'text-green-300',txt:'Besser als 50% der Anlagen'};
+    if(value>=bm.p25)return{label:'⚠️ Durchschnitt',cls:'text-yellow-400',txt:'Schlechter als 50% der Anlagen'};
+    return{label:'🔴 Handlungsbedarf',cls:'text-red-400',txt:'Im untersten Quartil'};
+  }
+}
+
+// ── MEASURES ──────────────────────────────────────────────────────────────
+var MEASURES=[
+  {id:'pv_install',cat:'Energie',prio:'high',effort:'medium',deadline:2040,
+   title:'Photovoltaik nachrüsten',
+   desc:'Installation einer PV-Anlage auf Dach- und Freiflächen zur Eigenstromerzeugung.',
+   karlRef:'Energieneutralität bis 2040 (KARL Art. 11)',
+   invest:'200.000 – 800.000 €',amort:'8–12 Jahre',
+   funding:'KfW 270 (Erneuerbare Energien), Bundesförderung EE',
+   steps:['Standortanalyse und Flächenpotenzial ermitteln (Dachstatik, Verschattung)','Wirtschaftlichkeitsberechnung: Eigenverbrauch vs. Einspeisung','Ausschreibung und Genehmigungsverfahren einleiten'],
+   trigger:function(kpis){return kpis.selfSupply<40;},
+   triggerLabel:'Eigenversorgungsgrad unter 40%',
+   sim:{param:'powerGeneration',unit:'%',label:'Zusätzliche PV-Erzeugung',min:0,max:30,step:5,
+     effect:function(readings,delta){return readings.map(function(r){return Object.assign({},r,{powerGeneration:r.powerGeneration*(1+delta/100)});});}}},
+  {id:'biogas_opt',cat:'Energie',prio:'high',effort:'low',deadline:2040,
+   title:'Biogasnutzung optimieren',
+   desc:'Erhöhung des Biogasertrags durch Co-Substrat-Zugabe oder Optimierung der Faulraumtemperatur. Reduziert gleichzeitig CH₄-Leckagen.',
+   karlRef:'Energieneutralität + Scope-1-THG-Reduktion',
+   invest:'50.000 – 200.000 €',amort:'4–7 Jahre',
+   funding:'BAFA Energieberatung, Länderprogramme',
+   steps:['Biogasertrag und Methangehalt messtechnisch erfassen','Co-Substrat-Potenzial (Fette, Speisereste) prüfen','BHKW-Wirkungsgrad und Leckagerate analysieren'],
+   trigger:function(kpis){return kpis.selfSupply<50;},
+   triggerLabel:'Biogaspotenzial nicht ausgeschöpft',
+   sim:{param:'biogas',unit:'%',label:'Biogassteigerung',min:0,max:25,step:5,
+     effect:function(readings,delta){return readings.map(function(r){return Object.assign({},r,{biogas:r.biogas*(1+delta/100),powerGeneration:r.powerGeneration*(1+delta/100*0.8)});});}}},
+  {id:'energy_audit',cat:'Compliance',prio:'critical',effort:'low',deadline:2027,
+   title:'Energieaudit durchführen',
+   desc:'Pflichtaudit nach KARL alle 4 Jahre. Identifiziert Einsparpotenziale bei Belüftung, Pumpen und Prozesssteuerung.',
+   karlRef:'KARL Art. 11 Abs. 3 – Pflicht alle 4 Jahre',
+   invest:'5.000 – 20.000 €',amort:'< 1 Jahr (durch identifizierte Maßnahmen)',
+   funding:'BAFA Energieberatung für KMU',
+   steps:['Akkreditierten Energieauditor beauftragen','Verbrauchsschwerpunkte aufnehmen (Belüftung, Pumpen, Gebäude)','Maßnahmenkatalog mit Wirtschaftlichkeitsbewertung erstellen'],
+   trigger:function(kpis){return true;},
+   triggerLabel:'Energieaudit erstmalig oder überfällig',sim:null},
+  {id:'aeration_opt',cat:'Energie',prio:'high',effort:'medium',deadline:2040,
+   title:'Belüftungsoptimierung',
+   desc:'Modernisierung der Belüftungsanlage (Feinblasenbegasung, bedarfsgerechte Steuerung). 50–70% des Anlagenstromverbrauchs entfallen auf die Belüftung.',
+   karlRef:'Energieneutralität bis 2040',
+   invest:'100.000 – 500.000 €',amort:'5–10 Jahre',
+   funding:'KfW 293 Bundesförderung Energie, Länderprogramme',
+   steps:['Sauerstoffmessungen und Belüftungskennlinien aufnehmen','Bedarfsgerechte Steuerung (O₂-Regelung) implementieren','Membranbelüfter auf Alterung und Wirkungsgrad prüfen'],
+   trigger:function(kpis){return kpis.energyPerEW>32;},
+   triggerLabel:'Stromverbrauch über Branchendurchschnitt',
+   sim:{param:'powerConsumption',unit:'%',label:'Stromeinsparung Belüftung',min:0,max:20,step:2,
+     effect:function(readings,delta){return readings.map(function(r){return Object.assign({},r,{powerConsumption:r.powerConsumption*(1-delta/100)});});}}},
+  {id:'phosphor_opt',cat:'Grenzwerte',prio:'high',effort:'low',deadline:2035,
+   title:'Phosphorfällung optimieren',
+   desc:'Anpassung der Fällmittelzugabe und -steuerung zur sicheren Unterschreitung des KARL-TP-Grenzwerts von 1,0 mg/L.',
+   karlRef:'KARL TP-Grenzwert 1,0 mg/L ab 2035 (GK4/5)',
+   invest:'10.000 – 50.000 €',amort:'2–4 Jahre',
+   funding:'Einsparung Abwasserabgabe bei Grenzwerteinhaltung',
+   steps:['Online-Phosphatmessung im Ablauf installieren','Fällmitteldosierung auf Messwert-basierte Regelung umstellen','Schlammrezirkulation und Simultanfällung optimieren'],
+   trigger:function(kpis){return kpis.avgTPout>0.85;},
+   triggerLabel:'TP-Ablaufwert nähert sich KARL-Grenzwert',
+   sim:{param:'effluentTP',unit:'mg/L Reduktion',label:'TP-Ablaufverbesserung',min:0,max:0.5,step:0.05,
+     effect:function(readings,delta){return readings.map(function(r){return Object.assign({},r,{effluentTP:Math.max(0.1,r.effluentTP-delta)});});}}},
+  {id:'denitrif',cat:'Grenzwerte',prio:'medium',effort:'high',deadline:2035,
+   title:'Denitrifikation verbessern',
+   desc:'Erweiterung der Denitrifikationsstufe zur Einhaltung des KARL-verschärften TN-Grenzwerts von 13 mg/L (GK4). Positiver Nebeneffekt: N₂O-Reduktion (Scope 1).',
+   karlRef:'KARL TN-Grenzwert 13 mg/L ab 2035',
+   invest:'50.000 – 300.000 €',amort:'6–10 Jahre',
+   funding:'Landesförderung Gewässerschutz',
+   steps:['Stickstoffbilanz und Schlammbelastung berechnen','Denitrifikationsvolumen und Rezirkulationsrate optimieren','Externe Kohlenstoffquelle (Methanol/Essigsäure) prüfen'],
+   trigger:function(kpis){return kpis.avgTNout>11;},
+   triggerLabel:'TN-Ablaufwert nähert sich KARL-Grenzwert',
+   sim:{param:'effluentTN',unit:'mg/L Reduktion',label:'TN-Ablaufverbesserung',min:0,max:3,step:0.5,
+     effect:function(readings,delta){return readings.map(function(r){return Object.assign({},r,{effluentTN:Math.max(3,r.effluentTN-delta)});});}}},
+  {id:'stage4',cat:'KARL-Pflicht',prio:'critical',effort:'high',deadline:2039,
+   title:'4. Reinigungsstufe planen',
+   desc:'Planung und Genehmigung der vierten Reinigungsstufe (Ozonierung oder Aktivkohleadsorption) zur Entfernung von Mikroschadstoffen und Arzneimittelrückständen.',
+   karlRef:'KARL Art. 8 – Pflicht für >10.000 EW in Risikogebieten bis 2039',
+   invest:'500.000 – 5.000.000 €',amort:'Regulatorische Pflicht',
+   funding:'Länderförderprogramme (z.B. BW Spurenstoffelimination), KfW 270',
+   steps:['Risikogebietseinstufung beim Wasserwirtschaftsamt klären','Machbarkeitsstudie Ozon vs. Aktivkohle erstellen','Förderantrag und Genehmigungsverfahren einleiten'],
+   trigger:function(kpis){return kpis.connectedEW>10000;},
+   triggerLabel:'Anlage >10.000 EW – 4. Stufe wird Pflicht',sim:null},
+  {id:'virus_mon',cat:'KARL-Pflicht',prio:'critical',effort:'medium',deadline:2028,
+   title:'Virenmonitoring einrichten',
+   desc:'Aufbau eines systematischen Abwassermonitorings auf Viren (SARS-CoV-2, Noroviren) und Antibiotikaresistenzen gemäß KARL Public-Health-Anforderungen.',
+   karlRef:'KARL Art. 21 – Virenmonitoring Pflicht ab 2028',
+   invest:'20.000 – 80.000 €/Jahr (Laborkosten)',amort:'Regulatorische Pflicht',
+   funding:'Bundesgesundheitsministerium, RKI-Kooperationen',
+   steps:['Probenahmestandorte und -frequenz festlegen','Vertrag mit akkreditiertem Labor schließen','Berichtswesen an zuständige Behörde aufbauen'],
+   trigger:function(kpis){return true;},
+   triggerLabel:'Virenmonitoring noch nicht eingerichtet',sim:null},
+  {id:'phosphor_rec',cat:'Ressourcen',prio:'medium',effort:'high',deadline:2032,
+   title:'Phosphorrückgewinnung',
+   desc:'Installation einer Phosphorrückgewinnungsanlage (Struvit-Fällung). Reduziert Klärschlammentsorgungskosten und erschließt den Rohstoff Phosphor.',
+   karlRef:'KARL Ressourceneffizienz + KlärschlammV',
+   invest:'300.000 – 1.500.000 €',amort:'8–15 Jahre',
+   funding:'BMBF Forschungsprogramm, Länderprogramme',
+   steps:['Phosphorrückgewinnungspotenzial aus Schlammwasser bestimmen','Struvit-Fällanlage dimensionieren und planen','Vermarktungskonzept für Struvit-Dünger entwickeln'],
+   trigger:function(kpis){return kpis.connectedEW>50000;},
+   triggerLabel:'Anlage >50.000 EW – Phosphorrückgewinnung wirtschaftlich',sim:null},
+  {id:'rain_mgmt',cat:'KARL-Pflicht',prio:'critical',effort:'medium',deadline:2027,
+   title:'Bewirtschaftungsplan Niederschlagswasser',
+   desc:'Erstellung eines integrierten Bewirtschaftungsplans für Niederschlags- und Mischwasser gemäß KARL Art. 5.',
+   karlRef:'KARL Art. 5 – Bewirtschaftungsplan bis 2027',
+   invest:'15.000 – 60.000 € (Planungskosten)',amort:'Regulatorische Pflicht + Schadenvermeidung',
+   funding:'Länderförderung Hochwasserschutz',
+   steps:['Einzugsgebiet und Mischwassernetz kartieren','Entlastungsereignisse auswerten und Schwerpunkte ermitteln','Bewirtschaftungsplan mit Prioritätsmaßnahmen erstellen'],
+   trigger:function(kpis){return true;},
+   triggerLabel:'Bewirtschaftungsplan bis 2027 Pflicht',sim:null},
+];
+
+function getUrgencyScore(m){
+  var yr=new Date().getFullYear();
+  var yrs=m.deadline-yr;
+  var ds=yrs<3?40:yrs<6?25:10;
+  var ps={critical:40,high:25,medium:10}[m.prio]||0;
+  var ep={low:0,medium:5,high:10}[m.effort]||0;
+  return ds+ps-ep;
+}
+function getRecommendedMeasures(kpis){
+  return MEASURES
+    .filter(function(m){return m.trigger(kpis);})
+    .map(function(m){return Object.assign({},m,{urgency:getUrgencyScore(m)});})
+    .sort(function(a,b){return b.urgency-a.urgency;});
+}
+
 // ── Chart wrapper ─────────────────────────────────────────────────────────
 function CChart(p){
   var ref=useRef(null);var inst=useRef(null);
@@ -322,8 +487,7 @@ function CChart(p){
     try{inst.current=new Chart(ref.current,p.cfg);}catch(e){console.error('Chart error:',e);}
     return function(){if(inst.current){try{inst.current.destroy();}catch(e){} inst.current=null;}};
   },[key]);
-  return h('div',{style:{position:'relative',height:(p.h||220)+'px'}},
-    h('canvas',{ref:ref}));
+  return h('div',{style:{position:'relative',height:(p.h||220)+'px'}},h('canvas',{ref:ref}));
 }
 
 // ── Info Modal ────────────────────────────────────────────────────────────
@@ -343,8 +507,7 @@ function InfoModal(p){
       info.secs.map(function(s,i){
         return h('div',{key:i,className:'info-section'},
           h('div',{className:'info-label'},s.l),
-          s.f
-            ?h('div',{className:'formula'},s.f)
+          s.f?h('div',{className:'formula'},s.f)
             :h('div',{style:{fontSize:'.875rem',color:'#cbd5e1',lineHeight:'1.6',whiteSpace:'pre-line'}},s.t));
       })));
 }
@@ -352,8 +515,7 @@ function InfoModal(p){
 // ── Small components ──────────────────────────────────────────────────────
 function KPI(p){
   var clickable=!!p.ik;
-  return h('div',{
-    className:'card'+(clickable?' card-info':''),
+  return h('div',{className:'card'+(clickable?' card-info':''),
     onClick:clickable?function(){p.onInfo(p.ik);}:undefined},
     clickable&&h('span',{className:'info-icon'},'ⓘ'),
     h('div',{className:'text-xs text-gray-500 uppercase tracking-wide mb-1'},p.title),
@@ -370,13 +532,10 @@ function NBtn(p){
 // ── Dashboard ─────────────────────────────────────────────────────────────
 function Dashboard(p){
   var data=useMemo(function(){
-    return p.readings.map(function(r){
-      return Object.assign({},r,{em:calcEm(r,p.settings),co:calcComp(r,p.settings.sizeClass)});
-    });
+    return p.readings.map(function(r){return Object.assign({},r,{em:calcEm(r,p.settings),co:calcComp(r,p.settings.sizeClass)});});
   },[p.readings,p.settings]);
-  if(!data.length) return h('div',{className:'text-center text-gray-500 py-20'},
-    'Keine Daten – Tab ',h('strong',{className:'text-sky-400'},'📥 Daten'),
-    ' öffnen und Demodaten laden klicken.');
+  if(!data.length)return h('div',{className:'text-center text-gray-500 py-20'},
+    'Keine Daten – Tab ',h('strong',{className:'text-sky-400'},'📥 Daten'),' öffnen und Demodaten laden klicken.');
   var last=data[data.length-1];
   var avg=Math.round(data.reduce(function(a,d){return a+d.co.score;},0)/data.length);
   var vc=data.reduce(function(a,d){return a+d.co.viol.length;},0);
@@ -441,21 +600,19 @@ function Klimabilanz(p){
     {label:'N₂O',data:sl.map(function(d){return+d.em.n2o.toFixed(2);}),borderColor:'#ef4444',backgroundColor:'transparent',tension:.3,pointRadius:3},
     {label:'CH₄',data:sl.map(function(d){return+d.em.ch4.toFixed(2);}),borderColor:'#f97316',backgroundColor:'transparent',tension:.3,pointRadius:3},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
-
-  function SC(ik,colCls,titleTxt,valTxt,subTxt){
+  function SC2(ik,colCls,titleTxt,valTxt,subTxt){
     return h('div',{className:'card card-info',onClick:function(){p.onInfo(ik);}},
       h('span',{className:'info-icon'},'ⓘ'),
       h('div',{className:'text-xs text-gray-500 uppercase mb-2'},titleTxt),
       h('div',{className:'text-2xl font-bold '+colCls},valTxt),
       h('div',{className:'text-xs text-gray-500 mt-2'},subTxt));
   }
-
   return h('div',{className:'space-y-6'},
     h('h2',{className:'text-lg font-semibold text-sky-300'},'Klimabilanz – THG-Emissionen'),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}},
-      SC('scope1','text-red-400','Scope 1 (letzter Monat)',f(last.em.s1)+' t CO₂e','N₂O: '+f(last.em.n2o)+' | CH₄: '+f(last.em.ch4)),
-      SC('scope2','text-yellow-400','Scope 2',f(last.em.s2)+' t CO₂e','Nettostrom: '+f(last.powerConsumption-last.powerGeneration,0)+' kWh'),
-      SC('scope3','text-indigo-400','Scope 3',f(last.em.s3)+' t CO₂e','Transport: '+f(last.em.sl)+' | Chemikalien: '+f(last.em.ch))),
+      SC2('scope1','text-red-400','Scope 1 (letzter Monat)',f(last.em.s1)+' t CO₂e','N₂O: '+f(last.em.n2o)+' | CH₄: '+f(last.em.ch4)),
+      SC2('scope2','text-yellow-400','Scope 2',f(last.em.s2)+' t CO₂e','Nettostrom: '+f(last.powerConsumption-last.powerGeneration,0)+' kWh'),
+      SC2('scope3','text-indigo-400','Scope 3',f(last.em.s3)+' t CO₂e','Transport: '+f(last.em.sl)+' | Chemikalien: '+f(last.em.ch))),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr'}},
       h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Jährliche Emissionen'),h(CChart,{cfg:yCfg,h:220})),
       h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Emissionsquellen (letzter Monat)'),h(CChart,{cfg:piCfg,h:220}))),
@@ -494,8 +651,7 @@ function Grenzwerte(p){
             h('span',{className:'text-xs text-gray-500'},'Limit: '+lm+' mg/L')),
           h('div',{className:'text-xl font-bold '+(avg>lm?'text-red-400':'text-green-400')},f(avg,1)+' mg/L'),
           h('div',{className:'mt-2 h-2 bg-gray-700 rounded-full overflow-hidden'},
-            h('div',{className:'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500'),
-              style:{width:Math.min(pct,100)+'%'}})),
+            h('div',{className:'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500'),style:{width:Math.min(pct,100)+'%'}})),
           h('div',{className:'text-xs text-gray-500 mt-1'},vc+' Verstöße / '+vals.length+' Messungen'));
       })),
     h('div',{className:'card'},
@@ -543,16 +699,12 @@ function Energie(p){
       h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400',ik:'biogas',onInfo:p.onInfo}),
       h(KPI,{title:'Methangehalt',value:f(last.biogasMethane,1),unit:'%',color:'text-sky-400',ik:'methane',onInfo:p.onInfo}),
       h(KPI,{title:'Emissionsfaktor',value:f(last.gridEmissionFactor,0),unit:'g/kWh',color:'text-gray-400',ik:'ef',onInfo:p.onInfo})),
-    h('div',{className:'card'},
-      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Strombezug vs. Eigenproduktion (kWh)'),
-      h(CChart,{cfg:pCfg,h:240})),
-    h('div',{className:'card'},
-      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Biogasproduktion (m³)'),
-      h(CChart,{cfg:bCfg,h:180})));
+    h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Strombezug vs. Eigenproduktion (kWh)'),h(CChart,{cfg:pCfg,h:240})),
+    h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Biogasproduktion (m³)'),h(CChart,{cfg:bCfg,h:180})));
 }
 
 // ── Datenimport ───────────────────────────────────────────────────────────
-var EF={year:new Date().getFullYear(),month:new Date().getMonth(),
+var EF2={year:new Date().getFullYear(),month:new Date().getMonth(),
   connectedEW:50000,inflowVolume:7500,inflowTN:45,inflowCSB:430,inflowBSB5:220,
   effluentCSB:55,effluentBSB5:10,effluentSS:12,effluentTN:9,effluentTP:0.8,effluentNH4:6,
   powerConsumption:1900,powerGeneration:750,gridEmissionFactor:390,
@@ -571,7 +723,7 @@ var MF=[['year','Jahr'],['month','Monat (0-11)'],['connectedEW','Angeschl. EW'],
 function Datenimport(p){
   var fr=useRef(null);
   var ms=useState('');var msg=ms[0],setMsg=ms[1];
-  var fs=useState(Object.assign({},EF));var form=fs[0],setForm=fs[1];
+  var fs=useState(Object.assign({},EF2));var form=fs[0],setForm=fs[1];
   function setF(k,v){setForm(function(prev){var n=Object.assign({},prev);n[k]=v;return n;});}
   function csv(e){
     var fl=e.target.files[0];if(!fl)return;
@@ -596,7 +748,7 @@ function Datenimport(p){
   return h('div',{className:'space-y-6'},
     h('h2',{className:'text-lg font-semibold text-sky-300'},'Datenimport'),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr 1fr'}},
-      h('button',{className:'card text-center cursor-pointer',style:{cursor:'pointer'},onClick:p.onLoadDemo},
+      h('button',{className:'card text-center',style:{cursor:'pointer'},onClick:p.onLoadDemo},
         h('div',{style:{fontSize:'2rem',marginBottom:'.5rem'}},'🗃️'),
         h('div',{className:'font-semibold text-sky-300'},'Demodaten laden'),
         h('div',{className:'text-xs text-gray-500 mt-1'},'24 Monate synthetische Daten')),
@@ -630,8 +782,7 @@ function Datenimport(p){
           return h('div',{key:fl[0]},
             h('label',{className:'text-xs text-gray-500 block mb-1'},fl[1]),
             h('input',{type:fl[2],className:'w-full',value:p.settings[fl[0]],
-              onChange:function(e){var o={};o[fl[0]]=fl[2]==='number'?Number(e.target.value):e.target.value;
-                p.dispatch({type:'SET_CFG',p:o});}}));
+              onChange:function(e){var o={};o[fl[0]]=fl[2]==='number'?Number(e.target.value):e.target.value;p.dispatch({type:'SET_CFG',p:o});}}));
         }),
         h('div',null,
           h('label',{className:'text-xs text-gray-500 block mb-1'},'Größenklasse'),
@@ -640,10 +791,383 @@ function Datenimport(p){
             SC.map(function(s){return h('option',{key:s,value:s},s);}))))));
 }
 
+// ── Benchmark Gauge ───────────────────────────────────────────────────────
+function BenchGauge(p){
+  var bm=p.bm,v=p.value,hib=p.hib!==false;
+  var rangeMax=Math.max(bm.p75*1.5,v*1.15,bm.p75+5);
+  var toPos=function(val){return Math.min(100,Math.max(0,val/rangeMax*100));};
+  var grad=hib
+    ?'linear-gradient(to right,#ef4444 0%,#f59e0b 40%,#22c55e 100%)'
+    :'linear-gradient(to right,#22c55e 0%,#f59e0b 50%,#ef4444 100%)';
+  var vp=toPos(v);
+  return h('div',{style:{margin:'1rem 0 .5rem'}},
+    h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.7rem',color:'#64748b',marginBottom:'.3rem'}},
+      h('span',null,'p25: '+bm.p25),h('span',null,'Median: '+bm.median),h('span',null,'p75: '+bm.p75+' '+bm.unit)),
+    h('div',{style:{position:'relative',height:'10px',borderRadius:'5px',background:grad}},
+      h('div',{style:{position:'absolute',left:toPos(bm.p25)+'%',top:'-3px',width:'2px',height:'16px',background:'rgba(255,255,255,.5)',transform:'translateX(-50%)'}}),
+      h('div',{style:{position:'absolute',left:toPos(bm.median)+'%',top:'-3px',width:'2px',height:'16px',background:'rgba(255,255,255,.8)',transform:'translateX(-50%)'}}),
+      h('div',{style:{position:'absolute',left:toPos(bm.p75)+'%',top:'-3px',width:'2px',height:'16px',background:'rgba(255,255,255,.5)',transform:'translateX(-50%)'}}),
+      h('div',{style:{position:'absolute',left:vp+'%',top:'-5px',width:'20px',height:'20px',
+        borderRadius:'50%',background:'#0f172a',border:'3px solid #38bdf8',transform:'translateX(-50%)',
+        boxShadow:'0 0 8px #38bdf8'}})));
+}
+
+// ── Benchmarking ──────────────────────────────────────────────────────────
+function Benchmarking(p){
+  var sc=p.settings.sizeClass;
+  var kpis=useMemo(function(){return calculateAnnualKPIs(p.readings,p.settings);},[p.readings,p.settings]);
+  var selState=useState('energyPerEW');var selParam=selState[0],setSelParam=selState[1];
+
+  if(!p.readings.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden – bitte Demodaten laden.');
+  if(!kpis)return null;
+
+  var bms=DWA_BM;
+  var bmSC=sc;
+  var rows=[
+    {key:'energyPerEW',val:kpis.energyPerEW,bm:bms.energyPerEW[bmSC]},
+    {key:'selfSupply',val:kpis.selfSupply,bm:bms.selfSupply[bmSC]},
+    {key:'csbElimination',val:kpis.csbElimination,bm:bms.csbElimination[bmSC]},
+    {key:'pElimination',val:kpis.pElimination,bm:bms.pElimination[bmSC]},
+    {key:'nElimination',val:kpis.nElimination,bm:bms.nElimination[bmSC]},
+    {key:'co2ePerEW',val:kpis.co2ePerEW,bm:bms.co2ePerEW[bmSC]},
+  ].filter(function(r){return r.bm;});
+
+  // Time series chart for selected param
+  var sl=p.readings.slice(-12),lb=sl.map(fd);
+  var selBm=bms[selParam]&&bms[selParam][bmSC];
+  var selVals=sl.map(function(r){
+    if(selParam==='energyPerEW')return r.connectedEW>0?r.powerConsumption/r.connectedEW:0;
+    if(selParam==='selfSupply')return r.powerConsumption>0?(r.powerGeneration/r.powerConsumption*100):0;
+    if(selParam==='csbElimination')return r.inflowCSB>0?(r.inflowCSB-r.effluentCSB)/r.inflowCSB*100:0;
+    if(selParam==='pElimination'){var ti=8;return Math.max(0,(ti-r.effluentTP)/ti*100);}
+    if(selParam==='nElimination')return r.inflowTN>0?(r.inflowTN-r.effluentTN)/r.inflowTN*100:0;
+    if(selParam==='co2ePerEW')return r.connectedEW>0?calcEm(r,p.settings).tot*1000/r.connectedEW:0;
+    return 0;
+  });
+  var tsCfg=selBm?{type:'line',data:{labels:lb,datasets:[
+    {label:'p25',data:lb.map(function(){return selBm.p25;}),fill:false,borderColor:'transparent',backgroundColor:'transparent',pointRadius:0},
+    {label:'Bandbreite p25–p75',data:lb.map(function(){return selBm.p75;}),fill:'-1',backgroundColor:'rgba(100,116,139,.18)',borderColor:'transparent',pointRadius:0},
+    {label:'Median (DWA)',data:lb.map(function(){return selBm.median;}),borderColor:'#475569',borderDash:[4,4],borderWidth:2,pointRadius:0,fill:false},
+    {label:'Deine Anlage',data:selVals.map(function(v){return+v.toFixed(2);}),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.15)',tension:.3,pointRadius:4,fill:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}}:null;
+
+  var prioIcon={critical:'🔴',high:'⚠️',medium:'ℹ️'};
+
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Benchmarking – Vergleich mit Branchenwerten'),
+    h('div',{className:'card',style:{background:'#1e3a4a',borderColor:'#0ea5e9'}},
+      h('div',{className:'text-xs text-sky-400 uppercase font-semibold mb-1'},'Datenquelle'),
+      h('span',{className:'text-sm text-gray-300'},'Referenzwerte basieren auf dem DWA Leistungsnachweis 2023 (n > 5.000 Kläranlagen). Größenklasse: '),
+      h('strong',{className:'text-sky-300'},sc),h('span',{className:'text-gray-400'},' · Vergleichszeitraum: letzte 12 Monate')),
+
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))'}},
+      rows.map(function(row){
+        var bm=row.bm;
+        var rating=getRating(row.val,bm,bm.hib);
+        return h('div',{className:'card',key:row.key},
+          h('div',{className:'flex justify-between items-start mb-1'},
+            h('span',{className:'font-semibold text-gray-200 text-sm'},bm.label),
+            h('span',{className:'text-sm font-bold '+rating.cls},rating.label)),
+          h('div',{className:'text-2xl font-bold text-white'},f(row.val,1)+h('span',{className:'text-sm font-normal text-gray-400'},' '+bm.unit)),
+          h(BenchGauge,{value:row.val,bm:bm,hib:bm.hib}),
+          h('div',{className:'text-xs text-gray-500'},rating.txt));
+      })),
+
+    h('div',{className:'card'},
+      h('div',{className:'flex items-center justify-between mb-3'},
+        h('span',{className:'text-sm font-semibold text-gray-300'},'Zeitverlauf vs. DWA-Bandbreite'),
+        h('select',{value:selParam,onChange:function(e){setSelParam(e.target.value);},style:{fontSize:'.8rem'}},
+          BM_KEYS.map(function(k){var b=bms[k]&&bms[k][bmSC];return b?h('option',{key:k,value:k},b.label):null;}))),
+      tsCfg?h(CChart,{cfg:tsCfg,h:220}):h('div',{className:'text-gray-500 text-sm'},'Keine Benchmarkdaten für Größenklasse.')),
+
+    h('div',{className:'card overflow-x-auto'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Vergleichstabelle'),
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',null,'Kennwert'),h('th',null,'Deine Anlage'),h('th',null,'p25'),h('th',null,'Median'),h('th',null,'p75'),h('th',null,'Bewertung'))),
+        h('tbody',null,rows.map(function(row){
+          var bm=row.bm;
+          var rating=getRating(row.val,bm,bm.hib);
+          return h('tr',{key:row.key},
+            h('td',{className:'font-medium text-gray-300'},bm.label),
+            h('td',{className:'font-bold text-white'},f(row.val,1)+' '+bm.unit),
+            h('td',{className:'text-gray-400'},bm.p25),h('td',{className:'text-gray-400'},bm.median),h('td',{className:'text-gray-400'},bm.p75),
+            h('td',{className:rating.cls},rating.label));
+        })))));
+}
+
+// ── Measure Card ──────────────────────────────────────────────────────────
+function MeasureCard(p){
+  var m=p.measure;
+  var exState=useState(false);var ex=exState[0],setEx=exState[1];
+  var prioMap={critical:{label:'🔴 Kritisch',cls:'critical'},high:{label:'⚠️ Hoch',cls:'high'},medium:{label:'ℹ️ Mittel',cls:'medium'}};
+  var pm=prioMap[m.prio]||prioMap.medium;
+  var yr=new Date().getFullYear();
+  var yrsLeft=m.deadline-yr;
+  return h('div',{className:'measure-card '+pm.cls},
+    h('div',{className:'flex items-start justify-between gap-3'},
+      h('div',{className:'flex-1'},
+        h('div',{className:'flex items-center gap-2 mb-1'},
+          h('span',{className:'text-xs font-bold text-gray-400 uppercase'},m.cat),
+          h('span',{className:'text-xs px-2 py-0.5 rounded-full',style:{background:'#0f172a',color:'#94a3b8'}},pm.label)),
+        h('div',{className:'font-semibold text-white text-base mb-1'},m.title),
+        h('div',{className:'text-sm text-gray-400 mb-2'},m.desc),
+        h('div',{className:'flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500'},
+          h('span',null,'⏱ Frist: '+m.deadline+' (in '+yrsLeft+' Jahren)'),
+          h('span',null,'💰 '+m.invest),
+          h('span',null,'🔧 Aufwand: '+({low:'Niedrig',medium:'Mittel',high:'Hoch'}[m.effort]||m.effort)))),
+      m.sim&&h('button',{className:'nav-btn nav-inactive text-xs flex-shrink-0',onClick:function(){p.onSimulate(m.id);}},
+        '📊 Simulieren')),
+    h('div',{className:'text-xs text-sky-700 mt-2 mb-2'},'KARL: '+m.karlRef),
+    h('button',{className:'text-xs text-gray-500 hover:text-gray-300',style:{cursor:'pointer',background:'none',border:'none',padding:0},
+      onClick:function(){setEx(!ex);}},ex?'Details ausblenden ▲':'Details anzeigen ▼'),
+    ex&&h('div',{className:'mt-3 space-y-2'},
+      h('div',{className:'text-xs text-gray-400'},
+        h('div',{className:'font-semibold text-gray-300 mb-1'},'Nächste Schritte:'),
+        h('ul',{style:{paddingLeft:'1rem',listStyleType:'disc'}},
+          m.steps.map(function(s,i){return h('li',{key:i,className:'text-gray-400 mb-1'},s);}))),
+      h('div',{className:'text-xs text-gray-400'},
+        h('span',{className:'font-semibold text-gray-300'},'Amortisation: '),m.amort),
+      h('div',{className:'text-xs text-gray-400'},
+        h('span',{className:'font-semibold text-gray-300'},'Förderung: '),m.funding),
+      h('div',{className:'text-xs text-gray-500 mt-2 italic'},'Fördermöglichkeiten können sich ändern – aktuelle Informationen unter foerderdatenbank.de')));
+}
+
+// ── Simulator ─────────────────────────────────────────────────────────────
+function Simulator(p){
+  var simMeasures=MEASURES.filter(function(m){return m.sim;});
+  var selState=useState(simMeasures[0]?simMeasures[0].id:'');
+  var selId=p.activeMeasureId||selState[0];
+  var setSelId=selState[1];
+  var activeId=selId;
+  var sliderState=useState({});var sliderVals=sliderState[0],setSliderVals=sliderState[1];
+  var comboState=useState([]);var combo=comboState[0],setCombo=comboState[1];
+
+  var activeMeasure=simMeasures.find(function(m){return m.id===activeId;});
+  var sliderVal=sliderVals[activeId]||0;
+
+  var simReadings=useMemo(function(){
+    var active=combo.length?combo:[activeId].filter(Boolean);
+    return active.reduce(function(data,mid){
+      var m=MEASURES.find(function(x){return x.id===mid;});
+      if(!m||!m.sim)return data;
+      var val=sliderVals[mid]||0;
+      return m.sim.effect(data,val);
+    },p.readings);
+  },[p.readings,activeId,combo,sliderVals]);
+
+  var origEm=useMemo(function(){
+    return p.readings.reduce(function(a,r){return a+calcEm(r,p.settings).tot;},0);
+  },[p.readings,p.settings]);
+  var simEm=useMemo(function(){
+    return simReadings.reduce(function(a,r){return a+calcEm(r,p.settings).tot;},0);
+  },[simReadings,p.settings]);
+  var origGen=useMemo(function(){
+    return p.readings.reduce(function(a,r){return a+r.powerGeneration;},0);
+  },[p.readings]);
+  var origPwr=useMemo(function(){
+    return p.readings.reduce(function(a,r){return a+r.powerConsumption;},0);
+  },[p.readings]);
+  var simGen=useMemo(function(){
+    return simReadings.reduce(function(a,r){return a+r.powerGeneration;},0);
+  },[simReadings]);
+  var simPwr=useMemo(function(){
+    return simReadings.reduce(function(a,r){return a+r.powerConsumption;},0);
+  },[simReadings]);
+  var origSelf=origPwr>0?(origGen/origPwr*100):0;
+  var simSelf=simPwr>0?(simGen/simPwr*100):0;
+
+  var sl=p.readings.slice(-12);
+  var simSl=simReadings.slice(-12);
+  var lb=sl.map(fd);
+  var chartCfg={type:'line',data:{labels:lb,datasets:[
+    {label:'Original THG',data:sl.map(function(r){return+calcEm(r,p.settings).tot.toFixed(2);}),
+     borderColor:'#475569',borderDash:[5,3],backgroundColor:'transparent',tension:.3,pointRadius:2},
+    {label:'Simuliert THG',data:simSl.map(function(r){return+calcEm(r,p.settings).tot.toFixed(2);}),
+     borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.1)',tension:.3,pointRadius:3,fill:true},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+
+  function setSlider(mid,val){setSliderVals(function(prev){var n=Object.assign({},prev);n[mid]=val;return n;});}
+  function toggleCombo(mid){
+    setCombo(function(prev){
+      return prev.indexOf(mid)>=0?prev.filter(function(x){return x!==mid;}):prev.concat([mid]);
+    });
+  }
+
+  if(!p.readings.length)return null;
+  return h('div',{className:'card space-y-4'},
+    h('div',{className:'text-base font-semibold text-sky-300'},'📊 Maßnahmen-Simulator'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr'}},
+      h('div',null,
+        h('label',{className:'text-xs text-gray-500 block mb-1'},'Maßnahme wählen'),
+        h('select',{value:activeId,onChange:function(e){setSelId(e.target.value);},className:'w-full'},
+          simMeasures.map(function(m){return h('option',{key:m.id,value:m.id},m.title);}))),
+      h('div',null,
+        h('div',{className:'text-xs text-gray-500 mb-1'},'Kombination (mehrere gleichzeitig)'),
+        h('div',{style:{display:'flex',flexWrap:'wrap',gap:'.25rem'}},
+          simMeasures.map(function(m){
+            var on=combo.indexOf(m.id)>=0;
+            return h('button',{key:m.id,className:'nav-btn '+(on?'nav-active':'nav-inactive'),
+              style:{fontSize:'.7rem',padding:'.2rem .5rem'},onClick:function(){toggleCombo(m.id);}},
+              m.title.split(' ')[0]);
+          })))),
+    activeMeasure&&activeMeasure.sim&&h('div',null,
+      h('label',{className:'text-xs text-gray-500 block mb-2'},
+        activeMeasure.sim.label+': ',
+        h('span',{className:'text-sky-400 font-bold'},sliderVal+' '+activeMeasure.sim.unit)),
+      h('input',{type:'range',className:'w-full',
+        min:activeMeasure.sim.min,max:activeMeasure.sim.max,step:activeMeasure.sim.step,
+        value:sliderVal,onChange:function(e){setSlider(activeId,Number(e.target.value));}}),
+      h('div',{className:'flex justify-between text-xs text-gray-600'},
+        h('span',null,activeMeasure.sim.min+' '+activeMeasure.sim.unit),
+        h('span',null,activeMeasure.sim.max+' '+activeMeasure.sim.unit))),
+    h('div',{className:'grid gap-3',style:{gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))'}},
+      [
+        {label:'Gesamt-THG/Jahr',orig:f(origEm,1)+' t CO₂e',sim:f(simEm,1)+' t CO₂e',better:simEm<origEm,delta:f(simEm-origEm,1)+' t'},
+        {label:'Eigenversorgung',orig:f(origSelf,1)+'%',sim:f(simSelf,1)+'%',better:simSelf>origSelf,delta:f(simSelf-origSelf,1)+' PP'},
+      ].map(function(kv,i){
+        return h('div',{key:i,className:'card',style:{padding:'.75rem'}},
+          h('div',{className:'text-xs text-gray-500 mb-1'},kv.label),
+          h('div',{className:'text-xs text-gray-400'},'Ist: ',h('span',{className:'text-gray-200'},kv.orig)),
+          h('div',{className:'text-xs text-gray-400'},'Sim: ',h('span',{className:kv.better?'text-green-400':'text-red-400'},kv.sim)),
+          h('div',{className:'text-xs font-semibold '+(kv.better?'text-green-400':'text-red-400')},
+            kv.better?'▼ ':'▲ ',kv.delta.replace('-','').replace('+','')));
+      })),
+    h('div',null,
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-2'},'THG-Verlauf: Original vs. Simuliert'),
+      h(CChart,{cfg:chartCfg,h:180})));
+}
+
+// ── KARL Roadmap ──────────────────────────────────────────────────────────
+function KarlRoadmap(){
+  var W=880,H=160,PAD=20;
+  var yr2x=function(y){return PAD+(y-2025)/(2045-2025)*(W-2*PAD);};
+  var now=new Date().getFullYear();
+  return h('div',{className:'card roadmap-wrap'},
+    h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'KARL-Fristenplan 2025–2045'),
+    h('svg',{viewBox:'0 0 '+W+' '+H,style:{width:'100%',minWidth:'600px'}},
+      // Axis line
+      h('line',{x1:PAD,y1:H/2,x2:W-PAD,y2:H/2,stroke:'#334155',strokeWidth:2}),
+      // Today marker
+      h('line',{x1:yr2x(now),y1:H/2-20,x2:yr2x(now),y2:H/2+20,stroke:'#0ea5e9',strokeWidth:2,strokeDasharray:'4,3'}),
+      h('text',{x:yr2x(now),y:H/2+32,textAnchor:'middle',fill:'#0ea5e9',fontSize:10},'Heute'),
+      // Year ticks
+      [2025,2030,2035,2040,2045].map(function(y){
+        return h('g',{key:y},
+          h('line',{x1:yr2x(y),y1:H/2-4,x2:yr2x(y),y2:H/2+4,stroke:'#475569',strokeWidth:1}),
+          h('text',{x:yr2x(y),y:H/2+16,textAnchor:'middle',fill:'#64748b',fontSize:9},y));
+      }),
+      // Events
+      ROADMAP.map(function(ev,i){
+        var x=yr2x(ev.year);
+        var above=ev.above;
+        var cy=above?H/2-28:H/2+28;
+        var ly=above?H/2-40:H/2+40;
+        var past=ev.year<=now;
+        var col=past?'#475569':ev.color;
+        return h('g',{key:i},
+          h('circle',{cx:x,cy:H/2,r:6,fill:past?'#334155':ev.color,stroke:ev.color,strokeWidth:2}),
+          h('line',{x1:x,y1:H/2+(above?-6:6),x2:x,y2:cy,stroke:col,strokeWidth:1,strokeDasharray:'3,2'}),
+          h('text',{x:x,y:above?ly-8:ly+8,textAnchor:'middle',fill:past?'#475569':ev.color,fontSize:8.5,fontWeight:'600'},ev.year),
+          h('foreignObject',{x:x-55,y:above?10:H/2+45,width:110,height:35},
+            h('div',{xmlns:'http://www.w3.org/1999/xhtml',style:{fontSize:'7.5px',color:past?'#475569':col,textAlign:'center',lineHeight:'1.3'}},ev.label)));
+      })));
+}
+
+// ── Handlungsplan ─────────────────────────────────────────────────────────
+function Handlungsplan(p){
+  var kpis=useMemo(function(){return calculateAnnualKPIs(p.readings,p.settings)||{selfSupply:0,energyPerEW:999,connectedEW:0,avgTPout:1,avgTNout:15};},
+    [p.readings,p.settings]);
+
+  var measures=useMemo(function(){return getRecommendedMeasures(kpis);},[kpis]);
+
+  var filterState=useState({cat:'Alle',prio:'Alle'});var filt=filterState[0],setFilt=filterState[1];
+  var simState=useState(null);var simId=simState[0],setSimId=simState[1];
+
+  var cats=['Alle','Energie','Grenzwerte','KARL-Pflicht','Ressourcen','Compliance'];
+  var prios=['Alle','critical','high','medium'];
+  var prioLabel={critical:'Kritisch',high:'Hoch',medium:'Mittel'};
+
+  var filtered=measures.filter(function(m){
+    return(filt.cat==='Alle'||m.cat===filt.cat)&&(filt.prio==='Alle'||m.prio===filt.prio);
+  });
+
+  var critCount=measures.filter(function(m){return m.prio==='critical';}).length;
+
+  // KARL readiness
+  var sc=p.settings.sizeClass;
+  var tnLim=KL.TN[sc]||13;var tpLim=KL.TP[sc]||1;
+  var readiness={
+    energyAudit:false,
+    virusMonitoring:false,
+    rainwaterPlan:false,
+    tnCompliant:kpis.avgTNout!=null&&kpis.avgTNout<tnLim*0.9,
+    tpCompliant:kpis.avgTPout!=null&&kpis.avgTPout<tpLim*0.9,
+    stage4Planned:kpis.connectedEW<10000,
+  };
+  var readScore=KARL_REQ.reduce(function(a,r){return a+(readiness[r.id]?r.weight:0);},0);
+
+  if(!p.readings.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden – bitte Demodaten laden.');
+
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Handlungsplan – KARL-Compliance & Maßnahmen'),
+
+    // Summary KPIs
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))'}},
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-1'},'Identifizierte Maßnahmen'),
+        h('div',{className:'kv text-sky-400'},measures.length)),
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-1'},'Davon kritisch / KARL-Pflicht'),
+        h('div',{className:'kv text-red-400'},critCount)),
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-1'},'KARL-Readiness-Score'),
+        h('div',{className:'kv '+(readScore>=70?'text-green-400':readScore>=40?'text-yellow-400':'text-red-400')},readScore+'%'),
+        h('div',{className:'mt-2 h-2 bg-gray-700 rounded-full overflow-hidden'},
+          h('div',{className:'h-2 rounded-full '+(readScore>=70?'bg-green-500':readScore>=40?'bg-yellow-500':'bg-red-500'),style:{width:readScore+'%'}})))),
+
+    // KARL Readiness detail
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'KARL-Readiness-Anforderungen'),
+      h('div',{className:'grid gap-2',style:{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}},
+        KARL_REQ.map(function(r){
+          var ok=readiness[r.id];
+          return h('div',{key:r.id,className:'flex items-center gap-2 text-sm'},
+            h('span',{style:{fontSize:'1rem'}},ok?'✅':'🔴'),
+            h('span',{className:ok?'text-gray-300':'text-gray-500'},r.label),
+            h('span',{className:'text-xs text-gray-600 ml-auto'},r.weight+'%'));
+        }))),
+
+    // Simulator
+    h(Simulator,{readings:p.readings,settings:p.settings,activeMeasureId:simId}),
+
+    // Filters
+    h('div',{className:'flex flex-wrap gap-2 items-center'},
+      h('span',{className:'text-xs text-gray-500'},'Kategorie:'),
+      cats.map(function(c){return h('button',{key:c,className:'nav-btn '+(filt.cat===c?'nav-active':'nav-inactive'),
+        style:{fontSize:'.75rem',padding:'.3rem .7rem'},onClick:function(){setFilt(function(f){return Object.assign({},f,{cat:c});});}},c);}),
+      h('span',{className:'text-xs text-gray-500 ml-4'},'Priorität:'),
+      prios.map(function(pr){return h('button',{key:pr,className:'nav-btn '+(filt.prio===pr?'nav-active':'nav-inactive'),
+        style:{fontSize:'.75rem',padding:'.3rem .7rem'},
+        onClick:function(){setFilt(function(f){return Object.assign({},f,{prio:pr});});}},
+        pr==='Alle'?'Alle':prioLabel[pr]);})),
+
+    // Measure cards
+    h('div',null,
+      filtered.length===0?h('div',{className:'card text-gray-500 text-center py-8'},'Keine Maßnahmen für diesen Filter.')
+        :filtered.map(function(m){
+          return h(MeasureCard,{key:m.id,measure:m,onSimulate:function(id){setSimId(id);}});
+        })),
+
+    // Roadmap
+    h(KarlRoadmap));
+}
+
 // ── App ───────────────────────────────────────────────────────────────────
 var TABS=[
   {id:'dashboard',label:'📊 Dashboard'},{id:'klimabilanz',label:'🌡️ Klimabilanz'},
   {id:'grenzwerte',label:'⚠️ Grenzwerte'},{id:'energie',label:'⚡ Energie'},
+  {id:'benchmarking',label:'📈 Benchmarking'},{id:'handlungsplan',label:'🗂️ Handlungsplan'},
   {id:'import',label:'📥 Daten'}];
 
 function App(){
@@ -661,11 +1185,13 @@ function App(){
       h('div',{className:'flex flex-wrap gap-2'},
         TABS.map(function(t){return h(NBtn,{key:t.id,id:t.id,label:t.label,active:st.activeTab===t.id,
           onClick:function(id){dis({type:'TAB',p:id});}});}))),
-    st.activeTab==='dashboard'  &&h(Dashboard,  {readings:st.readings,settings:st.settings,onInfo:onInfo}),
-    st.activeTab==='klimabilanz'&&h(Klimabilanz, {readings:st.readings,settings:st.settings,onInfo:onInfo}),
-    st.activeTab==='grenzwerte' &&h(Grenzwerte,  {readings:st.readings,settings:st.settings,onInfo:onInfo}),
-    st.activeTab==='energie'    &&h(Energie,     {readings:st.readings,settings:st.settings,onInfo:onInfo}),
-    st.activeTab==='import'     &&h(Datenimport, {dispatch:dis,settings:st.settings,onLoadDemo:ld}));
+    st.activeTab==='dashboard'    &&h(Dashboard,    {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='klimabilanz'  &&h(Klimabilanz,  {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='grenzwerte'   &&h(Grenzwerte,   {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='energie'      &&h(Energie,      {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='benchmarking' &&h(Benchmarking, {readings:st.readings,settings:st.settings}),
+    st.activeTab==='handlungsplan'&&h(Handlungsplan,{readings:st.readings,settings:st.settings}),
+    st.activeTab==='import'       &&h(Datenimport,  {dispatch:dis,settings:st.settings,onLoadDemo:ld}));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
