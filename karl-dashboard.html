@@ -8,6 +8,8 @@
   <style>
     body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;}
     .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.25rem;}
+    .card-info{cursor:pointer;transition:border-color .15s;}
+    .card-info:hover{border-color:#0ea5e9;}
     .nav-btn{padding:.5rem 1rem;border-radius:8px;cursor:pointer;font-size:.875rem;transition:background .15s;border:none;}
     .nav-active{background:#0ea5e9;color:#fff;}
     .nav-inactive{background:#1e293b;color:#94a3b8;}
@@ -22,6 +24,16 @@
     th{background:#0f172a;color:#64748b;font-size:.75rem;text-transform:uppercase;padding:.6rem .75rem;text-align:left;}
     td{padding:.6rem .75rem;font-size:.875rem;border-top:1px solid #1e293b;}
     tr:hover td{background:#1e293b44;}
+    /* Modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;}
+    .modal-box{background:#1e293b;border:1px solid #334155;border-radius:16px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;padding:2rem;position:relative;}
+    .modal-close{position:absolute;top:1rem;right:1rem;background:#334155;border:none;color:#94a3b8;border-radius:8px;padding:.3rem .7rem;cursor:pointer;font-size:1rem;line-height:1;}
+    .modal-close:hover{background:#475569;color:#e2e8f0;}
+    .formula{background:#0f172a;border-left:3px solid #0ea5e9;border-radius:6px;padding:.75rem 1rem;font-family:monospace;font-size:.8rem;color:#7dd3fc;margin:.5rem 0;white-space:pre-line;}
+    .info-section{margin-top:1.1rem;}
+    .info-label{font-size:.7rem;text-transform:uppercase;color:#64748b;letter-spacing:.06em;margin-bottom:.3rem;font-weight:600;}
+    .info-icon{float:right;color:#334155;font-size:.85rem;margin-top:.1rem;}
+    .card-info:hover .info-icon{color:#0ea5e9;}
   </style>
 </head>
 <body>
@@ -33,7 +45,6 @@
 (function(){
 'use strict';
 
-// Show errors visibly
 window.onerror = function(msg,src,line,col,err){
   var d=document.getElementById('root');
   d.innerHTML='<div style="color:#f87171;padding:2rem;font-family:monospace;background:#1e293b;margin:2rem;border-radius:8px">'+
@@ -42,7 +53,6 @@ window.onerror = function(msg,src,line,col,err){
     '</div>';
 };
 
-// ── Sanity check ───────────────────────────────────────────────────────────
 if(typeof React==='undefined'||typeof ReactDOM==='undefined'||typeof Chart==='undefined'){
   document.getElementById('root').innerHTML=
     '<div style="color:#f87171;padding:2rem">Fehler: CDN-Skripte nicht geladen.<br>'+
@@ -50,7 +60,6 @@ if(typeof React==='undefined'||typeof ReactDOM==='undefined'||typeof Chart==='un
   return;
 }
 
-// ── Aliases ────────────────────────────────────────────────────────────────
 var h=React.createElement;
 var useState=React.useState;
 var useReducer=React.useReducer;
@@ -80,6 +89,161 @@ var INIT={readings:[],activeTab:'dashboard',settings:DEFSET};
 var LS={labels:{color:'#94a3b8',font:{size:11},boxWidth:12}};
 var SO={x:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}}};
 var SST={x:Object.assign({},SO.x,{stacked:true}),y:Object.assign({},SO.y,{stacked:true})};
+
+// ── Info content ──────────────────────────────────────────────────────────
+var INFO={
+  ghg_total:{
+    title:'THG-Gesamtemissionen',sub:'Treibhausgase nach GHG-Protocol',
+    secs:[
+      {l:'Berechnung',f:'Gesamt = Scope 1 + Scope 2 + Scope 3  [t CO₂e]'},
+      {l:'Scope 1 – Direkte Emissionen',t:'Prozessemissionen aus N₂O (Nitrifikation/Denitrifikation), CH₄ (Faulgasanlage, offene Becken) sowie Verbrennung fossiler Brennstoffe (Heizöl, Erdgas).'},
+      {l:'Scope 2 – Indirekte Emissionen',t:'Netto-Stromverbrauch × nationalem Emissionsfaktor des Stromnetzes.'},
+      {l:'Scope 3 – Vorgelagerte Kette',t:'Klärschlammtransport/-entsorgung und Emissionen aus Betriebschemikalien (Eisensulfat, Polyelektrolyt).'},
+      {l:'Referenz',t:'GHG-Protocol Corporate Standard · IPCC AR6 GWP-Werte · DWA-Merkblatt M 230'}
+    ]
+  },
+  specific_em:{
+    title:'Spezifische Emission',sub:'Normierte Kennzahl für den Anlagenvergleich',
+    secs:[
+      {l:'Formel',f:'sp = Gesamt-THG [t CO₂e] / (angeschl. EW / 1000)\n→ Einheit: kg CO₂e / EW'},
+      {l:'Benchmarks (Literatur)',f:'< 20 kg CO₂e/EW  →  sehr gut\n20–35 kg CO₂e/EW  →  gut\n35–50 kg CO₂e/EW  →  durchschnittlich\n> 50 kg CO₂e/EW  →  Optimierungsbedarf'},
+      {l:'Hinweis',t:'Abhängig von EW, Industrieeinleitern und Schmutzfracht. Vergleiche nur innerhalb ähnlicher Größenklassen.'}
+    ]
+  },
+  compliance:{
+    title:'Compliance-Score',sub:'Prozentsatz eingehaltener Grenzwerte',
+    secs:[
+      {l:'Formel',f:'Score = (Anzahl eingehaltener Parameter / Gesamtparameter) × 100  [%]'},
+      {l:'Bewertung',f:'≥ 95 %  →  Grün (compliant)\n80–94 % →  Gelb (Warnung)\n< 80 %  →  Rot (Verstoß)'},
+      {l:'Prüfparameter',t:'CSB, BSB₅, Abfiltrierbare Stoffe (SS), TN, TP, NH₄-N – je nach Größenklasse GK1–GK5.'},
+      {l:'Rechtsgrundlage',t:'EU-Richtlinie 2024/3019 (Neufassung UWRL) · Anhang I Tabelle 1 und 2 · AbwV Anhang 1'}
+    ]
+  },
+  violations:{
+    title:'Grenzwertverstöße',sub:'Anzahl der Überschreitungen über alle Monate',
+    secs:[
+      {l:'Definition',t:'Ein Verstoß liegt vor, wenn der Ablaufwert den Grenzwert der EU-Richtlinie 2024/3019 für die jeweilige Größenklasse überschreitet.'},
+      {l:'Konsequenzen',f:'1–2 Verstöße/Jahr → Verwarnungsbereich\n3+ Verstöße/Jahr → Zwangsmaßnahmen möglich\nSchwerwiegend → Bußgeld bis 2 % des Jahresumsatzes'},
+      {l:'CSB-Grenzwerte nach Größenklasse',f:'GK1: 150 mg/L\nGK2: 125 mg/L\nGK3:  90 mg/L\nGK4:  75 mg/L\nGK5:  75 mg/L'}
+    ]
+  },
+  net_power:{
+    title:'Strombezug (netto)',sub:'Aus dem Netz bezogener Strom nach Eigenproduktion',
+    secs:[
+      {l:'Formel',f:'Netto = Strombezug gesamt − Eigenproduktion (BHKW)  [kWh]'},
+      {l:'Bedeutung',t:'Nur der Nettostromverbrauch fließt in Scope-2-Emissionen ein. Eigenproduktion aus Biogas/BHKW reduziert den Nettobezug direkt.'},
+      {l:'Benchmark (DWA M 271)',t:'30–60 kWh/(EW·a) für kommunale Kläranlagen der GK 4/5.'}
+    ]
+  },
+  biogas:{
+    title:'Biogasproduktion',sub:'Faulgas aus der anaeroben Schlammstabilisierung',
+    secs:[
+      {l:'Typische Zusammensetzung',f:'CH₄:  60–70 %\nCO₂:  30–40 %\nSpuren: H₂S, N₂, H₂'},
+      {l:'Energiegehalt',f:'Hu(CH₄) ≈ 9,97 kWh/m³\nHeizwert Biogas ≈ 6,5 kWh/m³ (bei 65 % CH₄)'},
+      {l:'CH₄-Emissionen (Scope 1)',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000\nρ(CH₄) = 0,717 kg/m³ | Leckagefaktor = 2 %'},
+      {l:'Benchmark',t:'20–30 L Biogas/(EW·d) bei Faulungsanlagen mit Primär- und Überschussschlamm.'}
+    ]
+  },
+  scope1:{
+    title:'Scope 1 – Direkte Emissionen',sub:'Prozess- und Verbrennungsemissionen der Anlage',
+    secs:[
+      {l:'N₂O-Formel (IPCC 2019)',f:'E_N2O = (TN_Zulauf/1000) × V_Zufluss × 0,016 × (44/28) × GWP_N2O / 1000\n→ Einheit: t CO₂e'},
+      {l:'Erläuterung N₂O',t:'EF = 0,016 kg N₂O-N/kg TN (IPCC 2019 Refinement). Faktor 44/28 konvertiert N₂O-N → N₂O. GWP₁₀₀ = 273 (IPCC AR6).'},
+      {l:'CH₄-Formel',f:'E_CH4 = V_Biogas × (CH4%/100) × 0,02 × 0,717 × GWP_CH4 / 1000\n→ Einheit: t CO₂e'},
+      {l:'Heizöl',f:'E_Öl = V_Heizöl [L] × 2,65 [kg CO₂e/L] / 1000\n→ Einheit: t CO₂e'}
+    ]
+  },
+  scope2:{
+    title:'Scope 2 – Indirekte Emissionen',sub:'Strombezogene Treibhausgase',
+    secs:[
+      {l:'Formel',f:'E_Strom = max(0, Bezug − Eigenproduktion) [kWh] × EF_Netz [g/kWh] / 1.000.000\n→ Einheit: t CO₂e'},
+      {l:'Emissionsfaktoren Stromnetz 2023',f:'Deutschland: ~380–420 g CO₂e/kWh (UBA)\nÖsterreich: ~158 g CO₂e/kWh\nSchweiz:    ~42 g CO₂e/kWh\nEU-27-Ø:   ~233 g CO₂e/kWh'},
+      {l:'Market vs. Location Based',t:'GHG-Protocol erlaubt wahlweise den standortbezogenen Netzfaktor (location-based) oder einen vertragsbasierten Wert z. B. bei Herkunftsnachweisen (market-based).'}
+    ]
+  },
+  scope3:{
+    title:'Scope 3 – Vorgelagerte Emissionen',sub:'Indirekte Emissionen aus der Wertschöpfungskette',
+    secs:[
+      {l:'Klärschlamm-Transport',f:'E_Transport = m_Schlamm [t] × d_Transport [km] × EF [kg CO₂e/(t·km)] / 1000\nEF_LKW ≈ 0,092 kg CO₂e/(t·km) (TREMOD/ifeu)'},
+      {l:'Chemikalien',f:'E_Chem = m_FeSO4 × EF_FeSO4 + m_Poly × EF_Poly  [kg CO₂e]\nEF_FeSO4 ≈ 0,30 kg CO₂e/kg\nEF_Poly  ≈ 2,50 kg CO₂e/kg'},
+      {l:'Hinweis',t:'Scope-3-Emissionen aus Chemikalien oft unterschätzt: Polyelektrolyt hat einen 8× höheren EF als Eisensulfat.'}
+    ]
+  },
+  CSB:{
+    title:'CSB – Chemischer Sauerstoffbedarf',sub:'Chemical Oxygen Demand (COD)',
+    secs:[
+      {l:'Definition',t:'Maß für die Gesamtheit oxidierbarer organischer Substanzen im Wasser. Gibt den Sauerstoffbedarf zur vollständigen chemischen Oxidation an.'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 150 mg/L\nGK2: 125 mg/L\nGK3:  90 mg/L\nGK4:  75 mg/L\nGK5:  75 mg/L'},
+      {l:'Analysemethode',t:'Dichromatverfahren (ISO 6060). Dauer: 2 h Aufschluss. Messung im Ablauf als 2-h-Mischprobe oder qualifizierte Stichprobe.'}
+    ]
+  },
+  BSB5:{
+    title:'BSB₅ – Biochemischer Sauerstoffbedarf (5 Tage)',sub:'Biological Oxygen Demand – 5 days',
+    secs:[
+      {l:'Definition',t:'Sauerstoffmenge, die Mikroorganismen bei 20°C in 5 Tagen zur Oxidation organischer Substanz benötigen. Maß für biologisch abbaubare Organik.'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 25 mg/L\nGK2: 25 mg/L\nGK3: 20 mg/L\nGK4: 15 mg/L\nGK5: 10 mg/L'},
+      {l:'BSB/CSB-Verhältnis',t:'BSB₅/CSB ≈ 0,5 für kommunales Abwasser (gut abbaubar). Verhältnis < 0,3 deutet auf schwer abbaubare Verbindungen hin (Industrieabwasser).'}
+    ]
+  },
+  SS:{
+    title:'SS – Abfiltrierbare Stoffe (Schwebstoffe)',sub:'Suspended Solids',
+    secs:[
+      {l:'Definition',t:'Masse aller Stoffe, die auf einem Membranfilter (0,45 µm) zurückgehalten werden. Umfasst Schwebstoffe und suspendierte Partikel.'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK1: 150 mg/L\nGK2:  35 mg/L\nGK3:  35 mg/L\nGK4:  20 mg/L\nGK5:  20 mg/L'},
+      {l:'Zusammenhang BSB/CSB',t:'Hohe SS-Werte erhöhen auch CSB und BSB₅. Ursachen: Nachklärer-Probleme, Blähschlamm (SVI > 150 mL/g), Schwimmschlamm.'}
+    ]
+  },
+  TN:{
+    title:'TN – Gesamtstickstoff',sub:'Total Nitrogen',
+    secs:[
+      {l:'Zusammensetzung',f:'TN = NH₄-N + NO₃-N + NO₂-N + organisch-N\nBei gut behandeltem Ablauf dominiert NO₃-N.'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3: 15 mg/L\nGK4: 13 mg/L\nGK5: 10 mg/L'},
+      {l:'Eutrophierung',t:'Stickstoff ist Hauptursache für Eutrophierung in Küstengewässern (HELCOM). N-Elimination über Nitrifikation → Denitrifikation.'},
+      {l:'N₂O-Relevanz',t:'Hohe TN-Zulauflast erhöht N₂O-Emissionsrisiko (Scope 1). IPCC-EF: 0,016 kg N₂O-N / kg N_Zulauf.'}
+    ]
+  },
+  TP:{
+    title:'TP – Gesamtphosphor',sub:'Total Phosphorus',
+    secs:[
+      {l:'Fraktionen',t:'TP = Ortho-P + Polyphosphat-P + organisch-P. Ortho-P (PO₄³⁻) ist biologisch direkt verfügbar und eutrophierungsrelevant.'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3: 2,0 mg/L\nGK4: 1,0 mg/L\nGK5: 1,0 mg/L'},
+      {l:'Eliminationsverfahren',t:'Biologisch (PAO-Bakterien, Luxury Uptake) oder chemisch (Simultanfällung mit FeSO₄/AlCl₃). Chemische Fällung erzeugt Scope-3-Emissionen.'}
+    ]
+  },
+  NH4:{
+    title:'NH₄-N – Ammoniumstickstoff',sub:'Ammonium Nitrogen',
+    secs:[
+      {l:'Definition',t:'Ammonium (NH₄⁺) und freies Ammoniak (NH₃) als Summenparameter NH₄-N. Toxisch für Fische ab ~0,02 mg NH₃-N/L (pH-abhängig).'},
+      {l:'Grenzwerte EU-KARL 2024/3019',f:'GK3–GK5: 10 mg/L\n(Jahresmittel, gültig bei T > 12°C)'},
+      {l:'Nitrifikation',t:'NH₄⁺ → NO₂⁻ → NO₃⁻ durch Nitrosomonas/Nitrobacter. Vollständige Nitrifikation bei SRT > 10 d und T > 8°C.'},
+      {l:'N₂O-Bildung',t:'Unvollständige Nitrifikation/Denitrifikation erzeugt N₂O (Scope 1). Ammoniumspitzen im Zulauf erhöhen das Emissionsrisiko.'}
+    ]
+  },
+  coverage:{
+    title:'Eigendeckungsgrad',sub:'Anteil selbsterzeugten Stroms am Gesamtverbrauch',
+    secs:[
+      {l:'Formel',f:'Eigendeckung = (Eigenproduktion / Strombezug gesamt) × 100  [%]'},
+      {l:'Benchmarks (DWA M 271)',f:'< 30 %  →  Verbesserungspotenzial\n30–50 % →  durchschnittlich\n50–80 % →  gut\n> 80 %  →  sehr gut (annähernd energieautark)'},
+      {l:'Maßnahmen zur Steigerung',t:'1. Kofermentation (Fette, Speisereste) zur Biogaserhöhung\n2. Verbesserung des BHKW-Wirkungsgrads (η_el > 40 %)\n3. Senkung des Eigenverbrauchs (Belüftungsoptimierung)\n4. PV-Anlage auf Betriebsgebäuden'}
+    ]
+  },
+  methane:{
+    title:'Methangehalt im Biogas',sub:'Qualitätsmerkmal des Faulgases',
+    secs:[
+      {l:'Typischer Bereich',t:'60–70 % CH₄ für kommunalen Klärschlamm. Werte < 58 % deuten auf Betriebsprobleme hin (Überlastung, Temperaturabfall im Faulturm).'},
+      {l:'Energieberechnung',f:'P_BHKW = V_Biogas [m³/h] × (CH4%/100) × 9,97 kWh/m³ × η_el\nη_el ≈ 0,38–0,42 für moderne BHKW'},
+      {l:'CH₄-Schlupf (Scope 1)',t:'Ungenutztes CH₄ (Fackel, Leckagen) trägt zu Scope-1-Emissionen bei. Leckagerate typisch 1–3 %. GWP(CH₄) = 27,9 (IPCC AR6).'}
+    ]
+  },
+  ef:{
+    title:'Emissionsfaktor Stromnetz',sub:'Spezifische CO₂-Emissionen der Stromerzeugung',
+    secs:[
+      {l:'Verwendung in Scope 2',f:'E = P_netto [kWh] × EF [g CO₂e/kWh] / 1.000.000\n→ Einheit: t CO₂e'},
+      {l:'Aktuelle Werte (2023)',f:'Deutschland:  ~380–420 g/kWh (UBA 2023)\nÖsterreich:    ~158 g/kWh\nSchweiz:        ~42 g/kWh\nEU-27-Ø:       ~233 g/kWh\nFrankreich:     ~56 g/kWh (hoher Kernkraftanteil)'},
+      {l:'Trend',t:'Der EF sinkt durch Ausbau erneuerbarer Energien. Prognose DE 2030: ~200 g/kWh bei 80 % EE-Ziel (EEG 2023).'}
+    ]
+  }
+};
 
 // ── Reducer ───────────────────────────────────────────────────────────────
 function reducer(st,a){
@@ -162,17 +326,42 @@ function CChart(p){
     h('canvas',{ref:ref}));
 }
 
+// ── Info Modal ────────────────────────────────────────────────────────────
+function InfoModal(p){
+  var info=INFO[p.ik];
+  useEffect(function(){
+    function onKey(e){if(e.key==='Escape')p.onClose();}
+    document.addEventListener('keydown',onKey);
+    return function(){document.removeEventListener('keydown',onKey);};
+  },[]);
+  if(!info)return null;
+  return h('div',{className:'modal-overlay',onClick:function(e){if(e.target===e.currentTarget)p.onClose();}},
+    h('div',{className:'modal-box'},
+      h('button',{className:'modal-close',onClick:p.onClose},'✕'),
+      h('div',{style:{color:'#38bdf8',fontSize:'.7rem',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.3rem'}},info.sub),
+      h('h2',{style:{color:'#f1f5f9',fontSize:'1.25rem',fontWeight:700,marginBottom:'1.25rem'}},info.title),
+      info.secs.map(function(s,i){
+        return h('div',{key:i,className:'info-section'},
+          h('div',{className:'info-label'},s.l),
+          s.f
+            ?h('div',{className:'formula'},s.f)
+            :h('div',{style:{fontSize:'.875rem',color:'#cbd5e1',lineHeight:'1.6',whiteSpace:'pre-line'}},s.t));
+      })));
+}
+
 // ── Small components ──────────────────────────────────────────────────────
 function KPI(p){
-  return h('div',{className:'card'},
+  var clickable=!!p.ik;
+  return h('div',{
+    className:'card'+(clickable?' card-info':''),
+    onClick:clickable?function(){p.onInfo(p.ik);}:undefined},
+    clickable&&h('span',{className:'info-icon'},'ⓘ'),
     h('div',{className:'text-xs text-gray-500 uppercase tracking-wide mb-1'},p.title),
     h('div',{className:'kv '+(p.color||'text-sky-400')},
       p.value,h('span',{className:'text-sm font-normal text-gray-400'},' '+p.unit)),
     g(p.sub,h('div',{className:'text-xs text-gray-500 mt-1'},p.sub)));
 }
-function Bdg(p){
-  return h('span',{className:'badge-'+(p.st||'r')},p.label);
-}
+function Bdg(p){return h('span',{className:'badge-'+(p.st||'r')},p.label);}
 function NBtn(p){
   return h('button',{className:'nav-btn '+(p.active?'nav-active':'nav-inactive'),
     onClick:function(){p.onClick(p.id);}},p.label);
@@ -200,12 +389,12 @@ function Dashboard(p){
   return h('div',{className:'space-y-6'},
     h('h2',{className:'text-lg font-semibold text-sky-300'},p.settings.plantName+' – Übersicht'),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))'}},
-      h(KPI,{title:'THG gesamt (letzter Monat)',value:f(last.em.tot),unit:'t CO₂e',color:'text-red-400'}),
-      h(KPI,{title:'Spezifische Emission',value:f(last.em.sp),unit:'kg CO₂e/EW',color:'text-orange-400'}),
-      h(KPI,{title:'Compliance-Score (Ø)',value:avg,unit:'%',color:avg>=95?'text-green-400':avg>=80?'text-yellow-400':'text-red-400'}),
-      h(KPI,{title:'Grenzwertverstöße',value:vc,unit:'Stk.',color:vc===0?'text-green-400':'text-red-400'}),
-      h(KPI,{title:'Strombezug (netto)',value:f(last.powerConsumption-last.powerGeneration,0),unit:'kWh',color:'text-sky-400'}),
-      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400'})),
+      h(KPI,{title:'THG gesamt (letzter Monat)',value:f(last.em.tot),unit:'t CO₂e',color:'text-red-400',ik:'ghg_total',onInfo:p.onInfo}),
+      h(KPI,{title:'Spezifische Emission',value:f(last.em.sp),unit:'kg CO₂e/EW',color:'text-orange-400',ik:'specific_em',onInfo:p.onInfo}),
+      h(KPI,{title:'Compliance-Score (Ø)',value:avg,unit:'%',color:avg>=95?'text-green-400':avg>=80?'text-yellow-400':'text-red-400',ik:'compliance',onInfo:p.onInfo}),
+      h(KPI,{title:'Grenzwertverstöße',value:vc,unit:'Stk.',color:vc===0?'text-green-400':'text-red-400',ik:'violations',onInfo:p.onInfo}),
+      h(KPI,{title:'Strombezug (netto)',value:f(last.powerConsumption-last.powerGeneration,0),unit:'kWh',color:'text-sky-400',ik:'net_power',onInfo:p.onInfo}),
+      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400',ik:'biogas',onInfo:p.onInfo})),
     h('div',{className:'card'},
       h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'THG-Emissionen (letzte 12 Monate) in t CO₂e'),
       h(CChart,{cfg:cfg,h:250})),
@@ -252,21 +441,21 @@ function Klimabilanz(p){
     {label:'N₂O',data:sl.map(function(d){return+d.em.n2o.toFixed(2);}),borderColor:'#ef4444',backgroundColor:'transparent',tension:.3,pointRadius:3},
     {label:'CH₄',data:sl.map(function(d){return+d.em.ch4.toFixed(2);}),borderColor:'#f97316',backgroundColor:'transparent',tension:.3,pointRadius:3},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+
+  function SC(ik,colCls,titleTxt,valTxt,subTxt){
+    return h('div',{className:'card card-info',onClick:function(){p.onInfo(ik);}},
+      h('span',{className:'info-icon'},'ⓘ'),
+      h('div',{className:'text-xs text-gray-500 uppercase mb-2'},titleTxt),
+      h('div',{className:'text-2xl font-bold '+colCls},valTxt),
+      h('div',{className:'text-xs text-gray-500 mt-2'},subTxt));
+  }
+
   return h('div',{className:'space-y-6'},
     h('h2',{className:'text-lg font-semibold text-sky-300'},'Klimabilanz – THG-Emissionen'),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}},
-      h('div',{className:'card'},
-        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 1 (letzter Monat)'),
-        h('div',{className:'text-2xl font-bold text-red-400'},f(last.em.s1),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
-        h('div',{className:'text-xs text-gray-500 mt-2'},'N₂O: '+f(last.em.n2o)+' | CH₄: '+f(last.em.ch4))),
-      h('div',{className:'card'},
-        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 2'),
-        h('div',{className:'text-2xl font-bold text-yellow-400'},f(last.em.s2),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
-        h('div',{className:'text-xs text-gray-500 mt-2'},'Nettostrom: '+f(last.powerConsumption-last.powerGeneration,0)+' kWh')),
-      h('div',{className:'card'},
-        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 3'),
-        h('div',{className:'text-2xl font-bold text-indigo-400'},f(last.em.s3),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
-        h('div',{className:'text-xs text-gray-500 mt-2'},'Transport: '+f(last.em.sl)+' | Chemikalien: '+f(last.em.ch)))),
+      SC('scope1','text-red-400','Scope 1 (letzter Monat)',f(last.em.s1)+' t CO₂e','N₂O: '+f(last.em.n2o)+' | CH₄: '+f(last.em.ch4)),
+      SC('scope2','text-yellow-400','Scope 2',f(last.em.s2)+' t CO₂e','Nettostrom: '+f(last.powerConsumption-last.powerGeneration,0)+' kWh'),
+      SC('scope3','text-indigo-400','Scope 3',f(last.em.s3)+' t CO₂e','Transport: '+f(last.em.sl)+' | Chemikalien: '+f(last.em.ch))),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr'}},
       h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Jährliche Emissionen'),h(CChart,{cfg:yCfg,h:220})),
       h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Emissionsquellen (letzter Monat)'),h(CChart,{cfg:piCfg,h:220}))),
@@ -298,7 +487,8 @@ function Grenzwerte(p){
         var avg=vals.reduce(function(a,b){return a+b;},0)/vals.length;
         var vc=vals.filter(function(v){return v>lm;}).length;
         var pct=Math.min(100,(avg/lm)*100);
-        return h('div',{className:'card',key:pm},
+        return h('div',{className:'card card-info',key:pm,onClick:function(){p.onInfo(pm);}},
+          h('span',{className:'info-icon'},'ⓘ'),
           h('div',{className:'flex justify-between items-center mb-2'},
             h('span',{className:'font-semibold text-gray-200'},pm),
             h('span',{className:'text-xs text-gray-500'},'Limit: '+lm+' mg/L')),
@@ -348,11 +538,11 @@ function Energie(p){
   return h('div',{className:'space-y-6'},
     h('h2',{className:'text-lg font-semibold text-sky-300'},'Energie-Monitoring'),
     h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))'}},
-      h(KPI,{title:'Strombezug (netto)',value:f(net,0),unit:'kWh',color:'text-yellow-400'}),
-      h(KPI,{title:'Eigendeckungsgrad',value:cov,unit:'%',color:cov>60?'text-green-400':cov>40?'text-yellow-400':'text-red-400'}),
-      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400'}),
-      h(KPI,{title:'Methangehalt',value:f(last.biogasMethane,1),unit:'%',color:'text-sky-400'}),
-      h(KPI,{title:'Emissionsfaktor',value:f(last.gridEmissionFactor,0),unit:'g/kWh',color:'text-gray-400'})),
+      h(KPI,{title:'Strombezug (netto)',value:f(net,0),unit:'kWh',color:'text-yellow-400',ik:'net_power',onInfo:p.onInfo}),
+      h(KPI,{title:'Eigendeckungsgrad',value:cov,unit:'%',color:cov>60?'text-green-400':cov>40?'text-yellow-400':'text-red-400',ik:'coverage',onInfo:p.onInfo}),
+      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400',ik:'biogas',onInfo:p.onInfo}),
+      h(KPI,{title:'Methangehalt',value:f(last.biogasMethane,1),unit:'%',color:'text-sky-400',ik:'methane',onInfo:p.onInfo}),
+      h(KPI,{title:'Emissionsfaktor',value:f(last.gridEmissionFactor,0),unit:'g/kWh',color:'text-gray-400',ik:'ef',onInfo:p.onInfo})),
     h('div',{className:'card'},
       h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Strombezug vs. Eigenproduktion (kWh)'),
       h(CChart,{cfg:pCfg,h:240})),
@@ -458,8 +648,12 @@ var TABS=[
 
 function App(){
   var sa=useReducer(reducer,INIT);var st=sa[0],dis=sa[1];
+  var ik=useState(null);var infoKey=ik[0],setInfoKey=ik[1];
   var ld=useCallback(function(){dis({type:'SET',p:demo(st.settings.sizeClass)});},[st.settings.sizeClass]);
+  var onInfo=useCallback(function(k){setInfoKey(k);},[]);
+  var onClose=useCallback(function(){setInfoKey(null);},[]);
   return h('div',{style:{maxWidth:'1100px',margin:'0 auto',padding:'1.5rem'}},
+    infoKey&&h(InfoModal,{ik:infoKey,onClose:onClose}),
     h('div',{className:'flex flex-wrap items-center justify-between gap-3 mb-6'},
       h('div',null,
         h('h1',{className:'text-2xl font-bold text-sky-400'},'KARL-Dashboard'),
@@ -467,10 +661,10 @@ function App(){
       h('div',{className:'flex flex-wrap gap-2'},
         TABS.map(function(t){return h(NBtn,{key:t.id,id:t.id,label:t.label,active:st.activeTab===t.id,
           onClick:function(id){dis({type:'TAB',p:id});}});}))),
-    st.activeTab==='dashboard'  &&h(Dashboard,  {readings:st.readings,settings:st.settings}),
-    st.activeTab==='klimabilanz'&&h(Klimabilanz, {readings:st.readings,settings:st.settings}),
-    st.activeTab==='grenzwerte' &&h(Grenzwerte,  {readings:st.readings,settings:st.settings}),
-    st.activeTab==='energie'    &&h(Energie,     {readings:st.readings,settings:st.settings}),
+    st.activeTab==='dashboard'  &&h(Dashboard,  {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='klimabilanz'&&h(Klimabilanz, {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='grenzwerte' &&h(Grenzwerte,  {readings:st.readings,settings:st.settings,onInfo:onInfo}),
+    st.activeTab==='energie'    &&h(Energie,     {readings:st.readings,settings:st.settings,onInfo:onInfo}),
     st.activeTab==='import'     &&h(Datenimport, {dispatch:dis,settings:st.settings,onLoadDemo:ld}));
 }
 
