@@ -12,248 +12,215 @@
     .nav-active{background:#0ea5e9;color:#fff;}
     .nav-inactive{background:#1e293b;color:#94a3b8;}
     .nav-inactive:hover{background:#334155;color:#e2e8f0;}
-    .badge-green{background:#16a34a22;color:#4ade80;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
-    .badge-yellow{background:#ca8a0422;color:#fbbf24;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
-    .badge-red{background:#dc262622;color:#f87171;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
-    .kpi-val{font-size:1.75rem;font-weight:700;}
+    .badge-g{background:#16a34a22;color:#4ade80;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
+    .badge-y{background:#ca8a0422;color:#fbbf24;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
+    .badge-r{background:#dc262622;color:#f87171;padding:2px 10px;border-radius:999px;font-size:.75rem;font-weight:600;}
+    .kv{font-size:1.75rem;font-weight:700;}
     input,select{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .75rem;color:#e2e8f0;font-size:.875rem;outline:none;}
     input:focus,select:focus{border-color:#0ea5e9;}
     table{width:100%;border-collapse:collapse;}
     th{background:#0f172a;color:#64748b;font-size:.75rem;text-transform:uppercase;padding:.6rem .75rem;text-align:left;}
     td{padding:.6rem .75rem;font-size:.875rem;border-top:1px solid #1e293b;}
     tr:hover td{background:#1e293b44;}
-    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0f172a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
   </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#64748b">Lade Dashboard…</div></div>
-
-<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.js"></script>
-
+<div id="root"></div>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
 <script>
 (function(){
 'use strict';
 
-window.onerror = function(msg,src,line){
-  document.getElementById('root').innerHTML =
-    '<div style="color:#f87171;padding:2rem;font-family:monospace;background:#1e293b;margin:2rem;border-radius:8px">'+
-    '<strong>Fehler Zeile '+line+':</strong> '+msg+'</div>';
+// Show errors visibly
+window.onerror = function(msg,src,line,col,err){
+  var d=document.getElementById('root');
+  d.innerHTML='<div style="color:#f87171;padding:2rem;font-family:monospace;background:#1e293b;margin:2rem;border-radius:8px">'+
+    '<b>JS-Fehler Zeile '+line+':</b> '+msg+
+    (err?'<pre style="margin-top:1rem;font-size:.75rem;white-space:pre-wrap">'+err.stack+'</pre>':'')+
+    '</div>';
 };
 
-// ── Globals ──────────────────────────────────────────────────────────────
-var html       = htm.bind(React.createElement);
-var useState   = React.useState;
-var useReducer = React.useReducer;
-var useMemo    = React.useMemo;
-var useRef     = React.useRef;
-var useEffect  = React.useEffect;
-var useCallback= React.useCallback;
-var createRoot = ReactDOM.createRoot;
+// ── Sanity check ───────────────────────────────────────────────────────────
+if(typeof React==='undefined'||typeof ReactDOM==='undefined'||typeof Chart==='undefined'){
+  document.getElementById('root').innerHTML=
+    '<div style="color:#f87171;padding:2rem">Fehler: CDN-Skripte nicht geladen.<br>'+
+    'React='+(typeof React)+' ReactDOM='+(typeof ReactDOM)+' Chart='+(typeof Chart)+'</div>';
+  return;
+}
 
-// Chart.js theme defaults
-Chart.defaults.color = '#64748b';
-Chart.defaults.borderColor = '#334155';
-Chart.defaults.font.size = 11;
+// ── Aliases ────────────────────────────────────────────────────────────────
+var h=React.createElement;
+var useState=React.useState;
+var useReducer=React.useReducer;
+var useMemo=React.useMemo;
+var useRef=React.useRef;
+var useEffect=React.useEffect;
+var useCallback=React.useCallback;
 
-// ── Constants ────────────────────────────────────────────────────────────
-var KARL_LIMITS = {
-  CSB: {GK1:150,GK2:125,GK3:90,GK4:75,GK5:75},
+Chart.defaults.color='#64748b';
+Chart.defaults.borderColor='#334155';
+
+// ── Constants ─────────────────────────────────────────────────────────────
+var KL={
+  CSB:{GK1:150,GK2:125,GK3:90,GK4:75,GK5:75},
   BSB5:{GK1:25,GK2:25,GK3:20,GK4:15,GK5:10},
-  SS:  {GK1:150,GK2:35,GK3:35,GK4:20,GK5:20},
-  TN:  {GK3:15,GK4:13,GK5:10},
-  TP:  {GK3:2,GK4:1,GK5:1},
-  NH4: {GK3:10,GK4:10,GK5:10},
+  SS:{GK1:150,GK2:35,GK3:35,GK4:20,GK5:20},
+  TN:{GK3:15,GK4:13,GK5:10},
+  TP:{GK3:2,GK4:1,GK5:1},
+  NH4:{GK3:10,GK4:10,GK5:10},
 };
-var SIZE_CLASSES = ['GK1','GK2','GK3','GK4','GK5'];
-var MONTHS = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-var SC = {scope1:'#ef4444',scope2:'#f59e0b',scope3:'#6366f1'};
+var SC=['GK1','GK2','GK3','GK4','GK5'];
+var MO=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+var SCOL={s1:'#ef4444',s2:'#f59e0b',s3:'#6366f1'};
+var DEFSET={gwp_n2o:273,gwp_ch4:27.9,ef_transport:0.092,ef_iron:0.3,ef_poly:2.5,
+            plantName:'Kläranlage Musterstadt',sizeClass:'GK4'};
+var INIT={readings:[],activeTab:'dashboard',settings:DEFSET};
+var LS={labels:{color:'#94a3b8',font:{size:11},boxWidth:12}};
+var SO={x:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}}};
+var SST={x:Object.assign({},SO.x,{stacked:true}),y:Object.assign({},SO.y,{stacked:true})};
 
-var DEFAULT_SETTINGS = {
-  gwp_n2o:273,gwp_ch4:27.9,ef_transport:0.092,ef_ironsulfate:0.3,ef_polyelectrolyte:2.5,
-  plantName:'Kläranlage Musterstadt',sizeClass:'GK4',
-};
-var INIT = {readings:[],activeTab:'dashboard',settings:DEFAULT_SETTINGS};
-
-// ── Reducer ──────────────────────────────────────────────────────────────
+// ── Reducer ───────────────────────────────────────────────────────────────
 function reducer(st,a){
-  if(a.type==='SET_READINGS') return Object.assign({},st,{readings:a.payload});
-  if(a.type==='ADD_READING')  return Object.assign({},st,{readings:st.readings.concat([a.payload])});
-  if(a.type==='SET_TAB')      return Object.assign({},st,{activeTab:a.payload});
-  if(a.type==='UPD_SETTINGS') return Object.assign({},st,{settings:Object.assign({},st.settings,a.payload)});
-  if(a.type==='CLEAR')        return Object.assign({},st,{readings:[]});
+  if(a.type==='SET')    return Object.assign({},st,{readings:a.p});
+  if(a.type==='ADD')    return Object.assign({},st,{readings:st.readings.concat([a.p])});
+  if(a.type==='TAB')    return Object.assign({},st,{activeTab:a.p});
+  if(a.type==='SET_CFG')return Object.assign({},st,{settings:Object.assign({},st.settings,a.p)});
+  if(a.type==='CLEAR')  return Object.assign({},st,{readings:[]});
   return st;
 }
 
-// ── Calculations ─────────────────────────────────────────────────────────
+// ── Calculations ──────────────────────────────────────────────────────────
 function calcEm(r,s){
   var n2o=(r.inflowTN/1000)*r.inflowVolume*0.016*(44/28)*s.gwp_n2o/1000;
   var ch4=r.biogas*(r.biogasMethane/100)*0.02*0.717*s.gwp_ch4/1000;
-  var heatoil=(r.heatOil||0)*2.65/1000;
-  var scope1=n2o+ch4+heatoil;
-  var power=Math.max(0,(r.powerConsumption-r.powerGeneration)*r.gridEmissionFactor/1e6);
-  var sludge=(r.sludgeDisposal*r.sludgeTransport*s.ef_transport)/1000;
-  var chem=r.ironSulfate*s.ef_ironsulfate+r.polyelectrolyte*s.ef_polyelectrolyte;
-  var scope3=sludge+chem;
-  var total=scope1+power+scope3;
-  return {scope1:scope1,scope2:power,scope3:scope3,total:total,
-          n2o:n2o,ch4:ch4,heatoil:heatoil,power:power,sludge:sludge,chem:chem,
-          specific:r.connectedEW>0?total/(r.connectedEW/1000):0};
+  var oil=(r.heatOil||0)*2.65/1000;
+  var s1=n2o+ch4+oil;
+  var s2=Math.max(0,(r.powerConsumption-r.powerGeneration)*r.gridEmissionFactor/1e6);
+  var sl=(r.sludgeDisposal*r.sludgeTransport*s.ef_transport)/1000;
+  var ch=r.ironSulfate*s.ef_iron+r.polyelectrolyte*s.ef_poly;
+  var s3=sl+ch;
+  var tot=s1+s2+s3;
+  return{s1:s1,s2:s2,s3:s3,tot:tot,n2o:n2o,ch4:ch4,oil:oil,pwr:s2,sl:sl,ch:ch,
+         sp:r.connectedEW>0?tot/(r.connectedEW/1000):0};
 }
 function calcComp(r,sc){
-  var checks=[
-    {param:'CSB', value:r.effluentCSB, limit:KARL_LIMITS.CSB[sc]},
-    {param:'BSB5',value:r.effluentBSB5,limit:KARL_LIMITS.BSB5[sc]},
-    {param:'SS',  value:r.effluentSS,  limit:KARL_LIMITS.SS[sc]},
-    {param:'TN',  value:r.effluentTN,  limit:KARL_LIMITS.TN[sc]},
-    {param:'TP',  value:r.effluentTP,  limit:KARL_LIMITS.TP[sc]},
-    {param:'NH4', value:r.effluentNH4, limit:KARL_LIMITS.NH4[sc]},
-  ].filter(function(c){return c.limit!=null;});
-  var viol=checks.filter(function(c){return c.value>c.limit;});
-  var score=checks.length?Math.round(((checks.length-viol.length)/checks.length)*100):100;
-  return {score:score,violations:viol,status:score>=95?'green':score>=80?'yellow':'red',checks:checks};
+  var chk=[
+    {p:'CSB',v:r.effluentCSB,lim:KL.CSB[sc]},
+    {p:'BSB5',v:r.effluentBSB5,lim:KL.BSB5[sc]},
+    {p:'SS',v:r.effluentSS,lim:KL.SS[sc]},
+    {p:'TN',v:r.effluentTN,lim:KL.TN[sc]},
+    {p:'TP',v:r.effluentTP,lim:KL.TP[sc]},
+    {p:'NH4',v:r.effluentNH4,lim:KL.NH4[sc]},
+  ].filter(function(c){return c.lim!=null;});
+  var viol=chk.filter(function(c){return c.v>c.lim;});
+  var score=chk.length?Math.round(((chk.length-viol.length)/chk.length)*100):100;
+  return{score:score,viol:viol,status:score>=95?'g':score>=80?'y':'r'};
 }
 
 // ── Sample data ───────────────────────────────────────────────────────────
-function lcg(seed){var s=seed;return function(){s=(1664525*s+1013904223)&0xffffffff;return(s>>>0)/0xffffffff;};}
-function genSamples(sc){
-  sc=sc||'GK4';
-  var rng=lcg(42),lim=KARL_LIMITS;
+function lcg(s){var x=s;return function(){x=(1664525*x+1013904223)&0xffffffff;return(x>>>0)/0xffffffff;};}
+function demo(sc){
+  sc=sc||'GK4';var rng=lcg(42);
   return Array.from({length:24},function(_,i){
     var y=2023+Math.floor((i+6)/12),m=(i+6)%12;
     var EW=50000+Math.round(rng()*5000),vol=EW*0.15*(0.9+rng()*0.2);
-    return {id:i,year:y,month:m,connectedEW:EW,inflowVolume:Math.round(vol),
+    return{id:i,year:y,month:m,connectedEW:EW,inflowVolume:Math.round(vol),
       inflowTN:40+rng()*10,inflowCSB:400+rng()*100,inflowBSB5:200+rng()*50,
-      effluentCSB:(lim.CSB[sc]||75)*(0.5+rng()*0.6),
-      effluentBSB5:(lim.BSB5[sc]||15)*(0.4+rng()*0.7),
-      effluentSS:(lim.SS[sc]||20)*(0.4+rng()*0.7),
-      effluentTN:(lim.TN[sc]||13)*(0.5+rng()*0.6),
-      effluentTP:(lim.TP[sc]||1)*(0.4+rng()*0.8),
-      effluentNH4:(lim.NH4[sc]||10)*(0.3+rng()*0.7),
+      effluentCSB:(KL.CSB[sc]||75)*(0.5+rng()*0.6),
+      effluentBSB5:(KL.BSB5[sc]||15)*(0.4+rng()*0.7),
+      effluentSS:(KL.SS[sc]||20)*(0.4+rng()*0.7),
+      effluentTN:(KL.TN[sc]||13)*(0.5+rng()*0.6),
+      effluentTP:(KL.TP[sc]||1)*(0.4+rng()*0.8),
+      effluentNH4:(KL.NH4[sc]||10)*(0.3+rng()*0.7),
       powerConsumption:EW*0.04*(0.85+rng()*0.3),
       powerGeneration:EW*0.015*(0.8+rng()*0.4),
       gridEmissionFactor:380+rng()*40,
       biogas:EW*0.008*(0.8+rng()*0.4),biogasMethane:62+rng()*8,
       heatOil:1000+rng()*500,
       sludgeDisposal:EW*0.00015*(0.9+rng()*0.2),sludgeTransport:30+rng()*20,
-      ironSulfate:EW*0.0002*(0.9+rng()*0.2),polyelectrolyte:EW*0.00003*(0.9+rng()*0.2),
-    };
+      ironSulfate:EW*0.0002*(0.9+rng()*0.2),polyelectrolyte:EW*0.00003*(0.9+rng()*0.2)};
   });
 }
 
-function fmt(n,d){d=d==null?1:d;return typeof n==='number'&&!isNaN(n)?n.toFixed(d):'–';}
-function fmtDate(r){return MONTHS[r.month]+' '+r.year;}
+function f(n,d){d=d==null?1:d;return typeof n==='number'&&!isNaN(n)?n.toFixed(d):'–';}
+function fd(r){return MO[r.month]+' '+r.year;}
+function g(cond,a,b){return cond?a:(b||null);}
 
-// ── Chart.js wrapper ──────────────────────────────────────────────────────
-function CJSChart(p){
-  var ref=useRef(null);
-  var inst=useRef(null);
-  var depKey=JSON.stringify(p.cfg);
-
+// ── Chart wrapper ─────────────────────────────────────────────────────────
+function CChart(p){
+  var ref=useRef(null);var inst=useRef(null);
+  var key=JSON.stringify(p.cfg);
   useEffect(function(){
     if(!ref.current)return;
-    if(inst.current){inst.current.destroy();inst.current=null;}
-    inst.current=new Chart(ref.current, p.cfg);
-    return function(){if(inst.current){inst.current.destroy();inst.current=null;}};
-  },[depKey]);
-
-  return html`<div style=${'position:relative;height:'+(p.height||220)+'px'}>
-    <canvas ref=${ref}></canvas>
-  </div>`;
+    if(inst.current){try{inst.current.destroy();}catch(e){} inst.current=null;}
+    try{inst.current=new Chart(ref.current,p.cfg);}catch(e){console.error('Chart error:',e);}
+    return function(){if(inst.current){try{inst.current.destroy();}catch(e){} inst.current=null;}};
+  },[key]);
+  return h('div',{style:{position:'relative',height:(p.h||220)+'px'}},
+    h('canvas',{ref:ref}));
 }
-
-// chart config helpers
-var SCALE_OPTS={
-  x:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}},
-  y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}},
-};
-var SCALE_STACKED={
-  x:Object.assign({},SCALE_OPTS.x,{stacked:true}),
-  y:Object.assign({},SCALE_OPTS.y,{stacked:true}),
-};
-var LEGEND_STYLE={labels:{color:'#94a3b8',font:{size:12},boxWidth:14}};
 
 // ── Small components ──────────────────────────────────────────────────────
-function KPICard(p){
-  return html`<div class="card">
-    <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">${p.title}</div>
-    <div class=${'kpi-val '+(p.color||'text-sky-400')}>${p.value}
-      <span class="text-sm font-normal text-gray-400"> ${p.unit}</span></div>
-    ${p.sub&&html`<div class="text-xs text-gray-500 mt-1">${p.sub}</div>`}
-  </div>`;
+function KPI(p){
+  return h('div',{className:'card'},
+    h('div',{className:'text-xs text-gray-500 uppercase tracking-wide mb-1'},p.title),
+    h('div',{className:'kv '+(p.color||'text-sky-400')},
+      p.value,h('span',{className:'text-sm font-normal text-gray-400'},' '+p.unit)),
+    g(p.sub,h('div',{className:'text-xs text-gray-500 mt-1'},p.sub)));
 }
-function Badge(p){
-  var cls=p.status==='green'?'badge-green':p.status==='yellow'?'badge-yellow':'badge-red';
-  return html`<span class=${cls}>${p.label}</span>`;
+function Bdg(p){
+  return h('span',{className:'badge-'+(p.st||'r')},p.label);
 }
-function NavBtn(p){
-  return html`<button class=${'nav-btn '+(p.active?'nav-active':'nav-inactive')}
-    onClick=${function(){p.onClick(p.id);}}>${p.label}</button>`;
+function NBtn(p){
+  return h('button',{className:'nav-btn '+(p.active?'nav-active':'nav-inactive'),
+    onClick:function(){p.onClick(p.id);}},p.label);
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────
 function Dashboard(p){
   var data=useMemo(function(){
     return p.readings.map(function(r){
-      return Object.assign({},r,{em:calcEm(r,p.settings),comp:calcComp(r,p.settings.sizeClass)});
+      return Object.assign({},r,{em:calcEm(r,p.settings),co:calcComp(r,p.settings.sizeClass)});
     });
   },[p.readings,p.settings]);
-
-  if(!data.length) return html`<div class="text-center text-gray-500 py-20">
-    Keine Daten – Tab <strong class="text-sky-400">📥 Daten</strong> öffnen und
-    <strong class="text-sky-300">Demodaten laden</strong> klicken.
-  </div>`;
-
+  if(!data.length) return h('div',{className:'text-center text-gray-500 py-20'},
+    'Keine Daten – Tab ',h('strong',{className:'text-sky-400'},'📥 Daten'),
+    ' öffnen und Demodaten laden klicken.');
   var last=data[data.length-1];
-  var avgScore=Math.round(data.reduce(function(a,d){return a+d.comp.score;},0)/data.length);
-  var violCount=data.reduce(function(a,d){return a+d.comp.violations.length;},0);
-  var slice=data.slice(-12);
-  var labels=slice.map(function(d){return fmtDate(d);});
-
-  var barCfg={
-    type:'bar',
-    data:{
-      labels:labels,
-      datasets:[
-        {label:'Scope 1',data:slice.map(function(d){return+d.em.scope1.toFixed(2);}),backgroundColor:SC.scope1,stack:'s'},
-        {label:'Scope 2',data:slice.map(function(d){return+d.em.scope2.toFixed(2);}),backgroundColor:SC.scope2,stack:'s'},
-        {label:'Scope 3',data:slice.map(function(d){return+d.em.scope3.toFixed(2);}),backgroundColor:SC.scope3,stack:'s'},
-      ],
-    },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_STACKED},
-  };
-
-  return html`<div class="space-y-6">
-    <h2 class="text-lg font-semibold text-sky-300">${p.settings.plantName} – Übersicht</h2>
-    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(175px,1fr))">
-      <${KPICard} title="THG gesamt (letzter Monat)" value=${fmt(last.em.total)} unit="t CO₂e" color="text-red-400"/>
-      <${KPICard} title="Spezifische Emission" value=${fmt(last.em.specific)} unit="kg CO₂e/EW" color="text-orange-400"/>
-      <${KPICard} title="Compliance-Score (Ø)" value=${avgScore} unit="%" color=${avgScore>=95?'text-green-400':avgScore>=80?'text-yellow-400':'text-red-400'}/>
-      <${KPICard} title="Grenzwertverstöße" value=${violCount} unit="Stk." color=${violCount===0?'text-green-400':'text-red-400'}/>
-      <${KPICard} title="Strombezug (netto)" value=${fmt(last.powerConsumption-last.powerGeneration,0)} unit="kWh" color="text-sky-400"/>
-      <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-gray-300 mb-3">THG-Emissionen (letzte 12 Monate) in t CO₂e</div>
-      <${CJSChart} cfg=${barCfg} height=${250}/>
-    </div>
-    <div class="card overflow-x-auto">
-      <div class="text-sm font-semibold text-gray-300 mb-3">Monatliche Übersicht (letzte 6 Monate)</div>
-      <table><thead><tr>
-        <th>Monat</th><th>Scope 1</th><th>Scope 2</th><th>Scope 3</th><th>Gesamt (t)</th><th>kg/EW</th><th>Compliance</th>
-      </tr></thead><tbody>
-        ${data.slice(-6).reverse().map(function(d){return html`<tr key=${d.id}>
-          <td>${fmtDate(d)}</td>
-          <td>${fmt(d.em.scope1)}</td><td>${fmt(d.em.scope2)}</td><td>${fmt(d.em.scope3)}</td>
-          <td class="font-semibold">${fmt(d.em.total)}</td>
-          <td>${fmt(d.em.specific)}</td>
-          <td><${Badge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
-        </tr>`;})}
-      </tbody></table>
-    </div>
-  </div>`;
+  var avg=Math.round(data.reduce(function(a,d){return a+d.co.score;},0)/data.length);
+  var vc=data.reduce(function(a,d){return a+d.co.viol.length;},0);
+  var sl=data.slice(-12),lb=sl.map(fd);
+  var cfg={type:'bar',data:{labels:lb,datasets:[
+    {label:'Scope 1',data:sl.map(function(d){return+d.em.s1.toFixed(2);}),backgroundColor:SCOL.s1,stack:'s'},
+    {label:'Scope 2',data:sl.map(function(d){return+d.em.s2.toFixed(2);}),backgroundColor:SCOL.s2,stack:'s'},
+    {label:'Scope 3',data:sl.map(function(d){return+d.em.s3.toFixed(2);}),backgroundColor:SCOL.s3,stack:'s'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SST}};
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},p.settings.plantName+' – Übersicht'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))'}},
+      h(KPI,{title:'THG gesamt (letzter Monat)',value:f(last.em.tot),unit:'t CO₂e',color:'text-red-400'}),
+      h(KPI,{title:'Spezifische Emission',value:f(last.em.sp),unit:'kg CO₂e/EW',color:'text-orange-400'}),
+      h(KPI,{title:'Compliance-Score (Ø)',value:avg,unit:'%',color:avg>=95?'text-green-400':avg>=80?'text-yellow-400':'text-red-400'}),
+      h(KPI,{title:'Grenzwertverstöße',value:vc,unit:'Stk.',color:vc===0?'text-green-400':'text-red-400'}),
+      h(KPI,{title:'Strombezug (netto)',value:f(last.powerConsumption-last.powerGeneration,0),unit:'kWh',color:'text-sky-400'}),
+      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400'})),
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'THG-Emissionen (letzte 12 Monate) in t CO₂e'),
+      h(CChart,{cfg:cfg,h:250})),
+    h('div',{className:'card overflow-x-auto'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Monatliche Übersicht (letzte 6 Monate)'),
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',null,'Monat'),h('th',null,'Scope 1'),h('th',null,'Scope 2'),
+          h('th',null,'Scope 3'),h('th',null,'Gesamt'),h('th',null,'kg/EW'),h('th',null,'Compliance'))),
+        h('tbody',null,data.slice(-6).reverse().map(function(d){
+          return h('tr',{key:d.id},
+            h('td',null,fd(d)),h('td',null,f(d.em.s1)),h('td',null,f(d.em.s2)),h('td',null,f(d.em.s3)),
+            h('td',{className:'font-semibold'},f(d.em.tot)),h('td',null,f(d.em.sp)),
+            h('td',null,h(Bdg,{st:d.co.status,label:d.co.score+'%'})));
+        })))));
 }
 
 // ── Klimabilanz ───────────────────────────────────────────────────────────
@@ -261,203 +228,147 @@ function Klimabilanz(p){
   var data=useMemo(function(){
     return p.readings.map(function(r){return Object.assign({},r,{em:calcEm(r,p.settings)});});
   },[p.readings,p.settings]);
-  if(!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
-
-  var yearly=Object.values(data.reduce(function(acc,d){
-    var k=d.year;
-    if(!acc[k])acc[k]={year:k,scope1:0,scope2:0,scope3:0};
-    acc[k].scope1+=d.em.scope1;acc[k].scope2+=d.em.scope2;acc[k].scope3+=d.em.scope3;
-    return acc;
+  if(!data.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden.');
+  var yr=Object.values(data.reduce(function(a,d){
+    var k=d.year;if(!a[k])a[k]={year:k,s1:0,s2:0,s3:0};
+    a[k].s1+=d.em.s1;a[k].s2+=d.em.s2;a[k].s3+=d.em.s3;return a;
   },{}));
   var last=data[data.length-1];
-  var pieData=[
-    {name:'N₂O',v:last.em.n2o,c:'#ef4444'},{name:'CH₄',v:last.em.ch4,c:'#f97316'},
-    {name:'Strom',v:last.em.power,c:'#f59e0b'},{name:'Klärschlamm',v:last.em.sludge,c:'#6366f1'},
-    {name:'Chemikalien',v:last.em.chem,c:'#8b5cf6'},
-  ].filter(function(d){return d.v>0;});
-  var slice12=data.slice(-12);
-  var labels12=slice12.map(function(d){return fmtDate(d);});
-
-  var yearCfg={type:'bar',data:{
-    labels:yearly.map(function(y){return String(y.year);}),
-    datasets:[
-      {label:'Scope 1',data:yearly.map(function(y){return+y.scope1.toFixed(1);}),backgroundColor:SC.scope1,stack:'s'},
-      {label:'Scope 2',data:yearly.map(function(y){return+y.scope2.toFixed(1);}),backgroundColor:SC.scope2,stack:'s'},
-      {label:'Scope 3',data:yearly.map(function(y){return+y.scope3.toFixed(1);}),backgroundColor:SC.scope3,stack:'s'},
-    ],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_STACKED}};
-
-  var pieCfg={type:'pie',data:{
-    labels:pieData.map(function(d){return d.name;}),
-    datasets:[{data:pieData.map(function(d){return+d.v.toFixed(2);}),backgroundColor:pieData.map(function(d){return d.c;})}],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE}}};
-
-  var lineCfg={type:'line',data:{
-    labels:labels12,
-    datasets:[
-      {label:'N₂O',data:slice12.map(function(d){return+d.em.n2o.toFixed(2);}),borderColor:'#ef4444',backgroundColor:'transparent',tension:0.3,pointRadius:3},
-      {label:'CH₄',data:slice12.map(function(d){return+d.em.ch4.toFixed(2);}),borderColor:'#f97316',backgroundColor:'transparent',tension:0.3,pointRadius:3},
-    ],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_OPTS}};
-
-  return html`<div class="space-y-6">
-    <h2 class="text-lg font-semibold text-sky-300">Klimabilanz – THG-Emissionen</h2>
-    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-      <div class="card">
-        <div class="text-xs text-gray-500 uppercase mb-2">Scope 1 (letzter Monat)</div>
-        <div class="text-2xl font-bold text-red-400">${fmt(last.em.scope1)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-        <div class="text-xs text-gray-500 mt-2">N₂O: ${fmt(last.em.n2o)} | CH₄: ${fmt(last.em.ch4)} | Heizöl: ${fmt(last.em.heatoil)}</div>
-      </div>
-      <div class="card">
-        <div class="text-xs text-gray-500 uppercase mb-2">Scope 2</div>
-        <div class="text-2xl font-bold text-yellow-400">${fmt(last.em.scope2)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-        <div class="text-xs text-gray-500 mt-2">Nettostrom: ${fmt(last.powerConsumption-last.powerGeneration,0)} kWh × ${fmt(last.gridEmissionFactor,0)} g/kWh</div>
-      </div>
-      <div class="card">
-        <div class="text-xs text-gray-500 uppercase mb-2">Scope 3</div>
-        <div class="text-2xl font-bold text-indigo-400">${fmt(last.em.scope3)} <span class="text-sm font-normal text-gray-400">t CO₂e</span></div>
-        <div class="text-xs text-gray-500 mt-2">Transport: ${fmt(last.em.sludge)} | Chemikalien: ${fmt(last.em.chem)}</div>
-      </div>
-    </div>
-    <div class="grid gap-4" style="grid-template-columns:1fr 1fr">
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-3">Jährliche Emissionen</div>
-        <${CJSChart} cfg=${yearCfg} height=${220}/>
-      </div>
-      <div class="card">
-        <div class="text-sm font-semibold text-gray-300 mb-3">Emissionsquellen (letzter Monat)</div>
-        <${CJSChart} cfg=${pieCfg} height=${220}/>
-      </div>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-gray-300 mb-3">N₂O &amp; CH₄ Zeitreihe (t CO₂e)</div>
-      <${CJSChart} cfg=${lineCfg} height=${200}/>
-    </div>
-  </div>`;
+  var pd=[
+    {n:'N₂O',v:last.em.n2o,c:'#ef4444'},{n:'CH₄',v:last.em.ch4,c:'#f97316'},
+    {n:'Strom',v:last.em.pwr,c:'#f59e0b'},{n:'Klärschlamm',v:last.em.sl,c:'#6366f1'},
+    {n:'Chemikalien',v:last.em.ch,c:'#8b5cf6'},
+  ].filter(function(x){return x.v>0;});
+  var sl=data.slice(-12),lb=sl.map(fd);
+  var yCfg={type:'bar',data:{labels:yr.map(function(y){return''+y.year;}),datasets:[
+    {label:'Scope 1',data:yr.map(function(y){return+y.s1.toFixed(1);}),backgroundColor:SCOL.s1,stack:'s'},
+    {label:'Scope 2',data:yr.map(function(y){return+y.s2.toFixed(1);}),backgroundColor:SCOL.s2,stack:'s'},
+    {label:'Scope 3',data:yr.map(function(y){return+y.s3.toFixed(1);}),backgroundColor:SCOL.s3,stack:'s'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SST}};
+  var piCfg={type:'pie',data:{labels:pd.map(function(x){return x.n;}),datasets:[{
+    data:pd.map(function(x){return+x.v.toFixed(2);}),backgroundColor:pd.map(function(x){return x.c;})}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS}}};
+  var lnCfg={type:'line',data:{labels:lb,datasets:[
+    {label:'N₂O',data:sl.map(function(d){return+d.em.n2o.toFixed(2);}),borderColor:'#ef4444',backgroundColor:'transparent',tension:.3,pointRadius:3},
+    {label:'CH₄',data:sl.map(function(d){return+d.em.ch4.toFixed(2);}),borderColor:'#f97316',backgroundColor:'transparent',tension:.3,pointRadius:3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Klimabilanz – THG-Emissionen'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))'}},
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 1 (letzter Monat)'),
+        h('div',{className:'text-2xl font-bold text-red-400'},f(last.em.s1),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
+        h('div',{className:'text-xs text-gray-500 mt-2'},'N₂O: '+f(last.em.n2o)+' | CH₄: '+f(last.em.ch4))),
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 2'),
+        h('div',{className:'text-2xl font-bold text-yellow-400'},f(last.em.s2),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
+        h('div',{className:'text-xs text-gray-500 mt-2'},'Nettostrom: '+f(last.powerConsumption-last.powerGeneration,0)+' kWh')),
+      h('div',{className:'card'},
+        h('div',{className:'text-xs text-gray-500 uppercase mb-2'},'Scope 3'),
+        h('div',{className:'text-2xl font-bold text-indigo-400'},f(last.em.s3),' ',h('span',{className:'text-sm font-normal text-gray-400'},'t CO₂e')),
+        h('div',{className:'text-xs text-gray-500 mt-2'},'Transport: '+f(last.em.sl)+' | Chemikalien: '+f(last.em.ch)))),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr'}},
+      h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Jährliche Emissionen'),h(CChart,{cfg:yCfg,h:220})),
+      h('div',{className:'card'},h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Emissionsquellen (letzter Monat)'),h(CChart,{cfg:piCfg,h:220}))),
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'N₂O & CH₄ Zeitreihe (t CO₂e)'),
+      h(CChart,{cfg:lnCfg,h:200})));
 }
 
 // ── Grenzwerte ────────────────────────────────────────────────────────────
 function Grenzwerte(p){
   var data=useMemo(function(){
-    return p.readings.map(function(r){return Object.assign({},r,{comp:calcComp(r,p.settings.sizeClass)});});
+    return p.readings.map(function(r){return Object.assign({},r,{co:calcComp(r,p.settings.sizeClass)});});
   },[p.readings,p.settings]);
-  if(!data.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
-
+  if(!data.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden.');
   var params=['CSB','BSB5','SS','TN','TP','NH4'];
-  var efKeys={CSB:'effluentCSB',BSB5:'effluentBSB5',SS:'effluentSS',TN:'effluentTN',TP:'effluentTP',NH4:'effluentNH4'};
-  var sc=p.settings.sizeClass;
-  var limit=KARL_LIMITS.CSB[sc];
-  var slice12=data.slice(-12);
-  var csbCfg={type:'bar',data:{
-    labels:slice12.map(function(d){return fmtDate(d);}),
-    datasets:[
-      {label:'CSB Ablauf',data:slice12.map(function(d){return+d.effluentCSB.toFixed(1);}),backgroundColor:'#0ea5e9',order:2},
-      {type:'line',label:'Grenzwert',data:slice12.map(function(){return limit;}),borderColor:'#ef4444',borderDash:[5,3],pointRadius:0,borderWidth:2,order:1},
-    ],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_OPTS}};
-
-  return html`<div class="space-y-6">
-    <h2 class="text-lg font-semibold text-sky-300">EU-KARL Grenzwert-Tracking (${sc})</h2>
-    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-      ${params.filter(function(pm){return KARL_LIMITS[pm][sc]!=null;}).map(function(pm){
-        var lim=KARL_LIMITS[pm][sc];
-        var vals=data.map(function(d){return d[efKeys[pm]];});
+  var ek={CSB:'effluentCSB',BSB5:'effluentBSB5',SS:'effluentSS',TN:'effluentTN',TP:'effluentTP',NH4:'effluentNH4'};
+  var sc=p.settings.sizeClass,lim=KL.CSB[sc];
+  var sl=data.slice(-12),lb=sl.map(fd);
+  var cCfg={type:'bar',data:{labels:lb,datasets:[
+    {label:'CSB Ablauf',data:sl.map(function(d){return+d.effluentCSB.toFixed(1);}),backgroundColor:'#0ea5e9',order:2},
+    {type:'line',label:'Grenzwert',data:sl.map(function(){return lim;}),borderColor:'#ef4444',borderDash:[5,3],pointRadius:0,borderWidth:2,order:1},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'EU-KARL Grenzwert-Tracking ('+sc+')'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))'}},
+      params.filter(function(pm){return KL[pm][sc]!=null;}).map(function(pm){
+        var lm=KL[pm][sc];
+        var vals=data.map(function(d){return d[ek[pm]];});
         var avg=vals.reduce(function(a,b){return a+b;},0)/vals.length;
-        var viol=vals.filter(function(v){return v>lim;}).length;
-        var pct=Math.min(100,(avg/lim)*100);
-        return html`<div class="card" key=${pm}>
-          <div class="flex justify-between items-center mb-2">
-            <span class="font-semibold text-gray-200">${pm}</span>
-            <span class="text-xs text-gray-500">Limit: ${lim} mg/L</span>
-          </div>
-          <div class=${'text-xl font-bold '+(avg>lim?'text-red-400':'text-green-400')}>${fmt(avg,1)} mg/L</div>
-          <div class="mt-2 h-2 bg-gray-700 rounded-full overflow-hidden">
-            <div class=${'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500')}
-                 style=${'width:'+Math.min(pct,100)+'%'}></div>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">${viol} Verstöße / ${vals.length} Messungen</div>
-        </div>`;
-      })}
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-gray-300 mb-3">CSB-Verlauf vs. Grenzwert (${sc})</div>
-      <${CJSChart} cfg=${csbCfg} height=${220}/>
-    </div>
-    <div class="card overflow-x-auto">
-      <div class="text-sm font-semibold text-gray-300 mb-3">Compliance-Details</div>
-      <table><thead><tr>
-        <th>Monat</th>
-        ${params.filter(function(pm){return KARL_LIMITS[pm][sc]!=null;}).map(function(pm){return html`<th key=${pm}>${pm}</th>`;})}
-        <th>Score</th>
-      </tr></thead><tbody>
-        ${data.slice(-8).reverse().map(function(d){return html`<tr key=${d.id}>
-          <td>${fmtDate(d)}</td>
-          ${params.filter(function(pm){return KARL_LIMITS[pm][sc]!=null;}).map(function(pm){
-            var v=d[efKeys[pm]],lim=KARL_LIMITS[pm][sc];
-            return html`<td key=${pm} class=${v>lim?'text-red-400 font-semibold':'text-green-400'}>${fmt(v,1)}</td>`;
-          })}
-          <td><${Badge} status=${d.comp.status} label=${d.comp.score+'%'}/></td>
-        </tr>`;})}
-      </tbody></table>
-    </div>
-  </div>`;
+        var vc=vals.filter(function(v){return v>lm;}).length;
+        var pct=Math.min(100,(avg/lm)*100);
+        return h('div',{className:'card',key:pm},
+          h('div',{className:'flex justify-between items-center mb-2'},
+            h('span',{className:'font-semibold text-gray-200'},pm),
+            h('span',{className:'text-xs text-gray-500'},'Limit: '+lm+' mg/L')),
+          h('div',{className:'text-xl font-bold '+(avg>lm?'text-red-400':'text-green-400')},f(avg,1)+' mg/L'),
+          h('div',{className:'mt-2 h-2 bg-gray-700 rounded-full overflow-hidden'},
+            h('div',{className:'h-2 rounded-full '+(pct>100?'bg-red-500':pct>85?'bg-yellow-500':'bg-green-500'),
+              style:{width:Math.min(pct,100)+'%'}})),
+          h('div',{className:'text-xs text-gray-500 mt-1'},vc+' Verstöße / '+vals.length+' Messungen'));
+      })),
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'CSB-Verlauf vs. Grenzwert'),
+      h(CChart,{cfg:cCfg,h:220})),
+    h('div',{className:'card overflow-x-auto'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Compliance-Details'),
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',null,'Monat'),
+          params.filter(function(pm){return KL[pm][sc]!=null;}).map(function(pm){return h('th',{key:pm},pm);}),
+          h('th',null,'Score'))),
+        h('tbody',null,data.slice(-8).reverse().map(function(d){
+          return h('tr',{key:d.id},
+            h('td',null,fd(d)),
+            params.filter(function(pm){return KL[pm][sc]!=null;}).map(function(pm){
+              var v=d[ek[pm]],lm=KL[pm][sc];
+              return h('td',{key:pm,className:v>lm?'text-red-400 font-semibold':'text-green-400'},f(v,1));
+            }),
+            h('td',null,h(Bdg,{st:d.co.status,label:d.co.score+'%'})));
+        })))));
 }
 
 // ── Energie ───────────────────────────────────────────────────────────────
 function Energie(p){
-  if(!p.readings.length) return html`<div class="text-center text-gray-500 py-20">Keine Daten vorhanden.</div>`;
+  if(!p.readings.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden.');
   var last=p.readings[p.readings.length-1];
   var net=last.powerConsumption-last.powerGeneration;
   var cov=last.powerConsumption>0?Math.round((last.powerGeneration/last.powerConsumption)*100):0;
-  var slice12=p.readings.slice(-12);
-  var labels=slice12.map(function(d){return fmtDate(d);});
-
-  var powerCfg={type:'bar',data:{
-    labels:labels,
-    datasets:[
-      {label:'Strombezug',data:slice12.map(function(d){return+d.powerConsumption.toFixed(0);}),backgroundColor:'#f59e0b',order:2},
-      {label:'Eigenproduktion',data:slice12.map(function(d){return+d.powerGeneration.toFixed(0);}),backgroundColor:'#10b981',order:2},
-      {type:'line',label:'Nettobezug',data:slice12.map(function(d){return+(d.powerConsumption-d.powerGeneration).toFixed(0);}),
-       borderColor:'#ef4444',backgroundColor:'transparent',tension:0.3,pointRadius:3,order:1},
-    ],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_OPTS}};
-
-  var bioCfg={type:'bar',data:{
-    labels:labels,
-    datasets:[{label:'Biogas (m³)',data:slice12.map(function(d){return+d.biogas.toFixed(0);}),backgroundColor:'#10b981'}],
-  },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LEGEND_STYLE},scales:SCALE_OPTS}};
-
-  return html`<div class="space-y-6">
-    <h2 class="text-lg font-semibold text-sky-300">Energie-Monitoring</h2>
-    <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(175px,1fr))">
-      <${KPICard} title="Strombezug (netto)" value=${fmt(net,0)} unit="kWh" color="text-yellow-400"/>
-      <${KPICard} title="Eigendeckungsgrad" value=${cov} unit="%" color=${cov>60?'text-green-400':cov>40?'text-yellow-400':'text-red-400'}/>
-      <${KPICard} title="Biogasproduktion" value=${fmt(last.biogas,0)} unit="m³" color="text-emerald-400"/>
-      <${KPICard} title="Methangehalt" value=${fmt(last.biogasMethane,1)} unit="%" color="text-sky-400"/>
-      <${KPICard} title="Emissionsfaktor" value=${fmt(last.gridEmissionFactor,0)} unit="g/kWh" color="text-gray-400"/>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-gray-300 mb-3">Strombezug vs. Eigenproduktion (kWh)</div>
-      <${CJSChart} cfg=${powerCfg} height=${240}/>
-    </div>
-    <div class="card">
-      <div class="text-sm font-semibold text-gray-300 mb-3">Biogasproduktion (m³)</div>
-      <${CJSChart} cfg=${bioCfg} height=${180}/>
-    </div>
-  </div>`;
+  var sl=p.readings.slice(-12),lb=sl.map(fd);
+  var pCfg={type:'bar',data:{labels:lb,datasets:[
+    {label:'Strombezug',data:sl.map(function(d){return+d.powerConsumption.toFixed(0);}),backgroundColor:'#f59e0b',order:2},
+    {label:'Eigenproduktion',data:sl.map(function(d){return+d.powerGeneration.toFixed(0);}),backgroundColor:'#10b981',order:2},
+    {type:'line',label:'Nettobezug',data:sl.map(function(d){return+(d.powerConsumption-d.powerGeneration).toFixed(0);}),
+     borderColor:'#ef4444',backgroundColor:'transparent',tension:.3,pointRadius:3,order:1},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+  var bCfg={type:'bar',data:{labels:lb,datasets:[
+    {label:'Biogas (m³)',data:sl.map(function(d){return+d.biogas.toFixed(0);}),backgroundColor:'#10b981'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}};
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Energie-Monitoring'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(175px,1fr))'}},
+      h(KPI,{title:'Strombezug (netto)',value:f(net,0),unit:'kWh',color:'text-yellow-400'}),
+      h(KPI,{title:'Eigendeckungsgrad',value:cov,unit:'%',color:cov>60?'text-green-400':cov>40?'text-yellow-400':'text-red-400'}),
+      h(KPI,{title:'Biogasproduktion',value:f(last.biogas,0),unit:'m³',color:'text-emerald-400'}),
+      h(KPI,{title:'Methangehalt',value:f(last.biogasMethane,1),unit:'%',color:'text-sky-400'}),
+      h(KPI,{title:'Emissionsfaktor',value:f(last.gridEmissionFactor,0),unit:'g/kWh',color:'text-gray-400'})),
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Strombezug vs. Eigenproduktion (kWh)'),
+      h(CChart,{cfg:pCfg,h:240})),
+    h('div',{className:'card'},
+      h('div',{className:'text-sm font-semibold text-gray-300 mb-3'},'Biogasproduktion (m³)'),
+      h(CChart,{cfg:bCfg,h:180})));
 }
 
 // ── Datenimport ───────────────────────────────────────────────────────────
-var EMPTY_FORM={
-  year:new Date().getFullYear(),month:new Date().getMonth(),
+var EF={year:new Date().getFullYear(),month:new Date().getMonth(),
   connectedEW:50000,inflowVolume:7500,inflowTN:45,inflowCSB:430,inflowBSB5:220,
   effluentCSB:55,effluentBSB5:10,effluentSS:12,effluentTN:9,effluentTP:0.8,effluentNH4:6,
   powerConsumption:1900,powerGeneration:750,gridEmissionFactor:390,
   biogas:400,biogasMethane:65,heatOil:1200,
-  sludgeDisposal:7.5,sludgeTransport:40,ironSulfate:10,polyelectrolyte:1.5,
-};
-var MFIELDS=[
-  ['year','Jahr'],['month','Monat (0-11)'],['connectedEW','Angeschl. EW'],
+  sludgeDisposal:7.5,sludgeTransport:40,ironSulfate:10,polyelectrolyte:1.5};
+var MF=[['year','Jahr'],['month','Monat (0-11)'],['connectedEW','Angeschl. EW'],
   ['inflowVolume','Zufluss (m³)'],['inflowTN','TN Zulauf'],
   ['effluentCSB','CSB Ablauf'],['effluentBSB5','BSB5 Ablauf'],['effluentSS','SS Ablauf'],
   ['effluentTN','TN Ablauf'],['effluentTP','TP Ablauf'],['effluentNH4','NH4 Ablauf'],
@@ -465,137 +376,105 @@ var MFIELDS=[
   ['gridEmissionFactor','Netzfaktor (g/kWh)'],['biogas','Biogas (m³)'],
   ['biogasMethane','CH4-Gehalt (%)'],['heatOil','Heizöl (L)'],
   ['sludgeDisposal','Schlamm (t)'],['sludgeTransport','Transport (km)'],
-  ['ironSulfate','Eisensulfat (kg)'],['polyelectrolyte','Polyelektrolyt (kg)'],
-];
+  ['ironSulfate','Eisensulfat (kg)'],['polyelectrolyte','Polyelektrolyt (kg)']];
 
 function Datenimport(p){
-  var fileRef=useRef(null);
-  var s1=useState('');var msg=s1[0],setMsg=s1[1];
-  var s2=useState(Object.assign({},EMPTY_FORM));var form=s2[0],setForm=s2[1];
-
-  function handleCSV(e){
-    var f=e.target.files[0];if(!f)return;
-    var reader=new FileReader();
-    reader.onload=function(ev){
+  var fr=useRef(null);
+  var ms=useState('');var msg=ms[0],setMsg=ms[1];
+  var fs=useState(Object.assign({},EF));var form=fs[0],setForm=fs[1];
+  function setF(k,v){setForm(function(prev){var n=Object.assign({},prev);n[k]=v;return n;});}
+  function csv(e){
+    var fl=e.target.files[0];if(!fl)return;
+    var rd=new FileReader();
+    rd.onload=function(ev){
       try{
         var lines=ev.target.result.split('\n').filter(Boolean);
-        var hdrs=lines[0].split(';').map(function(h){return h.trim();});
+        var hd=lines[0].split(';').map(function(x){return x.trim();});
         var rows=lines.slice(1).map(function(l,id){
           var vs=l.split(';'),o={id:id};
-          hdrs.forEach(function(h,i){o[h]=isNaN(vs[i])?vs[i]:Number(vs[i]);});
+          hd.forEach(function(hh,i){o[hh]=isNaN(vs[i])?vs[i]:Number(vs[i]);});
           return o;
         }).filter(function(r){return r.year&&r.month!=null;});
-        p.dispatch({type:'SET_READINGS',payload:rows});
-        setMsg(rows.length+' Einträge importiert.');
+        p.dispatch({type:'SET',p:rows});setMsg(rows.length+' Einträge importiert.');
       }catch(err){setMsg('Fehler: '+err.message);}
     };
-    reader.readAsText(f);
+    rd.readAsText(fl);
   }
-
-  function fieldInp(k){
-    return {value:form[k],onChange:function(e){
-      var v=e.target.value;
-      setForm(function(prev){var n=Object.assign({},prev);n[k]=isNaN(v)||v===''?v:Number(v);return n;});
-    }};
-  }
-
-  return html`<div class="space-y-6">
-    <h2 class="text-lg font-semibold text-sky-300">Datenimport</h2>
-    <div class="grid gap-4" style="grid-template-columns:1fr 1fr 1fr">
-      <button class="card text-center cursor-pointer hover:border-sky-500 transition-colors" onClick=${p.onLoadDemo}>
-        <div class="text-2xl mb-2">🗃️</div>
-        <div class="font-semibold text-sky-300">Demodaten laden</div>
-        <div class="text-xs text-gray-500 mt-1">24 Monate synthetische Daten</div>
-      </button>
-      <div class="card">
-        <div class="font-semibold text-gray-300 mb-2">📂 CSV importieren</div>
-        <div class="text-xs text-gray-500 mb-3">Semikolon als Trennzeichen.</div>
-        <input type="file" accept=".csv" ref=${fileRef} onChange=${handleCSV} style="display:none"/>
-        <button class="nav-btn nav-inactive w-full" onClick=${function(){fileRef.current.click();}}>Datei wählen…</button>
-      </div>
-      <button class="card text-center cursor-pointer hover:border-red-500 transition-colors"
-        onClick=${function(){p.dispatch({type:'CLEAR'});setMsg('Daten gelöscht.');}}>
-        <div class="text-2xl mb-2">🗑️</div>
-        <div class="font-semibold text-red-400">Daten löschen</div>
-        <div class="text-xs text-gray-500 mt-1">Alle Einträge entfernen</div>
-      </button>
-    </div>
-    ${msg&&html`<div class="card text-sm text-green-400">${msg}</div>`}
-    <div class="card">
-      <div class="font-semibold text-gray-300 mb-4">Manuelle Dateneingabe</div>
-      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(155px,1fr))">
-        ${MFIELDS.map(function(f){return html`<div key=${f[0]}>
-          <label class="text-xs text-gray-500 block mb-1">${f[1]}</label>
-          <input type="number" value=${fieldInp(f[0]).value} onChange=${fieldInp(f[0]).onChange} class="w-full"/>
-        </div>`;})}
-      </div>
-      <button class="nav-btn nav-active mt-4" onClick=${function(){
-        p.dispatch({type:'ADD_READING',payload:Object.assign({},form,{id:Date.now()})});
-        setMsg('Eintrag hinzugefügt.');
-      }}>Eintrag speichern</button>
-    </div>
-    <div class="card">
-      <div class="font-semibold text-gray-300 mb-3">Anlageneinstellungen</div>
-      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
-        ${[['plantName','Anlagenname','text'],['gwp_n2o','GWP N₂O','number'],
-           ['gwp_ch4','GWP CH₄','number'],['ef_transport','EF Transport','number'],
-           ['ef_ironsulfate','EF Eisensulfat','number'],['ef_polyelectrolyte','EF Polyelektrolyt','number'],
-        ].map(function(f){return html`<div key=${f[0]}>
-          <label class="text-xs text-gray-500 block mb-1">${f[1]}</label>
-          <input type=${f[2]} value=${p.settings[f[0]]}
-            onChange=${function(e){
-              var o={};o[f[0]]=f[2]==='number'?Number(e.target.value):e.target.value;
-              p.dispatch({type:'UPD_SETTINGS',payload:o});
-            }} class="w-full"/>
-        </div>`;})}
-        <div>
-          <label class="text-xs text-gray-500 block mb-1">Größenklasse</label>
-          <select value=${p.settings.sizeClass}
-            onChange=${function(e){p.dispatch({type:'UPD_SETTINGS',payload:{sizeClass:e.target.value}});}}
-            class="w-full">
-            ${SIZE_CLASSES.map(function(s){return html`<option key=${s} value=${s}>${s}</option>`;})}
-          </select>
-        </div>
-      </div>
-    </div>
-  </div>`;
+  var SF=[['plantName','Anlagenname','text'],['gwp_n2o','GWP N₂O','number'],
+    ['gwp_ch4','GWP CH₄','number'],['ef_transport','EF Transport','number'],
+    ['ef_iron','EF Eisensulfat','number'],['ef_poly','EF Polyelektrolyt','number']];
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Datenimport'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'1fr 1fr 1fr'}},
+      h('button',{className:'card text-center cursor-pointer',style:{cursor:'pointer'},onClick:p.onLoadDemo},
+        h('div',{style:{fontSize:'2rem',marginBottom:'.5rem'}},'🗃️'),
+        h('div',{className:'font-semibold text-sky-300'},'Demodaten laden'),
+        h('div',{className:'text-xs text-gray-500 mt-1'},'24 Monate synthetische Daten')),
+      h('div',{className:'card'},
+        h('div',{className:'font-semibold text-gray-300 mb-2'},'📂 CSV importieren'),
+        h('div',{className:'text-xs text-gray-500 mb-3'},'Semikolon als Trennzeichen.'),
+        h('input',{type:'file',accept:'.csv',ref:fr,onChange:csv,style:{display:'none'}}),
+        h('button',{className:'nav-btn nav-inactive',style:{width:'100%'},onClick:function(){fr.current.click();}},'Datei wählen…')),
+      h('button',{className:'card text-center',style:{cursor:'pointer'},
+        onClick:function(){p.dispatch({type:'CLEAR'});setMsg('Daten gelöscht.');}},
+        h('div',{style:{fontSize:'2rem',marginBottom:'.5rem'}},'🗑️'),
+        h('div',{className:'font-semibold text-red-400'},'Daten löschen'),
+        h('div',{className:'text-xs text-gray-500 mt-1'},'Alle Einträge entfernen'))),
+    g(msg,h('div',{className:'card text-sm text-green-400'},msg)),
+    h('div',{className:'card'},
+      h('div',{className:'font-semibold text-gray-300 mb-4'},'Manuelle Dateneingabe'),
+      h('div',{className:'grid gap-3',style:{gridTemplateColumns:'repeat(auto-fit,minmax(155px,1fr))'}},
+        MF.map(function(fl){
+          return h('div',{key:fl[0]},
+            h('label',{className:'text-xs text-gray-500 block mb-1'},fl[1]),
+            h('input',{type:'number',className:'w-full',value:form[fl[0]],
+              onChange:function(e){var v=e.target.value;setF(fl[0],v===''?v:isNaN(v)?v:Number(v));}}));
+        })),
+      h('button',{className:'nav-btn nav-active',style:{marginTop:'1rem'},
+        onClick:function(){p.dispatch({type:'ADD',p:Object.assign({},form,{id:Date.now()})});setMsg('Eintrag hinzugefügt.');}},
+        'Eintrag speichern')),
+    h('div',{className:'card'},
+      h('div',{className:'font-semibold text-gray-300 mb-3'},'Anlageneinstellungen'),
+      h('div',{className:'grid gap-3',style:{gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))'}},
+        SF.map(function(fl){
+          return h('div',{key:fl[0]},
+            h('label',{className:'text-xs text-gray-500 block mb-1'},fl[1]),
+            h('input',{type:fl[2],className:'w-full',value:p.settings[fl[0]],
+              onChange:function(e){var o={};o[fl[0]]=fl[2]==='number'?Number(e.target.value):e.target.value;
+                p.dispatch({type:'SET_CFG',p:o});}}));
+        }),
+        h('div',null,
+          h('label',{className:'text-xs text-gray-500 block mb-1'},'Größenklasse'),
+          h('select',{className:'w-full',value:p.settings.sizeClass,
+            onChange:function(e){p.dispatch({type:'SET_CFG',p:{sizeClass:e.target.value}});}},
+            SC.map(function(s){return h('option',{key:s,value:s},s);}))))));
 }
 
 // ── App ───────────────────────────────────────────────────────────────────
 var TABS=[
-  {id:'dashboard',label:'📊 Dashboard'},
-  {id:'klimabilanz',label:'🌡️ Klimabilanz'},
-  {id:'grenzwerte',label:'⚠️ Grenzwerte'},
-  {id:'energie',label:'⚡ Energie'},
-  {id:'import',label:'📥 Daten'},
-];
+  {id:'dashboard',label:'📊 Dashboard'},{id:'klimabilanz',label:'🌡️ Klimabilanz'},
+  {id:'grenzwerte',label:'⚠️ Grenzwerte'},{id:'energie',label:'⚡ Energie'},
+  {id:'import',label:'📥 Daten'}];
 
 function App(){
-  var sa=useReducer(reducer,INIT);var st=sa[0],dispatch=sa[1];
-  var loadDemo=useCallback(function(){
-    dispatch({type:'SET_READINGS',payload:genSamples(st.settings.sizeClass)});
-  },[st.settings.sizeClass]);
-
-  return html`<div style="max-width:1100px;margin:0 auto;padding:1.5rem">
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-sky-400">KARL-Dashboard</h1>
-        <p class="text-xs text-gray-500">EU-Richtlinie 2024/3019 · GHG-Protocol · IPCC AR6</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        ${TABS.map(function(t){return html`<${NavBtn} key=${t.id} id=${t.id} label=${t.label}
-          active=${st.activeTab===t.id} onClick=${function(id){dispatch({type:'SET_TAB',payload:id});}}/>`;}) }
-      </div>
-    </div>
-    ${st.activeTab==='dashboard'  &&html`<${Dashboard}   readings=${st.readings} settings=${st.settings}/>`}
-    ${st.activeTab==='klimabilanz'&&html`<${Klimabilanz} readings=${st.readings} settings=${st.settings}/>`}
-    ${st.activeTab==='grenzwerte' &&html`<${Grenzwerte}  readings=${st.readings} settings=${st.settings}/>`}
-    ${st.activeTab==='energie'    &&html`<${Energie}     readings=${st.readings} settings=${st.settings}/>`}
-    ${st.activeTab==='import'     &&html`<${Datenimport} dispatch=${dispatch} settings=${st.settings} onLoadDemo=${loadDemo}/>`}
-  </div>`;
+  var sa=useReducer(reducer,INIT);var st=sa[0],dis=sa[1];
+  var ld=useCallback(function(){dis({type:'SET',p:demo(st.settings.sizeClass)});},[st.settings.sizeClass]);
+  return h('div',{style:{maxWidth:'1100px',margin:'0 auto',padding:'1.5rem'}},
+    h('div',{className:'flex flex-wrap items-center justify-between gap-3 mb-6'},
+      h('div',null,
+        h('h1',{className:'text-2xl font-bold text-sky-400'},'KARL-Dashboard'),
+        h('p',{className:'text-xs text-gray-500'},'EU-Richtlinie 2024/3019 · GHG-Protocol · IPCC AR6')),
+      h('div',{className:'flex flex-wrap gap-2'},
+        TABS.map(function(t){return h(NBtn,{key:t.id,id:t.id,label:t.label,active:st.activeTab===t.id,
+          onClick:function(id){dis({type:'TAB',p:id});}});}))),
+    st.activeTab==='dashboard'  &&h(Dashboard,  {readings:st.readings,settings:st.settings}),
+    st.activeTab==='klimabilanz'&&h(Klimabilanz, {readings:st.readings,settings:st.settings}),
+    st.activeTab==='grenzwerte' &&h(Grenzwerte,  {readings:st.readings,settings:st.settings}),
+    st.activeTab==='energie'    &&h(Energie,     {readings:st.readings,settings:st.settings}),
+    st.activeTab==='import'     &&h(Datenimport, {dispatch:dis,settings:st.settings,onLoadDemo:ld}));
 }
 
-createRoot(document.getElementById('root')).render(html`<${App}/>`);
+ReactDOM.createRoot(document.getElementById('root')).render(h(App,null));
 })();
 </script>
 </body>
