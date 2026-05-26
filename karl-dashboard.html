@@ -791,6 +791,114 @@ function Datenimport(p){
             SC.map(function(s){return h('option',{key:s,value:s},s);}))))));
 }
 
+// ── Benchmark Tips (rating-spezifische Vorschläge je Kennwert) ────────────
+var BENCH_TIPS={
+  energyPerEW:{
+    desc:'Gesamtstromverbrauch der Anlage normiert auf angeschlossene Einwohnerwerte. Größter Einzelhebel für Betriebskosten und Scope-2-Emissionen.',
+    poor:['Sofortmaßnahme: Energieaudit beauftragen (Pflicht KARL Art. 11, Frist 2027) – identifiziert typisch 15–30 % Einsparpotenzial','Belüftungsanlage überprüfen: 50–70 % des Stromverbrauchs entfallen auf Belüftung – O₂-Regelung und Membranbelüfter auf Effizienz prüfen','Pumpen und Rührwerke auf Betriebspunkt optimieren, Frequenzumrichter nachrüsten','Online-Energiemonitoring einrichten: Verbrauch je Anlagenteil erfassen'],
+    average:['Energieaudit durchführen, um verbliebene Einsparpotenziale zu identifizieren','Belüftungssteuerung auf bedarfsgerechten Betrieb umstellen (NH₄-geführte Regelung)','Benchmarking einzelner Aggregate (Gebläse, Pumpen) gegen Herstellerkenndaten'],
+    good:['Weiter optimieren: Online-Monitoring hilft, saisonale Schwankungen zu erkennen','Eigenversorgungsgrad steigern, um Nettostrombezug weiter zu senken','Betrieb dokumentieren für KARL-Energiebericht'],
+    top:['Exzellenter Wert – als Best-Practice im DWA-Leistungsvergleich melden','Fokus auf Eigenversorgung legen, da Verbrauchsoptimierung ausgereizt','Energiekonzept regelmäßig aktualisieren'],
+    measures:['energy_audit','aeration_opt','pv_install'],
+  },
+  selfSupply:{
+    desc:'Anteil des selbst erzeugten Stroms (BHKW, PV) am Gesamtstromverbrauch. Kernkennzahl für die KARL-Energieneutralität bis 2040.',
+    poor:['Biogasnetz prüfen: Ist BHKW vollständig ausgelastet? Leckagen und Fackelverluste erfassen','Kofermentation prüfen: Fette, Speisereste oder andere Co-Substrate steigern Biogasertrag deutlich','PV-Anlage nachrüsten: Dachflächen und Freiflächen nutzen (KfW 270)','BHKW-Wirkungsgrad messen: Ziel η_el > 38 %'],
+    average:['Biogasoptimierung: Faulraumtemperatur, Verweilzeit und TS-Gehalt optimieren','PV-Machbarkeitsstudie starten: Kombination BHKW + PV oft synergistisch','Stromspeicher prüfen für Eigenverbrauchsoptimierung'],
+    good:['Auf dem richtigen Weg zur KARL-Energieneutralität (Ziel: >80 % bis 2040)','Lastganganalyse: Eigenverbrauch und Einspeisung zeitlich besser abstimmen','Wärmepumpe prüfen: Abwärme aus BHKW für Faulturmheizung nutzen'],
+    top:['Sehr guter Eigenversorgungsgrad – Energieneutralitätsziel 2040 realistisch','Netzeinspeisung prüfen und PPA (Power Purchase Agreement) evaluieren','Zertifizierung als „Energieneutrale Kläranlage" anstreben'],
+    measures:['pv_install','biogas_opt','aeration_opt'],
+  },
+  csbElimination:{
+    desc:'Prozentsatz des chemischen Sauerstoffbedarfs, der durch die Kläranlage eliminiert wird. Kernparameter für die Reinigungsleistung.',
+    poor:['Belebungsanlage prüfen: Schlammbelastung B_TS berechnen (Ziel: 0,05–0,15 kg BSB/(kg TS·d))','Nachklärer kontrollieren: Schlammdecke, Eindickzone, Rücklaufschlammverhältnis','Zulaufcharakteristik analysieren: Industrieeinleiter mit hochkonzentrierten Abwässern identifizieren','Schlammalter erhöhen: Mindest-SRT prüfen (GK4/5: ≥ 10 d bei 12 °C)'],
+    average:['Nachklärerbetrieb optimieren: Schlammrücklauf und Überschussschlamm anpassen','Saisonale Schwankungen analysieren: CSB-Stoßbelastungen nach Starkregen identifizieren','Prozessmonitoring verbessern: Online-CSB-Messung im Ablauf nachrüsten'],
+    good:['Reinigungsleistung im guten Bereich – Monitoring beibehalten','Variabilität reduzieren: Einzelne Ausreißermonate analysieren','Energieeinsatz vs. Reinigungsleistung optimieren (Aeration Efficiency)'],
+    top:['Top-Reinigungsleistung – Dokumentation für Jahresbericht nutzen','Zulassungsreserven prüfen: Spielraum bis KARL-Grenzwert quantifizieren','Emissionshandel: CSB-Entlastung kann in Klimabilanz positiv wirken'],
+    measures:['aeration_opt'],
+  },
+  pElimination:{
+    desc:'Anteil des Gesamtphosphors, der durch biologische und/oder chemische Fällung eliminiert wird. KARL verschärft TP-Grenzwert auf 1,0 mg/L.',
+    poor:['Fällmitteldosierung sofort anpassen: Online-Phosphatmessung nachrüsten für geregelte Dosierung','Fällmittelart prüfen: Eisensulfat vs. Aluminiumchlorid – Wirkungsgrad je nach pH unterschiedlich','Simultanfällung vs. Vorfällung/Nachfällung evaluieren','Biologische P-Elimination (PAO) aktivieren: reduziert Chemikalienverbrauch und Scope-3-Emissionen'],
+    average:['Dosierregelung optimieren: Messwert-basierte statt zeitbasierte Dosierung','Schlammrezirkulation anpassen: P-Rücklösung aus Schlamm minimieren','Fällmittelkosten und CO₂-Fußabdruck der Chemikalien im Blick behalten'],
+    good:['Gute P-Elimination – KARL-Grenzwert 1,0 mg/L sollte sicher eingehalten werden','Chemikalienverbrauch optimieren: Overdosierung vermeiden (Scope-3-Emissionen)','Phosphorrückgewinnung aus Klärschlamm langfristig evaluieren'],
+    top:['Ausgezeichnete P-Elimination – als Referenz für chemikalieneffiziente Fällung','Struvit-Rückgewinnung prüfen: wirtschaftlich ab ~50.000 EW','Klärschlammverordnung 2032 im Blick: P-Rückgewinnung wird Pflicht'],
+    measures:['phosphor_opt','phosphor_rec'],
+  },
+  nElimination:{
+    desc:'Anteil des Gesamtstickstoffs, der durch Nitrifikation und Denitrifikation eliminiert wird. N₂O-Emissionen (Scope 1) sind direkt mit der N-Prozessführung verknüpft.',
+    poor:['Denitrifikationsvolumen prüfen: Verhältnis Denitrifikation/Nitrifikation sollte ≥ 50 % sein','Rezirkulationsrate erhöhen: Interne Rezirkulation auf 200–400 % des Zuflusses','Externe Kohlenstoffquelle prüfen: Methanol oder Essigsäure bei C-Mangel','Schlammalter erhöhen: Vollständige Nitrifikation erfordert SRT > 10 d bei 12 °C'],
+    average:['Rezirkulationssteuerung optimieren: Bedarfsgerechte NO₃-Regelung implementieren','Intermittierende Denitrifikation evaluieren: Flexibel bei schwankenden Belastungen','N₂O-Messung einrichten: Emissionsquellen identifizieren (Scope-1-Reduktion)'],
+    good:['Gute N-Elimination – KARL-TN-Grenzwert wird eingehalten','N₂O-Monitoring einrichten: Prozessoptimierung kann Emissionen um 20–50 % senken','Rücklaufschlammqualität im Blick behalten: Blähschlamm reduziert N-Elimination'],
+    top:['Sehr gute N-Elimination – Beitrag zur Eutrophierungsreduzierung im Gewässer','N₂O-Emissionen messtechnisch erfassen für vollständige Scope-1-Bilanz','Forschungskooperation zu Low-N₂O-Betrieb prüfen'],
+    measures:['denitrif'],
+  },
+  co2ePerEW:{
+    desc:'Treibhausgasemissionen (alle Scopes) normiert auf Einwohnerwerte. Wichtigste Klimakennzahl für den Anlagenvergleich und zukünftige CSRD-Berichtspflichten.',
+    poor:['Emissionsquellen analysieren: Welcher Scope dominiert? (Klimabilanz-Tab)','Scope 1 (N₂O) senken: Prozessführung optimieren, N₂O-Monitoring einrichten','Scope 2 senken: Eigenversorgung steigern (PV, Biogasoptimierung)','THG-Reduktionspfad 2030/2040 definieren und jährlich messen'],
+    average:['Hotspot-Analyse: Den einen größten Emissionsverursacher identifizieren und priorisiert angehen','Scope-3-Emissionen prüfen: Polyelektrolyt hat 8× höheren EF als Eisensulfat – Substitution prüfen','Klimabilanz nach GHG-Protocol vollständig dokumentieren'],
+    good:['Gute Klimabilanz – besser als Branchendurchschnitt','CSRD-Berichterstattung vorbereiten: Anforderungen ab 2026 für mittlere Unternehmen','Klimaziele 2030/2040 formulieren und Maßnahmenplan erstellen'],
+    top:['Klimaschutz-Vorreiter – THG-Emissionen im obersten Quartil','Berichterstattung nach ESRS E1 (Climate Change) vorbereiten','Kommunikation: Klimaergebnisse in Jahresbericht und Öffentlichkeitsarbeit nutzen'],
+    measures:['pv_install','biogas_opt','aeration_opt','denitrif'],
+  },
+};
+
+// ── Benchmark Suggestion Modal ─────────────────────────────────────────────
+function BenchModal(p){
+  var row=p.row;var bm=row.bm;
+  var rating=getRating(row.val,bm,bm.hib);
+  var tips=BENCH_TIPS[row.key];
+  useEffect(function(){
+    function onKey(e){if(e.key==='Escape')p.onClose();}
+    document.addEventListener('keydown',onKey);
+    return function(){document.removeEventListener('keydown',onKey);};
+  },[]);
+  if(!tips)return null;
+  var ratingKey=rating.label.indexOf('Vorbildlich')>=0?'top':rating.label.indexOf('Gut')>=0?'good':rating.label.indexOf('Durchschnitt')>=0?'average':'poor';
+  var tipList=tips[ratingKey]||tips.poor;
+  var relMeasures=tips.measures.map(function(id){return MEASURES.find(function(m){return m.id===id;});}).filter(Boolean);
+  return h('div',{className:'modal-overlay',onClick:function(e){if(e.target===e.currentTarget)p.onClose();}},
+    h('div',{className:'modal-box',style:{maxWidth:'620px'}},
+      h('button',{className:'modal-close',onClick:p.onClose},'✕'),
+      h('div',{style:{color:'#38bdf8',fontSize:'.7rem',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'.3rem'}},'Benchmarking · DWA Leistungsnachweis 2023'),
+      h('h2',{style:{color:'#f1f5f9',fontSize:'1.2rem',fontWeight:700,marginBottom:'.5rem'}},bm.label),
+      h('div',{style:{color:'#94a3b8',fontSize:'.85rem',lineHeight:'1.5',marginBottom:'1rem'}},tips.desc),
+      // Current value + rating
+      h('div',{style:{display:'flex',alignItems:'center',gap:'1rem',background:'#0f172a',borderRadius:'8px',padding:'.75rem 1rem',marginBottom:'1rem'}},
+        h('div',null,
+          h('div',{style:{fontSize:'.7rem',color:'#64748b',textTransform:'uppercase'}},bm.label),
+          h('div',{style:{fontSize:'1.5rem',fontWeight:700,color:'#f1f5f9'}},f(row.val,1)+' '+bm.unit)),
+        h('div',{style:{borderLeft:'1px solid #334155',paddingLeft:'1rem'}},
+          h('div',{style:{fontSize:'.7rem',color:'#64748b',textTransform:'uppercase',marginBottom:'.2rem'}},'Bewertung'),
+          h('div',{style:{fontSize:'1rem',fontWeight:700},className:rating.cls},rating.label),
+          h('div',{style:{fontSize:'.75rem',color:'#64748b'}},rating.txt)),
+        h('div',{style:{borderLeft:'1px solid #334155',paddingLeft:'1rem',fontSize:'.75rem',color:'#64748b'}},
+          h('div',null,'p25: '+bm.p25),
+          h('div',null,'Median: '+bm.median),
+          h('div',null,'p75: '+bm.p75),
+          h('div',{style:{marginTop:'.25rem',color:'#94a3b8'}},bm.unit))),
+      // Tips
+      h('div',{className:'info-label'},'Konkrete Handlungsempfehlungen'),
+      h('ul',{style:{margin:'.5rem 0 1rem',paddingLeft:'0',listStyle:'none'}},
+        tipList.map(function(tip,i){
+          return h('li',{key:i,style:{display:'flex',gap:'.6rem',marginBottom:'.6rem',alignItems:'flex-start'}},
+            h('span',{style:{color:'#0ea5e9',fontWeight:700,flexShrink:0,marginTop:'.05rem'}},'→'),
+            h('span',{style:{fontSize:'.875rem',color:'#cbd5e1',lineHeight:'1.5'}},tip));
+        })),
+      // Related measures
+      relMeasures.length>0&&h('div',null,
+        h('div',{className:'info-label'},'Verknüpfte Maßnahmen im Handlungsplan'),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:'.5rem'}},
+          relMeasures.map(function(m){
+            var pMap={critical:'#ef4444',high:'#f59e0b',medium:'#6366f1'};
+            return h('div',{key:m.id,style:{background:'#0f172a',borderRadius:'8px',padding:'.6rem .9rem',borderLeft:'3px solid '+(pMap[m.prio]||'#334155')}},
+              h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                h('span',{style:{fontWeight:600,fontSize:'.875rem',color:'#e2e8f0'}},m.title),
+                h('span',{style:{fontSize:'.75rem',color:'#64748b'}},'Frist: '+m.deadline)),
+              h('div',{style:{fontSize:'.75rem',color:'#94a3b8',marginTop:'.2rem'}},m.invest+' · '+m.fundingHint||m.funding));
+          })))));
+}
+
 // ── Benchmark Gauge ───────────────────────────────────────────────────────
 function BenchGauge(p){
   var bm=p.bm,v=p.value,hib=p.hib!==false;
@@ -817,6 +925,7 @@ function Benchmarking(p){
   var sc=p.settings.sizeClass;
   var kpis=useMemo(function(){return calculateAnnualKPIs(p.readings,p.settings);},[p.readings,p.settings]);
   var selState=useState('energyPerEW');var selParam=selState[0],setSelParam=selState[1];
+  var modState=useState(null);var modRow=modState[0],setModRow=modState[1];
 
   if(!p.readings.length)return h('div',{className:'text-center text-gray-500 py-20'},'Keine Daten vorhanden – bitte Demodaten laden.');
   if(!kpis)return null;
@@ -851,9 +960,8 @@ function Benchmarking(p){
     {label:'Deine Anlage',data:selVals.map(function(v){return+v.toFixed(2);}),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.15)',tension:.3,pointRadius:4,fill:false},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:LS},scales:SO}}:null;
 
-  var prioIcon={critical:'🔴',high:'⚠️',medium:'ℹ️'};
-
   return h('div',{className:'space-y-6'},
+    modRow&&h(BenchModal,{row:modRow,onClose:function(){setModRow(null);}}),
     h('h2',{className:'text-lg font-semibold text-sky-300'},'Benchmarking – Vergleich mit Branchenwerten'),
     h('div',{className:'card',style:{background:'#1e3a4a',borderColor:'#0ea5e9'}},
       h('div',{className:'text-xs text-sky-400 uppercase font-semibold mb-1'},'Datenquelle'),
@@ -864,13 +972,15 @@ function Benchmarking(p){
       rows.map(function(row){
         var bm=row.bm;
         var rating=getRating(row.val,bm,bm.hib);
-        return h('div',{className:'card',key:row.key},
+        return h('div',{className:'card card-info',key:row.key,onClick:function(){setModRow(row);}},
+          h('span',{className:'info-icon'},'ⓘ'),
           h('div',{className:'flex justify-between items-start mb-1'},
             h('span',{className:'font-semibold text-gray-200 text-sm'},bm.label),
             h('span',{className:'text-sm font-bold '+rating.cls},rating.label)),
           h('div',{className:'text-2xl font-bold text-white'},f(row.val,1)+h('span',{className:'text-sm font-normal text-gray-400'},' '+bm.unit)),
           h(BenchGauge,{value:row.val,bm:bm,hib:bm.hib}),
-          h('div',{className:'text-xs text-gray-500'},rating.txt));
+          h('div',{className:'text-xs text-gray-400 mt-1'},rating.txt),
+          h('div',{className:'text-xs text-gray-600 mt-1'},'Klicken für Handlungsempfehlungen'));
       })),
 
     h('div',{className:'card'},
