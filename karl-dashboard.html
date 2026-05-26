@@ -46,6 +46,8 @@
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
 <script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1274,11 +1276,390 @@ function Handlungsplan(p){
 }
 
 // ── App ───────────────────────────────────────────────────────────────────
+// ── PDF helpers ───────────────────────────────────────────────────────────
+function fDE(n,d){d=d==null?1:d;return typeof n==='number'&&!isNaN(n)?n.toFixed(d).replace('.',','):'–';}
+
+var PDF_DARK=[15,23,42],PDF_MID=[30,41,59],PDF_SKY=[14,165,233],PDF_LIGHT=[248,250,252];
+var PDF_TXT=[30,41,59],PDF_GRAY=[100,116,139],PDF_WHITE=[241,245,249];
+
+function pdfCover(doc,title,sub,settings){
+  var w=210,h=297;
+  doc.setFillColor.apply(doc,PDF_DARK);doc.rect(0,0,w,h,'F');
+  doc.setFillColor.apply(doc,PDF_SKY);doc.rect(0,0,6,h,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(28);
+  doc.setTextColor.apply(doc,PDF_WHITE);doc.text(title,20,65);
+  if(sub){doc.setFontSize(15);doc.setFont('helvetica','normal');
+    doc.setTextColor.apply(doc,PDF_GRAY);doc.text(sub,20,80);}
+  doc.setFillColor.apply(doc,PDF_MID);doc.roundedRect(20,100,120,55,4,4,'F');
+  doc.setFontSize(9);doc.setTextColor.apply(doc,PDF_GRAY);doc.text('Anlage',27,113);
+  doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.setTextColor.apply(doc,PDF_WHITE);doc.text(settings.plantName,27,123);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  doc.setTextColor.apply(doc,PDF_GRAY);
+  doc.text('Groessenklasse: '+settings.sizeClass,27,133);
+  doc.text('Erstellt: '+new Date().toLocaleDateString('de-DE'),27,143);
+  doc.text('Berichtsjahr: '+new Date().getFullYear(),27,153);
+  doc.setFontSize(8);doc.setTextColor(51,65,85);
+  doc.text('EU-Richtlinie 2024/3019 (KARL) · GHG-Protocol · IPCC AR6',20,h-18);
+  doc.text('Erstellt mit KARL-Dashboard',20,h-11);
+}
+function pdfHeader(doc,title,plant,pageN){
+  doc.setFillColor.apply(doc,PDF_MID);doc.rect(0,0,210,18,'F');
+  doc.setFillColor.apply(doc,PDF_SKY);doc.rect(0,0,4,18,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.setTextColor.apply(doc,PDF_WHITE);doc.text(title,10,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.setTextColor.apply(doc,PDF_GRAY);
+  doc.text(plant,10,17);
+  doc.text('Seite '+pageN,200,11,{align:'right'});
+}
+function pdfFooter(doc,pageN){
+  var h=297;
+  doc.setFillColor(20,28,45);doc.rect(0,h-10,210,10,'F');
+  doc.setFontSize(7);doc.setTextColor(51,65,85);
+  doc.text('KARL-Dashboard · EU-Richtlinie 2024/3019',10,h-3);
+  doc.text('Seite '+pageN,200,h-3,{align:'right'});
+}
+var PDF_TBL={headStyles:{fillColor:[30,41,59],textColor:[148,163,184],fontSize:8,fontStyle:'bold'},
+  bodyStyles:{fillColor:[255,255,255],textColor:[30,41,59],fontSize:8},
+  alternateRowStyles:{fillColor:[248,250,252]},
+  margin:{left:10,right:10},theme:'grid',
+  didDrawPage:function(d){/* autoTable callback */}};
+
+// ── PDF: Jahresbericht ────────────────────────────────────────────────────
+function generateJahresbericht(readings,settings){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF('p','mm','a4');
+  var plant=settings.plantName;
+  var r12=readings.slice(-12);
+  var data=r12.map(function(r){return Object.assign({},r,{em:calcEm(r,settings),co:calcComp(r,settings.sizeClass)});});
+  var totEm=data.reduce(function(a,d){return a+d.em.tot;},0);
+  var avgSP=data.reduce(function(a,d){return a+d.em.sp;},0)/data.length;
+  var avgScore=Math.round(data.reduce(function(a,d){return a+d.co.score;},0)/data.length);
+  var totViol=data.reduce(function(a,d){return a+d.co.viol.length;},0);
+  var kpis=calculateAnnualKPIs(readings,settings)||{selfSupply:0};
+
+  pdfCover(doc,'Jahresbericht','Klaeranlagen-Monitoring · Wasserwirtschaftsamt',settings);
+
+  doc.addPage();
+  pdfHeader(doc,'Jahresbericht – Zusammenfassung',plant,2);
+  doc.setFont('helvetica','bold');doc.setFontSize(11);
+  doc.setTextColor.apply(doc,PDF_TXT);doc.text('Kennzahlen-Uebersicht (letzte 12 Monate)',10,28);
+  // KPI table
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:33,
+    head:[['Kennwert','Wert','Einheit','Hinweis']],
+    body:[
+      ['THG-Emissionen gesamt',fDE(totEm,1),'t CO2e','Scope 1+2+3 kumuliert'],
+      ['Spezifische Emissionen',fDE(avgSP,1),'kg CO2e/EW','Jahresdurchschnitt'],
+      ['Compliance-Score (Oe)',String(avgScore),'%',avgScore>=95?'Compliant':'Pruefbedarf'],
+      ['Grenzwertverstoeße gesamt',String(totViol),'Anzahl',totViol===0?'Keine Verstoeße':'Massnahmen pruefen'],
+      ['Eigenversorgungsgrad',fDE(kpis.selfSupply,1),'%','Strom aus Eigenerzeugung'],
+    ],
+  }));
+
+  doc.setFont('helvetica','bold');doc.setFontSize(11);
+  doc.setTextColor.apply(doc,PDF_TXT);
+  var y=doc.lastAutoTable.finalY+10;
+  doc.text('THG-Scope-Uebersicht nach Jahr',10,y);
+  var yr=Object.values(data.reduce(function(a,d){
+    var k=d.year;if(!a[k])a[k]={year:k,s1:0,s2:0,s3:0,tot:0};
+    a[k].s1+=d.em.s1;a[k].s2+=d.em.s2;a[k].s3+=d.em.s3;a[k].tot+=d.em.tot;return a;
+  },{}));
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:y+5,
+    head:[['Jahr','Scope 1 (t CO2e)','Scope 2 (t CO2e)','Scope 3 (t CO2e)','Gesamt (t CO2e)']],
+    body:yr.map(function(y){return[String(y.year),fDE(y.s1),fDE(y.s2),fDE(y.s3),fDE(y.tot)];}),
+  }));
+  pdfFooter(doc,2);
+
+  doc.addPage();
+  pdfHeader(doc,'THG-Emissionsdaten – Monatsuebersicht',plant,3);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Monat','Scope 1','Scope 2','Scope 3','Gesamt','kg/EW','Compliance']],
+    body:data.map(function(d){
+      return[fd(d),fDE(d.em.s1),fDE(d.em.s2),fDE(d.em.s3),fDE(d.em.tot),fDE(d.em.sp),d.co.score+'%'];
+    }),
+  }));
+  pdfFooter(doc,3);
+
+  doc.addPage();
+  pdfHeader(doc,'Grenzwert-Compliance',plant,4);
+  var sc=settings.sizeClass;
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Monat','CSB','BSB5','SS','TN','TP','NH4','Score']],
+    body:data.map(function(d){
+      function cv(v,lim){return lim!=null?(v>lim?'! '+fDE(v):fDE(v)):'-';}
+      return[fd(d),
+        cv(d.effluentCSB,KL.CSB[sc]),cv(d.effluentBSB5,KL.BSB5[sc]),
+        cv(d.effluentSS,KL.SS[sc]),cv(d.effluentTN,KL.TN[sc]),
+        cv(d.effluentTP,KL.TP[sc]),cv(d.effluentNH4,KL.NH4[sc]),
+        d.co.score+'%'];
+    }),
+  }));
+  var y4=doc.lastAutoTable.finalY+8;
+  doc.setFontSize(8);doc.setTextColor.apply(doc,PDF_GRAY);
+  doc.text('! = Grenzwertueberschreitung (EU-Richtlinie 2024/3019). Alle Werte in mg/L.',10,y4);
+  doc.text('Groessenklasse '+sc+': CSB<='+KL.CSB[sc]+' | BSB5<='+KL.BSB5[sc]+' | SS<='+KL.SS[sc]+(KL.TN[sc]?' | TN<='+KL.TN[sc]:'')+(KL.TP[sc]?' | TP<='+KL.TP[sc]:''),10,y4+5);
+  pdfFooter(doc,4);
+
+  doc.save('KARL_Jahresbericht_'+settings.sizeClass+'_'+new Date().getFullYear()+'.pdf');
+}
+
+// ── PDF: Energiebericht ───────────────────────────────────────────────────
+function generateEnergiebericht(readings,settings){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF('p','mm','a4');
+  var plant=settings.plantName;
+  var r12=readings.slice(-12);
+  var kpis=calculateAnnualKPIs(readings,settings)||{};
+  var sc=settings.sizeClass;
+  var bmE=DWA_BM.energyPerEW[sc]||DWA_BM.energyPerEW.GK4;
+  var bmS=DWA_BM.selfSupply[sc]||DWA_BM.selfSupply.GK4;
+
+  pdfCover(doc,'Energiebericht','KARL Art. 11 – Energiemonitoring & Benchmarking',settings);
+
+  doc.addPage();
+  pdfHeader(doc,'Energiebericht – Kennzahlen',plant,2);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Kennwert','Deine Anlage','DWA p25','DWA Median','DWA p75','Bewertung']],
+    body:[
+      ['Stromverbrauch spez. (kWh/EW/a)',fDE(kpis.energyPerEW,1),String(bmE.p25),String(bmE.median),String(bmE.p75),
+        kpis.energyPerEW<=bmE.p25?'Vorbildlich':kpis.energyPerEW<=bmE.median?'Gut':kpis.energyPerEW<=bmE.p75?'Durchschnitt':'Handlungsbedarf'],
+      ['Eigenversorgungsgrad (%)',fDE(kpis.selfSupply,1),String(bmS.p25),String(bmS.median),String(bmS.p75),
+        kpis.selfSupply>=bmS.p75?'Vorbildlich':kpis.selfSupply>=bmS.median?'Gut':kpis.selfSupply>=bmS.p25?'Durchschnitt':'Handlungsbedarf'],
+    ],
+  }));
+  doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,PDF_TXT);
+  var y2=doc.lastAutoTable.finalY+10;
+  doc.text('Pflichtangaben nach KARL Art. 11',10,y2);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:y2+5,
+    head:[['Anforderung','Status','Naechste Frist']],
+    body:[
+      ['Energieaudit durchgefuehrt','Zu pruefen – Erstaudit bis 2027','2027'],
+      ['Energiemonitoring eingerichtet','In Betrieb (dieses Dashboard)','Laufend'],
+      ['Energiebericht erstellt','Ja – dieser Bericht',new Date().toLocaleDateString('de-DE')],
+      ['Massnahmenplan vorhanden','Siehe Handlungsplan-Tab','Laufend'],
+    ],
+  }));
+  pdfFooter(doc,2);
+
+  doc.addPage();
+  pdfHeader(doc,'Energiedaten – Monatsuebersicht',plant,3);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Monat','Bezug (kWh)','Eigen (kWh)','Netto (kWh)','Eigendeckung (%)','Biogas (m3)','Methan (%)']],
+    body:r12.map(function(r){
+      var cov=r.powerConsumption>0?r.powerGeneration/r.powerConsumption*100:0;
+      return[fd(r),fDE(r.powerConsumption,0),fDE(r.powerGeneration,0),fDE(r.powerConsumption-r.powerGeneration,0),fDE(cov,1),fDE(r.biogas,0),fDE(r.biogasMethane,1)];
+    }),
+  }));
+  pdfFooter(doc,3);
+  doc.save('KARL_Energiebericht_'+settings.sizeClass+'_'+new Date().getFullYear()+'.pdf');
+}
+
+// ── PDF: Klimabilanz ──────────────────────────────────────────────────────
+function generateKlimabilanz(readings,settings){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF('p','mm','a4');
+  var plant=settings.plantName;
+  var r12=readings.slice(-12);
+  var data=r12.map(function(r){return Object.assign({},r,{em:calcEm(r,settings)});});
+  var sum=function(fn){return data.reduce(function(a,d){return a+fn(d);},0);};
+  var totS1=sum(function(d){return d.em.s1;});
+  var totS2=sum(function(d){return d.em.s2;});
+  var totS3=sum(function(d){return d.em.s3;});
+  var totN2O=sum(function(d){return d.em.n2o;});
+  var totCH4=sum(function(d){return d.em.ch4;});
+  var totOil=sum(function(d){return d.em.oil;});
+  var totSl=sum(function(d){return d.em.sl;});
+  var totCh=sum(function(d){return d.em.ch;});
+  var totTot=totS1+totS2+totS3;
+  var avgEW=data.reduce(function(a,d){return a+d.connectedEW;},0)/data.length;
+  var spez=avgEW>0?totTot*1000/avgEW:0;
+
+  pdfCover(doc,'Klimabilanz','GHG-Protocol Corporate Standard – Scope 1/2/3',settings);
+
+  doc.addPage();
+  pdfHeader(doc,'Klimabilanz – Scope-Uebersicht',plant,2);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Emissionsquelle','Scope','t CO2e/a','Anteil (%)','Methodengrundlage']],
+    body:[
+      ['N2O (Nitrifikation/Denitrifikation)','Scope 1',fDE(totN2O),fDE(totTot>0?totN2O/totTot*100:0,0)+'%','IPCC 2019 Ref., EF=0,016'],
+      ['CH4 (Biogasanlage/Leckagen)','Scope 1',fDE(totCH4),fDE(totTot>0?totCH4/totTot*100:0,0)+'%','GWP 27,9 (IPCC AR6)'],
+      ['Heizoelverbrennung','Scope 1',fDE(totOil),fDE(totTot>0?totOil/totTot*100:0,0)+'%','EF 2,65 kg CO2e/L'],
+      ['Scope 1 Gesamt','Scope 1',fDE(totS1),fDE(totTot>0?totS1/totTot*100:0,0)+'%',''],
+      ['Nettostromverbrauch','Scope 2',fDE(totS2),fDE(totTot>0?totS2/totTot*100:0,0)+'%','Location-based EF Stromnetz'],
+      ['Klaerschlammtransport','Scope 3',fDE(totSl),fDE(totTot>0?totSl/totTot*100:0,0)+'%','EF 0,092 kg CO2e/(t·km)'],
+      ['Chemikalien (FeSO4, Poly)','Scope 3',fDE(totCh),fDE(totTot>0?totCh/totTot*100:0,0)+'%','EF 0,3 / 2,5 kg CO2e/kg'],
+      ['GESAMT','1+2+3',fDE(totTot),'100%','GHG-Protocol Corporate Standard'],
+      ['Spezifisch pro EW/a','–',fDE(spez,1)+' kg/EW','–','Einwohnerwert-normiert'],
+    ],
+  }));
+  pdfFooter(doc,2);
+
+  doc.addPage();
+  pdfHeader(doc,'Klimabilanz – Monatliche Zeitreihe',plant,3);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Monat','N2O','CH4','Heizoel','Scope 1','Scope 2','Scope 3','Gesamt','kg/EW']],
+    body:data.map(function(d){
+      return[fd(d),fDE(d.em.n2o),fDE(d.em.ch4),fDE(d.em.oil),fDE(d.em.s1),fDE(d.em.s2),fDE(d.em.s3),fDE(d.em.tot),fDE(d.em.sp)];
+    }),
+  }));
+  var yf=doc.lastAutoTable.finalY+6;
+  doc.setFontSize(8);doc.setTextColor.apply(doc,PDF_GRAY);
+  doc.text('Alle Werte in t CO2e. GWP100-Werte nach IPCC AR6: N2O='+settings.gwp_n2o+', CH4='+settings.gwp_ch4,10,yf);
+  pdfFooter(doc,3);
+  doc.save('KARL_Klimabilanz_'+settings.sizeClass+'_'+new Date().getFullYear()+'.pdf');
+}
+
+// ── PDF: Handlungsplan ────────────────────────────────────────────────────
+function generateHandlungsplan(readings,settings){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF('p','mm','a4');
+  var plant=settings.plantName;
+  var kpis=calculateAnnualKPIs(readings,settings)||{selfSupply:0,energyPerEW:999,connectedEW:0,avgTPout:1,avgTNout:15};
+  var measures=getRecommendedMeasures(kpis);
+  var sc=settings.sizeClass;
+  var tnLim=KL.TN[sc]||13;var tpLim=KL.TP[sc]||1;
+  var readiness={energyAudit:false,virusMonitoring:false,rainwaterPlan:false,
+    tnCompliant:kpis.avgTNout!=null&&kpis.avgTNout<tnLim*0.9,
+    tpCompliant:kpis.avgTPout!=null&&kpis.avgTPout<tpLim*0.9,
+    stage4Planned:kpis.connectedEW<10000};
+  var readScore=KARL_REQ.reduce(function(a,r){return a+(readiness[r.id]?r.weight:0);},0);
+  var prioLabel={critical:'Kritisch',high:'Hoch',medium:'Mittel'};
+
+  pdfCover(doc,'Handlungsplan','KARL-Compliance – Massnahmen & Fristen',settings);
+
+  doc.addPage();
+  pdfHeader(doc,'KARL-Readiness-Score',plant,2);
+  doc.setFont('helvetica','bold');doc.setFontSize(16);
+  doc.setTextColor.apply(doc,readScore>=70?[22,163,74]:readScore>=40?[202,138,4]:[220,38,38]);
+  doc.text('Readiness-Score: '+readScore+' / 100',10,32);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:38,
+    head:[['KARL-Anforderung','Gewicht','Status','Erlaeuterung']],
+    body:KARL_REQ.map(function(r){
+      var ok=readiness[r.id];
+      return[r.label,r.weight+'%',ok?'Erfuellt':'Offen',
+        ok?'Anforderung erfullt':'Massnahme erforderlich – siehe Handlungsplan'];
+    }),
+  }));
+  pdfFooter(doc,2);
+
+  doc.addPage();
+  pdfHeader(doc,'Empfohlene Massnahmen',plant,3);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Massnahme','Kategorie','Prioritaet','Frist','Investition','Aufwand']],
+    body:measures.map(function(m){
+      return[m.title,m.cat,prioLabel[m.prio]||m.prio,String(m.deadline),m.invest,{low:'Niedrig',medium:'Mittel',high:'Hoch'}[m.effort]||m.effort];
+    }),
+  }));
+  pdfFooter(doc,3);
+
+  doc.addPage();
+  pdfHeader(doc,'KARL-Fristenplan 2025–2045',plant,4);
+  doc.autoTable(Object.assign({},PDF_TBL,{
+    startY:23,
+    head:[['Jahr','Anforderung','Relevanz','Artikel'],],
+    body:[
+      ['2025','EU-Richtlinie 2024/3019 tritt in Kraft','Alle Anlagen','KARL Art. 1'],
+      ['2027','Bewirtschaftungsplan Niederschlagswasser','Alle Anlagen','KARL Art. 5'],
+      ['2027','Erstes Energieaudit (Pflicht)','Alle Anlagen >500 EW','KARL Art. 11'],
+      ['2028','Virenmonitoring Pflicht','Anlagen >10.000 EW','KARL Art. 21'],
+      ['2030','4. Reinigungsstufe','Anlagen >150.000 EW','KARL Art. 8'],
+      ['2035','Verschaerfte N/P-Grenzwerte','Alle Anlagen','KARL Anhang I'],
+      ['2035','4. Reinigungsstufe','Anlagen 10.000–150.000 EW','KARL Art. 8'],
+      ['2039','4. Reinigungsstufe','Alle Anlagen >10.000 EW','KARL Art. 8'],
+      ['2040','Energieneutralitaet','Alle Anlagen','KARL Art. 11'],
+    ],
+  }));
+  var yf4=doc.lastAutoTable.finalY+8;
+  doc.setFontSize(8);doc.setTextColor.apply(doc,PDF_GRAY);
+  doc.text('Anlage '+settings.plantName+' (GK '+settings.sizeClass+'): '+
+    (kpis.connectedEW>10000?'4. Reinigungsstufe bis 2039 relevant.':'4. Reinigungsstufe ggf. nicht relevant (<10.000 EW pruefen).'),10,yf4);
+  doc.text('Foerderdatenbank: foerderdatenbank.de · Naechstes Energieaudit bis 2027',10,yf4+6);
+  pdfFooter(doc,4);
+  doc.save('KARL_Handlungsplan_'+settings.sizeClass+'_'+new Date().getFullYear()+'.pdf');
+}
+
+// ── Berichte ──────────────────────────────────────────────────────────────
+function Berichte(p){
+  var genState=useState({});var gen=genState[0],setGen=genState[1];
+  function doGen(id,fn){
+    if(!window.jspdf){alert('PDF-Bibliothek noch nicht geladen. Bitte kurz warten und erneut versuchen.');return;}
+    setGen(function(prev){var n=Object.assign({},prev);n[id]=true;return n;});
+    setTimeout(function(){
+      try{fn(p.readings,p.settings);}catch(e){console.error('PDF error:',e);alert('PDF-Fehler: '+e.message);}
+      setGen(function(prev){var n=Object.assign({},prev);n[id]=false;return n;});
+    },50);
+  }
+  var reports=[
+    {id:'jahresbericht',icon:'🏛️',color:'#0ea5e9',title:'Jahresbericht Wasserwirtschaftsamt',
+     desc:'Pflichtbericht für Behörden: THG-Bilanz, Grenzwert-Compliance, Kennzahlen (4 Seiten)',
+     badge:'Behörde · KARL Art. 15',fn:generateJahresbericht},
+    {id:'energiebericht',icon:'⚡',color:'#f59e0b',title:'Energiebericht (KARL Art. 11)',
+     desc:'Pflichtbericht: Stromverbrauch, Eigenversorgung, DWA-Benchmarking (3 Seiten)',
+     badge:'Pflicht · Frist 2027',fn:generateEnergiebericht},
+    {id:'klimabilanz',icon:'🌡️',color:'#ef4444',title:'Klimabilanz GHG-Protocol',
+     desc:'Scope 1/2/3 vollständig, spezifische Emissionen, Jahresübersicht (3 Seiten)',
+     badge:'GHG-Protocol · IPCC AR6',fn:generateKlimabilanz},
+    {id:'handlungsplan',icon:'🗂️',color:'#6366f1',title:'Handlungsplan-Zusammenfassung',
+     desc:'KARL-Readiness, priorisierte Maßnahmen, Fristen 2025–2045 (4 Seiten)',
+     badge:'KARL Compliance',fn:generateHandlungsplan},
+  ];
+  var noData=!p.readings.length;
+  return h('div',{className:'space-y-6'},
+    h('h2',{className:'text-lg font-semibold text-sky-300'},'Berichte & Dokumentation'),
+    h('div',{className:'card',style:{background:'#1e3a4a',borderColor:'#0ea5e9'}},
+      h('div',{className:'text-xs text-sky-400 uppercase font-semibold mb-1'},'Hinweis'),
+      h('span',{className:'text-sm text-gray-300'},
+        'PDFs werden vollständig im Browser erstellt – keine Serverdaten. Alle Berichte enthalten das Erstellungsdatum und sind für Behördeneinreichungen formatiert.')),
+    noData&&h('div',{className:'card text-gray-500 text-center py-8'},'Bitte zuerst Daten laden (Tab 📥 Daten → Demodaten laden).'),
+    h('div',{className:'grid gap-4',style:{gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))'}},
+      reports.map(function(r){
+        var loading=gen[r.id];
+        return h('div',{className:'card',key:r.id},
+          h('div',{style:{display:'flex',alignItems:'center',gap:'.75rem',marginBottom:'.75rem'}},
+            h('div',{style:{fontSize:'2rem'}},r.icon),
+            h('div',null,
+              h('div',{className:'font-semibold text-white text-sm'},r.title),
+              h('div',{style:{fontSize:'.7rem',background:'#0f172a',color:r.color,padding:'1px 8px',borderRadius:'999px',display:'inline-block',marginTop:'.2rem'}},r.badge))),
+          h('div',{className:'text-sm text-gray-400 mb-4'},r.desc),
+          h('button',{
+            className:'nav-btn '+(noData||loading?'nav-inactive':'nav-active'),
+            style:{width:'100%',opacity:noData?0.4:1},
+            disabled:noData||loading,
+            onClick:function(){doGen(r.id,r.fn);}},
+            loading?'⏳ PDF wird erstellt...':'📄 PDF herunterladen'));
+      })),
+    h('div',{className:'card',style:{borderColor:'#334155'}},
+      h('div',{className:'text-xs text-gray-500 uppercase font-semibold mb-2'},'Enthaltene Daten je Bericht'),
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',null,'Bericht'),h('th',null,'Seiten'),h('th',null,'Inhalt'),h('th',null,'Rechtsgrundlage'))),
+        h('tbody',null,[
+          ['Jahresbericht','4','THG-Bilanz, Scopes, Grenzwerte, Compliance-Tabellen','EU-Richtlinie 2024/3019, AbwV'],
+          ['Energiebericht','3','Stromverbrauch, Eigenversorgung, Benchmarking','KARL Art. 11'],
+          ['Klimabilanz','3','Scope 1/2/3 Aufschlüsselung, monatliche Zeitreihe','GHG-Protocol, IPCC AR6'],
+          ['Handlungsplan','4','KARL-Readiness, Maßnahmen, Fristen 2025–2045','KARL Art. 5, 8, 11, 21'],
+        ].map(function(r,i){
+          return h('tr',{key:i},r.map(function(c,j){return h('td',{key:j},c);}));
+        })))));
+}
+
 var TABS=[
   {id:'dashboard',label:'📊 Dashboard'},{id:'klimabilanz',label:'🌡️ Klimabilanz'},
   {id:'grenzwerte',label:'⚠️ Grenzwerte'},{id:'energie',label:'⚡ Energie'},
   {id:'benchmarking',label:'📈 Benchmarking'},{id:'handlungsplan',label:'🗂️ Handlungsplan'},
-  {id:'import',label:'📥 Daten'}];
+  {id:'berichte',label:'📄 Berichte'},{id:'import',label:'📥 Daten'}];
 
 function App(){
   var sa=useReducer(reducer,INIT);var st=sa[0],dis=sa[1];
@@ -1301,6 +1682,7 @@ function App(){
     st.activeTab==='energie'      &&h(Energie,      {readings:st.readings,settings:st.settings,onInfo:onInfo}),
     st.activeTab==='benchmarking' &&h(Benchmarking, {readings:st.readings,settings:st.settings}),
     st.activeTab==='handlungsplan'&&h(Handlungsplan,{readings:st.readings,settings:st.settings}),
+    st.activeTab==='berichte'     &&h(Berichte,     {readings:st.readings,settings:st.settings}),
     st.activeTab==='import'       &&h(Datenimport,  {dispatch:dis,settings:st.settings,onLoadDemo:ld}));
 }
 
