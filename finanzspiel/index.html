@@ -88,11 +88,13 @@ const pct = (n) => n.toLocaleString(CUR_LANG === 'en' ? 'en-US' : 'de-DE', { min
 
 /* Abgeleitete Finanzkennzahlen (rein, ohne Seiteneffekt) */
 function derive(s){
+  const stocksVal = s.stockUnits * s.stockPrice;
+  const reVal = s.realEstateUnits * s.realEstatePrice;
   const interestExpenses = s.loans * (s.interestRate / 100);
   const totalExpenses = s.basisExpenses + s.lifestyleSpend + interestExpenses;
   const netCashflow = s.salary - totalExpenses;
-  const netWorth = (s.cash + s.stocks + s.realEstate) - s.loans;
-  return { interestExpenses, totalExpenses, netCashflow, netWorth };
+  const netWorth = (s.cash + stocksVal + reVal) - s.loans;
+  return { interestExpenses, totalExpenses, netCashflow, netWorth, stocksVal, reVal };
 }
 
 /* ---------- i18n: Wörterbuch DE / EN (inkl. Log-Texte unter L) ---------- */
@@ -104,17 +106,16 @@ const T = {
     interestExp: 'Zinsaufwand', lifestyleSpending: 'Konsumausgaben', netCashflow: 'Netto-Cashflow',
     balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Schulden', equity: 'Eigenkapital',
     actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)',
-    buyStocks: 'Aktien kaufen', buyStocksHint: '5.000 € / Paket → Depot (jährliche Schwankung)', stockPack: 'Aktienpaket',
-    buyApartments: 'Wohnungen kaufen', buyApartmentsHint: '25.000 € EK / Wohnung → +250.000 € Objekt, +225.000 € Kredit, +15.000 € Miete', apartment: 'Wohnung',
-    quantity: 'Menge',
+    buyStocks: 'Aktien', buyApartments: 'Immobilien',
+    quantity: 'Menge', priceLabel: 'Kurs', buy: 'Kaufen', sell: 'Verkaufen', owned: 'im Bestand',
     lifestyleTitle: 'Lifestyle / Konsum',
     lifestyleA: 'Konsum kostet Cashflow, steigert aber die Lebensfreude. ', lifestyleB: ' senkt die Freude jährlich, über ', lifestyleC: ' hebt sie deutlich.',
     chartTitle: 'Vermögensverlauf', legendAssets: 'Vermögen', legendLiabilities: 'Schulden', legendEquity: 'Eigenkapital',
     chartNoData: 'Noch keine Verlaufsdaten – starte ins Berufsleben.',
     eventLog: 'Event-Log',
     startTitle: 'Alter 16 – Dein Bildungsweg', startDesc: 'Diese Entscheidung bestimmt deinen Start ins Berufsleben.',
-    apprentice: 'Ausbildung', apprenticeDesc: 'Start mit 19 · +5.000 € Cash · 24.000 € Gehalt · keine Schulden',
-    university: 'Studium', universityDesc: 'Start mit 23 · 0 € Cash · 45.000 € Gehalt · 10.000 € Schulden',
+    apprentice: 'Ausbildung', apprenticeDesc: 'Start mit 19 · +5.000 € Cash · 24.000 € Gehalt · 20.000 € Fixkosten',
+    university: 'Studium', universityDesc: 'Start mit 23 · 0 € Cash · 45.000 € Gehalt · 10.000 € Schulden · 30.000 € Fixkosten',
     weddingTitle: 'Alter 28 – Hochzeit?', weddingDesc: 'Du hast die große Liebe getroffen.',
     weddingBody: 'Heiraten kostet einmalig 10.000 € und erhöht die Fixkosten um 15 %, schenkt dir aber +20 Lebensfreude.',
     weddingYes: 'Ja, heiraten', no: 'Nein',
@@ -130,17 +131,18 @@ const T = {
       universityDone: () => 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.',
       jobFail: (s) => `Jobwechsel missglückt – Kündigung! Gehalt jetzt ${fmt(s)}.`,
       jobOk: (s) => `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(s)}.`,
-      stocksBuy: (n, c) => `${n} × Aktienpaket für ${fmt(c)} gekauft.`,
+      stocksBuy: (n, c) => `${n} Aktien für ${fmt(c)} gekauft.`,
+      stocksSell: (n, p) => `${n} Aktien für ${fmt(p)} verkauft.`,
       stocksReject: (c) => `Aktienkauf abgelehnt – ${fmt(c)} Cash nötig.`,
-      reBuy: (n, o, l, r) => `${n} Wohnung(en) gekauft (+${fmt(o)}, +${fmt(l)} Kredit, +${fmt(r)} Miete).`,
+      reBuy: (n, dn, l, r) => `${n} Wohnung(en) gekauft (${fmt(dn)} EK, +${fmt(l)} Kredit, +${fmt(r)} Miete).`,
+      reSell: (n, pr, rp) => `${n} Wohnung(en) verkauft (+${fmt(pr)}, −${fmt(rp)} Kredittilgung).`,
       reReject: (need) => `Immobilienkauf abgelehnt – ${fmt(need)} EK nötig.`,
       single: () => 'Du bleibst Single.',
       married: () => 'Hochzeit! −10.000 € Cash, +15 % Fixkosten, +20 Lebensfreude.',
       noKids: () => 'Du entscheidest dich gegen Kinder.',
       kids: (n, c, f, j) => `Nachwuchs: ${n} Kind(er)! −${fmt(c)} Cash, +${fmt(f)} Fixkosten, +${j} Lebensfreude.`,
       year: (i, r, cf) => `Inflation ${pct(i)} · Leitzins ${pct(r)} · Cashflow ${fmt(cf)}`,
-      stockMove: (chg, v) => `Aktiendepot ${chg >= 0 ? '+' : ''}${chg.toFixed(1)} % → ${fmt(v)}`,
-      reMove: (chg, v) => `Immobilienpreis ${chg >= 0 ? '+' : ''}${chg.toFixed(1)} % → ${fmt(v)}`,
+      market: (sp, sc, rp, rc) => `Kurse: Aktie ${fmt(sp)} (${sc >= 0 ? '+' : ''}${sc.toFixed(1)} %), Immobilie ${fmt(rp)} (${rc >= 0 ? '+' : ''}${rc.toFixed(1)} %)`,
       bankrupt: () => 'Privatinsolvenz – das Eigenkapital ist aufgebraucht.',
       retired: (nw) => `Ruhestand erreicht mit einem Vermögen von ${fmt(nw)}.`,
     },
@@ -152,17 +154,16 @@ const T = {
     interestExp: 'Interest expense', lifestyleSpending: 'Lifestyle spending', netCashflow: 'Net cashflow',
     balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Debt', equity: 'Equity',
     actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +25% salary · 15%: layoff (€20,000)',
-    buyStocks: 'Buy stocks', buyStocksHint: '€5,000 / pack → portfolio (annual fluctuation)', stockPack: 'stock pack',
-    buyApartments: 'Buy apartments', buyApartmentsHint: '€25,000 equity / unit → +€250,000 asset, +€225,000 loan, +€15,000 rent', apartment: 'apartment',
-    quantity: 'Quantity',
+    buyStocks: 'Stocks', buyApartments: 'Real estate',
+    quantity: 'Quantity', priceLabel: 'Price', buy: 'Buy', sell: 'Sell', owned: 'owned',
     lifestyleTitle: 'Lifestyle / spending',
     lifestyleA: 'Spending costs cashflow but raises joy. ', lifestyleB: ' lowers joy yearly, above ', lifestyleC: ' raises it notably.',
     chartTitle: 'Net worth over time', legendAssets: 'Assets', legendLiabilities: 'Liabilities', legendEquity: 'Equity',
     chartNoData: 'No history yet – start your career.',
     eventLog: 'Event log',
     startTitle: 'Age 16 – Your education path', startDesc: 'This decision shapes your career start.',
-    apprentice: 'Apprenticeship', apprenticeDesc: 'Start at 19 · +€5,000 cash · €24,000 salary · no debt',
-    university: 'University', universityDesc: 'Start at 23 · €0 cash · €45,000 salary · €10,000 debt',
+    apprentice: 'Apprenticeship', apprenticeDesc: 'Start at 19 · +€5,000 cash · €24,000 salary · €20,000 fixed costs',
+    university: 'University', universityDesc: 'Start at 23 · €0 cash · €45,000 salary · €10,000 debt · €30,000 fixed costs',
     weddingTitle: 'Age 28 – Marriage?', weddingDesc: 'You met the love of your life.',
     weddingBody: 'Marrying costs €10,000 once and raises fixed costs by 15%, but grants +20 joy.',
     weddingYes: 'Yes, marry', no: 'No',
@@ -178,17 +179,18 @@ const T = {
       universityDone: () => 'University completed – career start with €45,000 salary, €10,000 student debt.',
       jobFail: (s) => `Job change failed – laid off! Salary now ${fmt(s)}.`,
       jobOk: (s) => `Job change successful – salary +25% to ${fmt(s)}.`,
-      stocksBuy: (n, c) => `Bought ${n} × stock pack for ${fmt(c)}.`,
+      stocksBuy: (n, c) => `Bought ${n} shares for ${fmt(c)}.`,
+      stocksSell: (n, p) => `Sold ${n} shares for ${fmt(p)}.`,
       stocksReject: (c) => `Stock purchase rejected – ${fmt(c)} cash required.`,
-      reBuy: (n, o, l, r) => `Bought ${n} apartment(s) (+${fmt(o)}, +${fmt(l)} loan, +${fmt(r)} rent).`,
-      reReject: (need) => `Property purchase rejected – ${fmt(need)} equity required.`,
+      reBuy: (n, dn, l, r) => `Bought ${n} apartment(s) (${fmt(dn)} down, +${fmt(l)} loan, +${fmt(r)} rent).`,
+      reSell: (n, pr, rp) => `Sold ${n} apartment(s) (+${fmt(pr)}, −${fmt(rp)} loan repaid).`,
+      reReject: (need) => `Property purchase rejected – ${fmt(need)} down payment required.`,
       single: () => 'You stay single.',
       married: () => 'Married! −€10,000 cash, +15% fixed costs, +20 joy.',
       noKids: () => 'You decide against children.',
       kids: (n, c, f, j) => `Offspring: ${n} child(ren)! −${fmt(c)} cash, +${fmt(f)} fixed costs, +${j} joy.`,
       year: (i, r, cf) => `Inflation ${pct(i)} · rate ${pct(r)} · cashflow ${fmt(cf)}`,
-      stockMove: (chg, v) => `Stock portfolio ${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% → ${fmt(v)}`,
-      reMove: (chg, v) => `Property price ${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% → ${fmt(v)}`,
+      market: (sp, sc, rp, rc) => `Prices: stock ${fmt(sp)} (${sc >= 0 ? '+' : ''}${sc.toFixed(1)}%), property ${fmt(rp)} (${rc >= 0 ? '+' : ''}${rc.toFixed(1)}%)`,
       bankrupt: () => 'Bankruptcy – your equity is exhausted.',
       retired: (nw) => `Retirement reached with net worth of ${fmt(nw)}.`,
     },
@@ -201,15 +203,16 @@ function initialState(){
     gameState: 'modal',      // running | modal | gameover | won
     event: 'start',          // start | wedding | kids | null
     age: 16,
-    cash: 0, stocks: 0, realEstate: 0,
+    cash: 0,
     loans: 0,
     salary: 0,
     basisExpenses: 30000,
     inflation: 2, interestRate: 3,
+    stockPrice: 5000, realEstatePrice: 250000,
+    stockUnits: 0, realEstateUnits: 0,
     joy: 50, joyFloor: 0,
     lifestyleSpend: 0,
     stockQty: 1, realEstateQty: 1, kidsQty: 1,
-    stockUnits: 0, realEstateUnits: 0,
     lang: 'de',
     history: [],
     flags: { wedding: false, kids: false },
@@ -234,21 +237,11 @@ function advanceYear(prev){
   const newSalary = prev.salary * 1.02;
   const newCash = prev.cash + d.netCashflow;
 
-  // Aktienpreis schwankt (nur wenn vorhanden)
-  let newStocks = prev.stocks;
-  let stockChange = 0;
-  if (prev.stocks > 0) {
-    stockChange = rand(-15, 20);
-    newStocks = prev.stocks * (1 + stockChange / 100);
-  }
-
-  // Immobilienpreis schwankt (nur wenn vorhanden)
-  let newRealEstate = prev.realEstate;
-  let reChange = 0;
-  if (prev.realEstate > 0) {
-    reChange = rand(-8, 12);
-    newRealEstate = prev.realEstate * (1 + reChange / 100);
-  }
+  // Aktienkurs & Immobilienkurs schwanken jährlich (immer, unabhängig vom Besitz)
+  const stockChange = rand(-15, 20);
+  const newStockPrice = prev.stockPrice * (1 + stockChange / 100);
+  const reChange = rand(-8, 12);
+  const newRealEstatePrice = prev.realEstatePrice * (1 + reChange / 100);
 
   // Joy – Lebensfreude aus Heirat/Kindern (joyFloor) geht nicht zurück
   let joyDelta;
@@ -261,12 +254,7 @@ function advanceYear(prev){
 
   // Logs für das Jahr
   log = addLog(log, newAge, L.year(newInflation, newInterest, d.netCashflow), d.netCashflow >= 0 ? 'good' : 'bad');
-  if (prev.stocks > 0) {
-    log = addLog(log, newAge, L.stockMove(stockChange, newStocks), stockChange >= 0 ? 'good' : 'bad');
-  }
-  if (prev.realEstate > 0) {
-    log = addLog(log, newAge, L.reMove(reChange, newRealEstate), reChange >= 0 ? 'good' : 'bad');
-  }
+  log = addLog(log, newAge, L.market(newStockPrice, stockChange, newRealEstatePrice, reChange), stockChange >= 0 ? 'good' : 'bad');
 
   let next = {
     ...prev,
@@ -276,8 +264,8 @@ function advanceYear(prev){
     basisExpenses: newBasis,
     salary: newSalary,
     cash: newCash,
-    stocks: newStocks,
-    realEstate: newRealEstate,
+    stockPrice: newStockPrice,
+    realEstatePrice: newRealEstatePrice,
     joy: newJoy,
     log,
   };
@@ -360,18 +348,19 @@ function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon
   );
 }
 
-/* Kauf-Karte mit Mengen-Regler (1–10) */
-function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy, busy, cash, hint, qtyLabel }){
-  const total = unitCost * qty;
-  const afford = cash >= total;
-  const lock = busy || !afford;
+/* Handels-Karte: Kurs anzeigen, mit Mengen-Regler kaufen ODER verkaufen */
+function TradeCard({ icon, accent, title, price, priceLabel, owned, ownedLabel, qty, setQty, qtyLabel,
+                    onBuy, onSell, buyTotal, sellTotal, canBuy, canSell, busy, buyLabel, sellLabel }){
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
       <div className="mb-2 flex items-center gap-3">
         <span className={`grid place-items-center w-9 h-9 rounded-lg bg-${accent}-500/15 text-${accent}-400 shrink-0`}><Icon name={icon} size={18} /></span>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-slate-100">{title}</div>
-          <div className="text-xs text-slate-400 leading-tight">{hint}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-slate-100">{title}</div>
+            <div className="text-xs text-slate-400">{priceLabel}: <span className={`tabular-nums font-bold text-${accent}-300`}>{fmt(price)}</span></div>
+          </div>
+          <div className="text-xs text-slate-400 leading-tight">{owned}× {ownedLabel}</div>
         </div>
       </div>
       <div className="mb-2 flex items-center gap-2">
@@ -380,10 +369,16 @@ function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy,
           onChange={(e) => setQty(Number(e.target.value))} className="flex-1" />
         <span className={`w-6 text-center tabular-nums font-bold text-${accent}-400`}>{qty}</span>
       </div>
-      <button onClick={() => onBuy(qty)} disabled={lock}
-        className={`w-full rounded-lg px-3 py-2 text-sm font-semibold transition ${lock ? 'cursor-not-allowed bg-slate-800 text-slate-600' : `bg-${accent}-500/15 text-${accent}-300 hover:bg-${accent}-500/25`}`}>
-        {qty} × {unitLabel} · {fmt(total)}
-      </button>
+      <div className="flex gap-2">
+        <button onClick={() => onBuy(qty)} disabled={busy || !canBuy}
+          className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition ${busy || !canBuy ? 'cursor-not-allowed bg-slate-800 text-slate-600' : `bg-${accent}-500/15 text-${accent}-300 hover:bg-${accent}-500/25`}`}>
+          {buyLabel} · {fmt(buyTotal)}
+        </button>
+        <button onClick={() => onSell(qty)} disabled={busy || !canSell}
+          className={`flex-1 rounded-lg px-2 py-2 text-xs font-semibold transition ${busy || !canSell ? 'cursor-not-allowed bg-slate-800 text-slate-600' : 'bg-slate-600 text-slate-100 hover:bg-slate-500'}`}>
+          {sellLabel} · {fmt(sellTotal)}
+        </button>
+      </div>
     </div>
   );
 }
@@ -499,24 +494,48 @@ function App(){
   const buyStocks = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
     const L = T[p.lang].L;
-    const cost = 5000 * n;
+    const cost = n * p.stockPrice;
     if (p.cash < cost) return { ...p, log: addLog(p.log, p.age, L.stocksReject(cost), 'bad') };
-    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, stockUnits: p.stockUnits + n, log: addLog(p.log, p.age, L.stocksBuy(n, cost), 'good') };
+    return { ...p, cash: p.cash - cost, stockUnits: p.stockUnits + n, log: addLog(p.log, p.age, L.stocksBuy(n, cost), 'good') };
+  });
+
+  const sellStocks = (n) => setS(p => {
+    if (p.gameState !== 'running' || p.stockUnits <= 0) return p;
+    const L = T[p.lang].L;
+    const units = Math.min(n, p.stockUnits);
+    const proceeds = units * p.stockPrice;
+    return { ...p, cash: p.cash + proceeds, stockUnits: p.stockUnits - units, log: addLog(p.log, p.age, L.stocksSell(units, proceeds), 'good') };
   });
 
   const buyRealEstate = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
     const L = T[p.lang].L;
-    const need = 25000 * n;
-    if (p.cash < need) return { ...p, log: addLog(p.log, p.age, L.reReject(need), 'bad') };
+    const down = n * p.realEstatePrice * 0.1;
+    const loan = n * p.realEstatePrice * 0.9;
+    if (p.cash < down) return { ...p, log: addLog(p.log, p.age, L.reReject(down), 'bad') };
     return {
       ...p,
-      cash: p.cash - need,
-      realEstate: p.realEstate + 250000 * n,
+      cash: p.cash - down,
       realEstateUnits: p.realEstateUnits + n,
-      loans: p.loans + 225000 * n,
+      loans: p.loans + loan,
       salary: p.salary + 15000 * n,
-      log: addLog(p.log, p.age, L.reBuy(n, 250000 * n, 225000 * n, 15000 * n), 'good'),
+      log: addLog(p.log, p.age, L.reBuy(n, down, loan, 15000 * n), 'good'),
+    };
+  });
+
+  const sellRealEstate = (n) => setS(p => {
+    if (p.gameState !== 'running' || p.realEstateUnits <= 0) return p;
+    const L = T[p.lang].L;
+    const units = Math.min(n, p.realEstateUnits);
+    const proceeds = units * p.realEstatePrice;
+    const repay = (p.loans / p.realEstateUnits) * units;
+    return {
+      ...p,
+      cash: p.cash + proceeds - repay,
+      loans: p.loans - repay,
+      realEstateUnits: p.realEstateUnits - units,
+      salary: p.salary - 15000 * units,
+      log: addLog(p.log, p.age, L.reSell(units, proceeds, repay), 'good'),
     };
   });
 
@@ -529,8 +548,8 @@ function App(){
   const chooseStart = (path) => setS(p => {
     const L = T[p.lang].L;
     const base = path === 'ausbildung'
-      ? { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0, log: addLog(p.log, 19, L.apprenticeDone(), 'good') }
-      : { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000, log: addLog(p.log, 23, L.universityDone(), 'good') };
+      ? { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0, basisExpenses: 20000, log: addLog(p.log, 19, L.apprenticeDone(), 'good') }
+      : { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000, basisExpenses: 30000, log: addLog(p.log, 23, L.universityDone(), 'good') };
     base.history = seedHistory(base);
     return base;
   });
@@ -630,12 +649,12 @@ function App(){
             <Icon name="Scale" size={16} /> {t.balance}
           </h2>
           {(() => {
-            const balMax = Math.max(Math.abs(s.cash), s.stocks, s.realEstate, s.loans, Math.abs(d.netWorth), 1);
+            const balMax = Math.max(Math.abs(s.cash), d.stocksVal, d.reVal, s.loans, Math.abs(d.netWorth), 1);
             return (
               <div>
                 <FinBar label={t.cash} value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
-                <FinBar label={`${t.stocks} (${s.stockUnits}×)`} value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
-                <FinBar label={`${t.realEstate} (${s.realEstateUnits}×)`} value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
+                <FinBar label={`${t.stocks} (${s.stockUnits}×)`} value={d.stocksVal} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
+                <FinBar label={`${t.realEstate} (${s.realEstateUnits}×)`} value={d.reVal} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
                 <FinBar label={t.debt} value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
               </div>
             );
@@ -654,14 +673,21 @@ function App(){
           <div className="space-y-2.5">
             <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
               title={t.changeJob} subtitle={t.changeJobSub} />
-            <BuyCard icon="TrendingUp" accent="emerald" title={t.buyStocks}
-              hint={t.buyStocksHint} qtyLabel={t.quantity}
-              unitLabel={t.stockPack} unitCost={5000} qty={s.stockQty} setQty={setStockQty}
-              onBuy={buyStocks} busy={busy} cash={s.cash} />
-            <BuyCard icon="Building2" accent="violet" title={t.buyApartments}
-              hint={t.buyApartmentsHint} qtyLabel={t.quantity}
-              unitLabel={t.apartment} unitCost={25000} qty={s.realEstateQty} setQty={setRealEstateQty}
-              onBuy={buyRealEstate} busy={busy} cash={s.cash} />
+            <TradeCard icon="TrendingUp" accent="emerald" title={t.buyStocks}
+              priceLabel={t.priceLabel} price={s.stockPrice} owned={s.stockUnits} ownedLabel={t.owned}
+              qty={s.stockQty} setQty={setStockQty} qtyLabel={t.quantity}
+              onBuy={buyStocks} onSell={sellStocks}
+              buyTotal={s.stockQty * s.stockPrice} sellTotal={Math.min(s.stockQty, s.stockUnits) * s.stockPrice}
+              canBuy={!busy && s.cash >= s.stockQty * s.stockPrice} canSell={!busy && s.stockUnits > 0}
+              busy={busy} buyLabel={t.buy} sellLabel={t.sell} />
+            <TradeCard icon="Building2" accent="violet" title={t.buyApartments}
+              priceLabel={t.priceLabel} price={s.realEstatePrice} owned={s.realEstateUnits} ownedLabel={t.owned}
+              qty={s.realEstateQty} setQty={setRealEstateQty} qtyLabel={t.quantity}
+              onBuy={buyRealEstate} onSell={sellRealEstate}
+              buyTotal={s.realEstateQty * s.realEstatePrice * 0.1}
+              sellTotal={Math.min(s.realEstateQty, s.realEstateUnits) * s.realEstatePrice - (s.realEstateUnits > 0 ? (s.loans / s.realEstateUnits) * Math.min(s.realEstateQty, s.realEstateUnits) : 0)}
+              canBuy={!busy && s.cash >= s.realEstateQty * s.realEstatePrice * 0.1} canSell={!busy && s.realEstateUnits > 0}
+              busy={busy} buyLabel={t.buy} sellLabel={t.sell} />
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
