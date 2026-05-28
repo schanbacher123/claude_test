@@ -5,164 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>JavaScript Test-Seite</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem;
-    }
-
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 2rem;
-      color: #7dd3fc;
-    }
-
-    .card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 1.5rem;
-      width: 100%;
-      max-width: 600px;
-      margin-bottom: 1.5rem;
-    }
-
-    .card h2 {
-      font-size: 1.1rem;
-      color: #94a3b8;
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    /* Counter */
-    #counter-display {
-      font-size: 3rem;
-      font-weight: bold;
-      text-align: center;
-      color: #7dd3fc;
-      margin: 1rem 0;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: center;
-    }
-
-    button {
-      padding: 0.5rem 1.25rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+    h1 { font-size: 2rem; margin-bottom: 2rem; color: #7dd3fc; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 600px; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1.1rem; color: #94a3b8; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    #counter-display { font-size: 3rem; font-weight: bold; text-align: center; color: #7dd3fc; margin: 1rem 0; }
+    .btn-row { display: flex; gap: 0.75rem; justify-content: center; }
+    button { padding: 0.5rem 1.25rem; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: opacity 0.2s; }
     button:hover { opacity: 0.85; }
-
     .btn-primary { background: #3b82f6; color: #fff; }
     .btn-danger  { background: #ef4444; color: #fff; }
     .btn-gray    { background: #475569; color: #fff; }
-
-    /* Color mixer */
     .sliders { display: flex; flex-direction: column; gap: 0.75rem; }
-
-    .slider-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .slider-row label {
-      width: 2rem;
-      font-weight: bold;
-    }
-
-    input[type="range"] {
-      flex: 1;
-      accent-color: #7dd3fc;
-    }
-
-    .slider-row span {
-      width: 2.5rem;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    #color-preview {
-      height: 60px;
-      border-radius: 8px;
-      margin-top: 1rem;
-      border: 1px solid #334155;
-      transition: background 0.1s;
-    }
-
-    /* Clock */
-    #clock {
-      font-size: 2.5rem;
-      font-weight: bold;
-      text-align: center;
-      color: #a78bfa;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Quiz */
-    #question {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-    }
-
-    .answer-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
-    }
-
-    .answer-btn {
-      background: #334155;
-      color: #e2e8f0;
-      border-radius: 8px;
-      padding: 0.6rem;
-      font-size: 0.95rem;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
+    .slider-row { display: flex; align-items: center; gap: 1rem; }
+    .slider-row label { width: 2rem; font-weight: bold; }
+    input[type="range"] { flex: 1; accent-color: #7dd3fc; }
+    .slider-row span { width: 2.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+    #color-preview { height: 60px; border-radius: 8px; margin-top: 1rem; border: 1px solid #334155; transition: background 0.1s; }
+    #clock { font-size: 2.5rem; font-weight: bold; text-align: center; color: #a78bfa; font-variant-numeric: tabular-nums; }
+    #question { font-size: 1.1rem; margin-bottom: 1rem; }
+    .answer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .answer-btn { background: #334155; color: #e2e8f0; border-radius: 8px; padding: 0.6rem; font-size: 0.95rem; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; }
     .answer-btn:hover { border-color: #7dd3fc; }
     .answer-btn.correct { background: #166534; border-color: #22c55e; }
     .answer-btn.wrong   { background: #7f1d1d; border-color: #ef4444; }
-
-    #quiz-feedback {
-      margin-top: 0.75rem;
-      min-height: 1.4rem;
-      font-weight: bold;
-    }
-
-    #quiz-score {
-      color: #94a3b8;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
+    #quiz-feedback { margin-top: 0.75rem; min-height: 1.4rem; font-weight: bold; }
+    #quiz-score { color: #94a3b8; font-size: 0.9rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
-
   <h1>JavaScript Test-Seite</h1>
-
-  <!-- Counter -->
   <div class="card">
     <h2>Zahler</h2>
     <div id="counter-display">0</div>
@@ -172,37 +45,19 @@
       <button class="btn-gray"    onclick="resetCount()">Reset</button>
     </div>
   </div>
-
-  <!-- Live Clock -->
   <div class="card">
     <h2>Live-Uhr</h2>
     <div id="clock"></div>
   </div>
-
-  <!-- Color Mixer -->
   <div class="card">
     <h2>Farbmixer</h2>
     <div class="sliders">
-      <div class="slider-row">
-        <label style="color:#f87171">R</label>
-        <input type="range" id="r" min="0" max="255" value="100" oninput="updateColor()">
-        <span id="rv">100</span>
-      </div>
-      <div class="slider-row">
-        <label style="color:#4ade80">G</label>
-        <input type="range" id="g" min="0" max="255" value="149" oninput="updateColor()">
-        <span id="gv">149</span>
-      </div>
-      <div class="slider-row">
-        <label style="color:#60a5fa">B</label>
-        <input type="range" id="b" min="0" max="255" value="237" oninput="updateColor()">
-        <span id="bv">237</span>
-      </div>
+      <div class="slider-row"><label style="color:#f87171">R</label><input type="range" id="r" min="0" max="255" value="100" oninput="updateColor()"><span id="rv">100</span></div>
+      <div class="slider-row"><label style="color:#4ade80">G</label><input type="range" id="g" min="0" max="255" value="149" oninput="updateColor()"><span id="gv">149</span></div>
+      <div class="slider-row"><label style="color:#60a5fa">B</label><input type="range" id="b" min="0" max="255" value="237" oninput="updateColor()"><span id="bv">237</span></div>
     </div>
     <div id="color-preview"></div>
   </div>
-
-  <!-- Mini Quiz -->
   <div class="card">
     <h2>Mini-Quiz</h2>
     <div id="question"></div>
@@ -210,107 +65,47 @@
     <div id="quiz-feedback"></div>
     <div id="quiz-score"></div>
   </div>
-
   <script>
-    // --- Counter ---
     let count = 0;
     const display = document.getElementById('counter-display');
-
-    function changeCount(n) {
-      count += n;
-      display.textContent = count;
-      display.style.color = count < 0 ? '#f87171' : count > 0 ? '#4ade80' : '#7dd3fc';
-    }
-
-    function resetCount() {
-      count = 0;
-      display.textContent = 0;
-      display.style.color = '#7dd3fc';
-    }
-
-    // --- Clock ---
-    function updateClock() {
-      const now = new Date();
-      document.getElementById('clock').textContent =
-        now.toLocaleTimeString('de-DE', { hour12: false });
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
-
-    // --- Color Mixer ---
+    function changeCount(n) { count += n; display.textContent = count; display.style.color = count < 0 ? '#f87171' : count > 0 ? '#4ade80' : '#7dd3fc'; }
+    function resetCount() { count = 0; display.textContent = 0; display.style.color = '#7dd3fc'; }
+    function updateClock() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('de-DE', { hour12: false }); }
+    updateClock(); setInterval(updateClock, 1000);
     function updateColor() {
-      const r = document.getElementById('r').value;
-      const g = document.getElementById('g').value;
-      const b = document.getElementById('b').value;
-      document.getElementById('rv').textContent = r;
-      document.getElementById('gv').textContent = g;
-      document.getElementById('bv').textContent = b;
+      const r = document.getElementById('r').value, g = document.getElementById('g').value, b = document.getElementById('b').value;
+      document.getElementById('rv').textContent = r; document.getElementById('gv').textContent = g; document.getElementById('bv').textContent = b;
       document.getElementById('color-preview').style.background = `rgb(${r},${g},${b})`;
     }
     updateColor();
-
-    // --- Quiz ---
     const questions = [
-      { q: 'Was ist die Hauptstadt von Deutschland?', a: ['Berlin', 'München', 'Hamburg', 'Frankfurt'], correct: 0 },
-      { q: 'Wie viele Bits hat ein Byte?', a: ['4', '8', '16', '32'], correct: 1 },
-      { q: 'Welche Sprache läuft im Browser?', a: ['Python', 'Java', 'JavaScript', 'C++'], correct: 2 },
-      { q: 'Was ergibt 2 ** 10?', a: ['512', '1000', '1024', '2048'], correct: 2 },
-      { q: 'typeof null in JavaScript?', a: ['"null"', '"undefined"', '"object"', '"boolean"'], correct: 2 },
+      { q: 'Was ist die Hauptstadt von Deutschland?', a: ['Berlin','München','Hamburg','Frankfurt'], correct: 0 },
+      { q: 'Wie viele Bits hat ein Byte?', a: ['4','8','16','32'], correct: 1 },
+      { q: 'Welche Sprache läuft im Browser?', a: ['Python','Java','JavaScript','C++'], correct: 2 },
+      { q: 'Was ergibt 2 ** 10?', a: ['512','1000','1024','2048'], correct: 2 },
+      { q: 'typeof null in JavaScript?', a: ['"null"','"undefined"','"object"','"boolean"'], correct: 2 },
     ];
-
     let qi = 0, correct = 0, answered = false;
-
     function loadQuestion() {
-      answered = false;
-      const item = questions[qi];
-      document.getElementById('question').textContent = `${qi + 1}/${questions.length}  ${item.q}`;
+      answered = false; const item = questions[qi];
+      document.getElementById('question').textContent = `${qi+1}/${questions.length}  ${item.q}`;
       document.getElementById('quiz-feedback').textContent = '';
-      const grid = document.getElementById('answers');
-      grid.innerHTML = '';
-      item.a.forEach((ans, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'answer-btn';
-        btn.textContent = ans;
-        btn.onclick = () => checkAnswer(i, btn);
-        grid.appendChild(btn);
-      });
-      document.getElementById('quiz-score').textContent =
-        qi > 0 ? `Punkte bisher: ${correct} / ${qi}` : '';
+      const grid = document.getElementById('answers'); grid.innerHTML = '';
+      item.a.forEach((ans,i) => { const btn = document.createElement('button'); btn.className='answer-btn'; btn.textContent=ans; btn.onclick=()=>checkAnswer(i,btn); grid.appendChild(btn); });
+      document.getElementById('quiz-score').textContent = qi > 0 ? `Punkte bisher: ${correct} / ${qi}` : '';
     }
-
-    function checkAnswer(i, btn) {
-      if (answered) return;
-      answered = true;
-      const item = questions[qi];
-      const buttons = document.querySelectorAll('.answer-btn');
-      btn.classList.add(i === item.correct ? 'correct' : 'wrong');
-      buttons[item.correct].classList.add('correct');
-      if (i === item.correct) correct++;
+    function checkAnswer(i,btn) {
+      if(answered) return; answered = true; const item = questions[qi];
+      document.querySelectorAll('.answer-btn')[item.correct].classList.add('correct');
+      btn.classList.add(i===item.correct?'correct':'wrong');
+      if(i===item.correct) correct++;
       const fb = document.getElementById('quiz-feedback');
-      fb.textContent = i === item.correct ? '✓ Richtig!' : '✗ Falsch!';
-      fb.style.color = i === item.correct ? '#4ade80' : '#f87171';
+      fb.textContent = i===item.correct?'✓ Richtig!':'✗ Falsch!'; fb.style.color = i===item.correct?'#4ade80':'#f87171';
       qi++;
-      if (qi < questions.length) {
-        setTimeout(loadQuestion, 1200);
-      } else {
-        setTimeout(() => {
-          document.getElementById('question').textContent = 'Quiz abgeschlossen!';
-          document.getElementById('answers').innerHTML = '';
-          document.getElementById('quiz-feedback').textContent =
-            `Ergebnis: ${correct} / ${questions.length} Punkte`;
-          document.getElementById('quiz-score').textContent = '';
-          const restart = document.createElement('button');
-          restart.className = 'btn-primary';
-          restart.style.marginTop = '1rem';
-          restart.textContent = 'Nochmal spielen';
-          restart.onclick = () => { qi = 0; correct = 0; loadQuestion(); };
-          document.getElementById('answers').appendChild(restart);
-        }, 1200);
-      }
+      if(qi < questions.length) { setTimeout(loadQuestion,1200); }
+      else { setTimeout(()=>{ document.getElementById('question').textContent='Quiz abgeschlossen!'; document.getElementById('answers').innerHTML=''; document.getElementById('quiz-feedback').textContent=`Ergebnis: ${correct} / ${questions.length} Punkte`; document.getElementById('quiz-score').textContent=''; const r=document.createElement('button'); r.className='btn-primary'; r.style.marginTop='1rem'; r.textContent='Nochmal spielen'; r.onclick=()=>{qi=0;correct=0;loadQuestion();}; document.getElementById('answers').appendChild(r); },1200); }
     }
-
     loadQuestion();
   </script>
-
 </body>
 </html>
