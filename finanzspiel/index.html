@@ -86,31 +86,40 @@ const fmt = (n) => CUR_LANG === 'en'
   : Math.round(n).toLocaleString('de-DE') + ' €';
 const pct = (n) => n.toLocaleString(CUR_LANG === 'en' ? 'en-US' : 'de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
 
+const RENT_PER_UNIT = 15000;
+const JOB_TITLES = ['Marketing Manager', 'CFO', 'Data Analyst', 'Software Engineer', 'Product Manager', 'Sales Director', 'UX Designer', 'Management Consultant', 'Financial Controller', 'Investment Analyst', 'Operations Lead', 'HR Manager'];
+const FOUNDER_TITLES = ['Founder', 'Startup-CEO', 'Freelancer', 'Solo-Entrepreneur'];
+const pickFrom = (arr, not) => { const o = arr.filter(x => x !== not); return o[Math.floor(Math.random() * o.length)] || arr[0]; };
+
 /* Abgeleitete Finanzkennzahlen (rein, ohne Seiteneffekt) */
 function derive(s){
   const stocksVal = s.stockUnits * s.stockPrice;
   const reVal = s.realEstateUnits * s.realEstatePrice;
+  const rentIncome = s.realEstateUnits * RENT_PER_UNIT;
+  const dividendIncome = stocksVal * (s.dividendYield / 100);
+  const totalIncome = s.salary + rentIncome + dividendIncome;
   const interestExpenses = s.loans * (s.interestRate / 100);
   const totalExpenses = s.basisExpenses + s.lifestyleSpend + interestExpenses;
-  const netCashflow = s.salary - totalExpenses;
+  const netCashflow = totalIncome - totalExpenses;
   const netWorth = (s.cash + stocksVal + reVal) - s.loans;
-  return { interestExpenses, totalExpenses, netCashflow, netWorth, stocksVal, reVal };
+  return { stocksVal, reVal, rentIncome, dividendIncome, totalIncome, interestExpenses, totalExpenses, netCashflow, netWorth };
 }
 
 /* ---------- i18n: Wörterbuch DE / EN (inkl. Log-Texte unter L) ---------- */
 const T = {
   de: {
     subtitle: 'Wirtschafts- & Lebenssimulation',
-    age: 'Alter', inflation: 'Inflation', interest: 'Leitzins', joyTop: 'Lebensfreude',
-    guv: 'Gewinn & Verlust', income: 'Einkommen', fixedCosts: 'Fixkosten',
+    age: 'Alter', inflation: 'Inflation', interest: 'Leitzins', joyTop: 'Lebensfreude', jobLabel: 'Position',
+    guv: 'Gewinn & Verlust', salaryLbl: 'Gehalt', rentLbl: 'Mieteinnahmen', dividendLbl: 'Dividenden', fixedCosts: 'Fixkosten',
     interestExp: 'Zinsaufwand', lifestyleSpending: 'Konsumausgaben', netCashflow: 'Netto-Cashflow',
-    balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Schulden', equity: 'Eigenkapital',
-    actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)',
+    balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Hypotheken', equity: 'Eigenkapital',
+    actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +25 % Gehalt · 15 %: Kündigung – immer neuer Titel',
+    selfEmployed: 'Selbstständig machen', selfEmployedSub: '+50 % Einkommen, danach stark schwankend', selfEmployedOn: 'Bereits selbstständig',
     buyStocks: 'Aktien', buyApartments: 'Immobilien',
     quantity: 'Menge', priceLabel: 'Kurs', buy: 'Kaufen', sell: 'Verkaufen', owned: 'im Bestand',
     lifestyleTitle: 'Lifestyle / Konsum',
     lifestyleA: 'Konsum kostet Cashflow, steigert aber die Lebensfreude. ', lifestyleB: ' senkt die Freude jährlich, über ', lifestyleC: ' hebt sie deutlich.',
-    chartTitle: 'Vermögensverlauf', legendAssets: 'Vermögen', legendLiabilities: 'Schulden', legendEquity: 'Eigenkapital',
+    chartTitle: 'Vermögensverlauf', legendAssets: 'Vermögen', legendLiabilities: 'Hypotheken', legendEquity: 'Eigenkapital',
     chartNoData: 'Noch keine Verlaufsdaten – starte ins Berufsleben.',
     priceChartTitle: 'Kurs-Index (Start = 100)', viewHistory: 'Verlauf ansehen', showResult: 'Ergebnis anzeigen', finished: 'Spiel beendet',
     eventLog: 'Event-Log',
@@ -130,8 +139,10 @@ const T = {
       start: () => 'Spielstart – wähle deinen Bildungsweg.',
       apprenticeDone: () => 'Ausbildung abgeschlossen – Berufsstart mit 24.000 € Gehalt.',
       universityDone: () => 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.',
-      jobFail: (s) => `Jobwechsel missglückt – Kündigung! Gehalt jetzt ${fmt(s)}.`,
-      jobOk: (s) => `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(s)}.`,
+      jobFail: (title, s) => `Rückschlag als ${title} – Gehalt nur noch ${fmt(s)}.`,
+      jobOk: (title, s) => `Neuer Job: ${title} – Gehalt +25 % auf ${fmt(s)}.`,
+      selfStart: (title, s) => `Selbstständig als ${title} – Einkommen ${fmt(s)} (ab jetzt volatil).`,
+      dividend: (amt, y) => `Dividende ${fmt(amt)} (${y.toFixed(1)} % Rendite)`,
       stocksBuy: (n, c) => `${n} Aktien für ${fmt(c)} gekauft.`,
       stocksSell: (n, p) => `${n} Aktien für ${fmt(p)} verkauft.`,
       stocksReject: (c) => `Aktienkauf abgelehnt – ${fmt(c)} Cash nötig.`,
@@ -150,16 +161,17 @@ const T = {
   },
   en: {
     subtitle: 'Economy & life simulation',
-    age: 'Age', inflation: 'Inflation', interest: 'Interest rate', joyTop: 'Joy',
-    guv: 'Income statement', income: 'Income', fixedCosts: 'Fixed costs',
+    age: 'Age', inflation: 'Inflation', interest: 'Interest rate', joyTop: 'Joy', jobLabel: 'Position',
+    guv: 'Income statement', salaryLbl: 'Salary', rentLbl: 'Rental income', dividendLbl: 'Dividends', fixedCosts: 'Fixed costs',
     interestExp: 'Interest expense', lifestyleSpending: 'Lifestyle spending', netCashflow: 'Net cashflow',
-    balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Debt', equity: 'Equity',
-    actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +25% salary · 15%: layoff (€20,000)',
+    balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Mortgages', equity: 'Equity',
+    actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +25% salary · 15%: layoff – always a new title',
+    selfEmployed: 'Go self-employed', selfEmployedSub: '+50% income, then highly volatile', selfEmployedOn: 'Already self-employed',
     buyStocks: 'Stocks', buyApartments: 'Real estate',
     quantity: 'Quantity', priceLabel: 'Price', buy: 'Buy', sell: 'Sell', owned: 'owned',
     lifestyleTitle: 'Lifestyle / spending',
     lifestyleA: 'Spending costs cashflow but raises joy. ', lifestyleB: ' lowers joy yearly, above ', lifestyleC: ' raises it notably.',
-    chartTitle: 'Net worth over time', legendAssets: 'Assets', legendLiabilities: 'Liabilities', legendEquity: 'Equity',
+    chartTitle: 'Net worth over time', legendAssets: 'Assets', legendLiabilities: 'Mortgages', legendEquity: 'Equity',
     chartNoData: 'No history yet – start your career.',
     priceChartTitle: 'Price index (start = 100)', viewHistory: 'View history', showResult: 'Show result', finished: 'Game over',
     eventLog: 'Event log',
@@ -179,8 +191,10 @@ const T = {
       start: () => 'Game start – choose your education path.',
       apprenticeDone: () => 'Apprenticeship completed – career start with €24,000 salary.',
       universityDone: () => 'University completed – career start with €45,000 salary, €10,000 student debt.',
-      jobFail: (s) => `Job change failed – laid off! Salary now ${fmt(s)}.`,
-      jobOk: (s) => `Job change successful – salary +25% to ${fmt(s)}.`,
+      jobFail: (title, s) => `Setback as ${title} – salary down to ${fmt(s)}.`,
+      jobOk: (title, s) => `New job: ${title} – salary +25% to ${fmt(s)}.`,
+      selfStart: (title, s) => `Self-employed as ${title} – income ${fmt(s)} (volatile from now on).`,
+      dividend: (amt, y) => `Dividend ${fmt(amt)} (${y.toFixed(1)}% yield)`,
       stocksBuy: (n, c) => `Bought ${n} shares for ${fmt(c)}.`,
       stocksSell: (n, p) => `Sold ${n} shares for ${fmt(p)}.`,
       stocksReject: (c) => `Stock purchase rejected – ${fmt(c)} cash required.`,
@@ -208,10 +222,12 @@ function initialState(){
     cash: 0,
     loans: 0,
     salary: 0,
+    jobTitle: '', selfEmployed: false,
     basisExpenses: 30000,
     inflation: 2, interestRate: 3,
     stockPrice: 5000, realEstatePrice: 250000,
     stockUnits: 0, realEstateUnits: 0,
+    dividendYield: 3,
     joy: 50, joyFloor: 0,
     lifestyleSpend: 0,
     stockQty: 1, realEstateQty: 1, kidsQty: 1,
@@ -237,7 +253,10 @@ function advanceYear(prev){
   const newInflation = rand(1, 6);
   const newInterest = newInflation + rand(0, 3);
   const newBasis = prev.basisExpenses * (1 + newInflation / 100);
-  const newSalary = prev.salary * 1.02;
+  // Angestellt: stetiger Inflationsausgleich. Selbstständig: höher, aber volatil.
+  const newSalary = prev.selfEmployed
+    ? Math.max(0, prev.salary * (1 + rand(-30, 50) / 100))
+    : prev.salary * 1.02;
   const newCash = prev.cash + d.netCashflow;
 
   // Aktienkurs & Immobilienkurs schwanken jährlich (immer, unabhängig vom Besitz)
@@ -245,6 +264,8 @@ function advanceYear(prev){
   const newStockPrice = prev.stockPrice * (1 + stockChange / 100);
   const reChange = rand(-8, 12);
   const newRealEstatePrice = prev.realEstatePrice * (1 + reChange / 100);
+  // Dividendenrendite schwankt jährlich
+  const newDividendYield = rand(1, 5);
 
   // Joy – Lebensfreude aus Heirat/Kindern (joyFloor) geht nicht zurück
   let joyDelta;
@@ -258,6 +279,9 @@ function advanceYear(prev){
   // Logs für das Jahr
   log = addLog(log, newAge, L.year(newInflation, newInterest, d.netCashflow), d.netCashflow >= 0 ? 'good' : 'bad');
   log = addLog(log, newAge, L.market(newStockPrice, stockChange, newRealEstatePrice, reChange), stockChange >= 0 ? 'good' : 'bad');
+  if (d.dividendIncome > 0) {
+    log = addLog(log, newAge, L.dividend(d.dividendIncome, prev.dividendYield), 'good');
+  }
 
   let next = {
     ...prev,
@@ -269,6 +293,7 @@ function advanceYear(prev){
     cash: newCash,
     stockPrice: newStockPrice,
     realEstatePrice: newRealEstatePrice,
+    dividendYield: newDividendYield,
     joy: newJoy,
     log,
   };
@@ -488,12 +513,21 @@ function App(){
   const changeJob = () => setS(p => {
     if (p.gameState !== 'running') return p;
     const L = T[p.lang].L;
+    const title = pickFrom(JOB_TITLES, p.jobTitle);
     if (Math.random() < 0.15) {
       const salary = 20000;
-      return { ...p, salary, log: addLog(p.log, p.age, L.jobFail(salary), 'bad') };
+      return { ...p, salary, jobTitle: title, selfEmployed: false, log: addLog(p.log, p.age, L.jobFail(title, salary), 'bad') };
     }
     const salary = p.salary * 1.25;
-    return { ...p, salary, log: addLog(p.log, p.age, L.jobOk(salary), 'good') };
+    return { ...p, salary, jobTitle: title, selfEmployed: false, log: addLog(p.log, p.age, L.jobOk(title, salary), 'good') };
+  });
+
+  const goSelfEmployed = () => setS(p => {
+    if (p.gameState !== 'running' || p.selfEmployed) return p;
+    const L = T[p.lang].L;
+    const title = pickFrom(FOUNDER_TITLES, p.jobTitle);
+    const salary = p.salary * 1.5;
+    return { ...p, salary, selfEmployed: true, jobTitle: title, log: addLog(p.log, p.age, L.selfStart(title, salary), 'good') };
   });
 
   const buyStocks = (n) => setS(p => {
@@ -523,8 +557,7 @@ function App(){
       cash: p.cash - down,
       realEstateUnits: p.realEstateUnits + n,
       loans: p.loans + loan,
-      salary: p.salary + 15000 * n,
-      log: addLog(p.log, p.age, L.reBuy(n, down, loan, 15000 * n), 'good'),
+      log: addLog(p.log, p.age, L.reBuy(n, down, loan, RENT_PER_UNIT * n), 'good'),
     };
   });
 
@@ -539,7 +572,6 @@ function App(){
       cash: p.cash + proceeds - repay,
       loans: p.loans - repay,
       realEstateUnits: p.realEstateUnits - units,
-      salary: p.salary - 15000 * units,
       log: addLog(p.log, p.age, L.reSell(units, proceeds, repay), 'good'),
     };
   });
@@ -553,8 +585,8 @@ function App(){
   const chooseStart = (path) => setS(p => {
     const L = T[p.lang].L;
     const base = path === 'ausbildung'
-      ? { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0, basisExpenses: 20000, log: addLog(p.log, 19, L.apprenticeDone(), 'good') }
-      : { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000, basisExpenses: 30000, log: addLog(p.log, 23, L.universityDone(), 'good') };
+      ? { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0, basisExpenses: 20000, jobTitle: 'Fachkraft', log: addLog(p.log, 19, L.apprenticeDone(), 'good') }
+      : { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000, basisExpenses: 30000, jobTitle: 'Trainee', log: addLog(p.log, 23, L.universityDone(), 'good') };
     base.history = seedHistory(base);
     return base;
   });
@@ -610,6 +642,10 @@ function App(){
               <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="Landmark" size={12} />{t.interest}</div>
               <div className="text-xl font-bold text-sky-400 tabular-nums">{pct(s.interestRate)}</div>
             </div>
+            <div className="text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="Briefcase" size={12} />{t.jobLabel}</div>
+              <div className="text-sm font-bold text-slate-100">{s.jobTitle || '—'}</div>
+            </div>
             <div className="min-w-[150px]">
               <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Icon name="Smile" size={12} />{t.joyTop} {Math.round(s.joy)}</div>
               <Bar value={s.joy} />
@@ -633,10 +669,12 @@ function App(){
             <Icon name="ScrollText" size={16} /> {t.guv}
           </h2>
           {(() => {
-            const guvMax = Math.max(s.salary, d.totalExpenses, 1);
+            const guvMax = Math.max(s.salary, d.rentIncome, d.dividendIncome, d.totalExpenses, 1);
             return (
               <div>
-                <FinBar label={t.income} value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
+                <FinBar label={t.salaryLbl} value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
+                <FinBar label={t.rentLbl} value={d.rentIncome} max={guvMax} barClass="bg-teal-500" valClass="text-teal-300" icon="Building2" sign="+ " />
+                <FinBar label={t.dividendLbl} value={d.dividendIncome} max={guvMax} barClass="bg-sky-500" valClass="text-sky-300" icon="TrendingUp" sign="+ " />
                 <FinBar label={t.fixedCosts} value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " />
                 <FinBar label={t.interestExp} value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " />
                 <FinBar label={t.lifestyleSpending} value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " />
@@ -678,6 +716,8 @@ function App(){
           <div className="space-y-2.5">
             <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
               title={t.changeJob} subtitle={t.changeJobSub} />
+            <ActionButton onClick={goSelfEmployed} disabled={busy || s.selfEmployed} icon="Sparkles" accent="amber"
+              title={t.selfEmployed} subtitle={s.selfEmployed ? t.selfEmployedOn : t.selfEmployedSub} />
             <TradeCard icon="TrendingUp" accent="emerald" title={t.buyStocks}
               priceLabel={t.priceLabel} price={s.stockPrice} owned={s.stockUnits} ownedLabel={t.owned}
               qty={s.stockQty} setQty={setStockQty} qtyLabel={t.quantity}
