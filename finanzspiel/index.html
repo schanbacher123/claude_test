@@ -80,8 +80,11 @@ const TICK_MS = 4000;
 const END_AGE = 67;
 const rand = (min, max) => Math.random() * (max - min) + min;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const fmt = (n) => Math.round(n).toLocaleString('de-DE') + ' €';
-const pct = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+let CUR_LANG = 'de';
+const fmt = (n) => CUR_LANG === 'en'
+  ? '€' + Math.round(n).toLocaleString('en-US')
+  : Math.round(n).toLocaleString('de-DE') + ' €';
+const pct = (n) => n.toLocaleString(CUR_LANG === 'en' ? 'en-US' : 'de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
 
 /* Abgeleitete Finanzkennzahlen (rein, ohne Seiteneffekt) */
 function derive(s){
@@ -91,6 +94,104 @@ function derive(s){
   const netWorth = (s.cash + s.stocks + s.realEstate) - s.loans;
   return { interestExpenses, totalExpenses, netCashflow, netWorth };
 }
+
+/* ---------- i18n: Wörterbuch DE / EN (inkl. Log-Texte unter L) ---------- */
+const T = {
+  de: {
+    subtitle: 'Wirtschafts- & Lebenssimulation',
+    age: 'Alter', inflation: 'Inflation', interest: 'Leitzins', joyTop: 'Lebensfreude',
+    guv: 'Gewinn & Verlust', income: 'Einkommen', fixedCosts: 'Fixkosten',
+    interestExp: 'Zinsaufwand', lifestyleSpending: 'Konsumausgaben', netCashflow: 'Netto-Cashflow',
+    balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Schulden', equity: 'Eigenkapital',
+    actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)',
+    buyStocks: 'Aktien kaufen', buyStocksHint: '5.000 € / Paket → Depot (jährliche Schwankung)', stockPack: 'Aktienpaket',
+    buyApartments: 'Wohnungen kaufen', buyApartmentsHint: '25.000 € EK / Wohnung → +250.000 € Objekt, +225.000 € Kredit, +15.000 € Miete', apartment: 'Wohnung',
+    quantity: 'Menge',
+    lifestyleTitle: 'Lifestyle / Konsum',
+    lifestyleA: 'Konsum kostet Cashflow, steigert aber die Lebensfreude. ', lifestyleB: ' senkt die Freude jährlich, über ', lifestyleC: ' hebt sie deutlich.',
+    chartTitle: 'Vermögensverlauf', legendAssets: 'Vermögen', legendLiabilities: 'Schulden', legendEquity: 'Eigenkapital',
+    chartNoData: 'Noch keine Verlaufsdaten – starte ins Berufsleben.',
+    eventLog: 'Event-Log',
+    startTitle: 'Alter 16 – Dein Bildungsweg', startDesc: 'Diese Entscheidung bestimmt deinen Start ins Berufsleben.',
+    apprentice: 'Ausbildung', apprenticeDesc: 'Start mit 19 · +5.000 € Cash · 24.000 € Gehalt · keine Schulden',
+    university: 'Studium', universityDesc: 'Start mit 23 · 0 € Cash · 45.000 € Gehalt · 10.000 € Schulden',
+    weddingTitle: 'Alter 28 – Hochzeit?', weddingDesc: 'Du hast die große Liebe getroffen.',
+    weddingBody: 'Heiraten kostet einmalig 10.000 € und erhöht die Fixkosten um 15 %, schenkt dir aber +20 Lebensfreude.',
+    weddingYes: 'Ja, heiraten', no: 'Nein',
+    kidsTitle: 'Alter 32 – Kinder?', kidsDesc: 'Eine Familie gründen?',
+    kidsPerChild: 'Pro Kind: einmalig 5.000 €, dauerhaft +6.000 € Fixkosten, +15 Lebensfreude.',
+    numChildren: 'Anzahl Kinder', costLbl: 'Kosten', fixedLbl: 'Fixkosten', joyLbl: 'Freude',
+    kidsYes: (n) => `Ja, ${n} Kind(er)`,
+    bankruptTitle: 'Privatinsolvenz', bankruptDesc: (age) => `Mit ${age} Jahren ist dein Eigenkapital aufgebraucht. Das Spiel endet hier.`, newGame: 'Neues Spiel',
+    wonTitle: 'Ruhestand erreicht!', wonDesc: (age) => `Glückwunsch – du hast es mit ${age} in den Ruhestand geschafft.`, cashLbl: 'Cash', playAgain: 'Nochmal spielen',
+    L: {
+      start: () => 'Spielstart – wähle deinen Bildungsweg.',
+      apprenticeDone: () => 'Ausbildung abgeschlossen – Berufsstart mit 24.000 € Gehalt.',
+      universityDone: () => 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.',
+      jobFail: (s) => `Jobwechsel missglückt – Kündigung! Gehalt jetzt ${fmt(s)}.`,
+      jobOk: (s) => `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(s)}.`,
+      stocksBuy: (n, c) => `${n} × Aktienpaket für ${fmt(c)} gekauft.`,
+      stocksReject: (c) => `Aktienkauf abgelehnt – ${fmt(c)} Cash nötig.`,
+      reBuy: (n, o, l, r) => `${n} Wohnung(en) gekauft (+${fmt(o)}, +${fmt(l)} Kredit, +${fmt(r)} Miete).`,
+      reReject: (need) => `Immobilienkauf abgelehnt – ${fmt(need)} EK nötig.`,
+      single: () => 'Du bleibst Single.',
+      married: () => 'Hochzeit! −10.000 € Cash, +15 % Fixkosten, +20 Lebensfreude.',
+      noKids: () => 'Du entscheidest dich gegen Kinder.',
+      kids: (n, c, f, j) => `Nachwuchs: ${n} Kind(er)! −${fmt(c)} Cash, +${fmt(f)} Fixkosten, +${j} Lebensfreude.`,
+      year: (i, r, cf) => `Inflation ${pct(i)} · Leitzins ${pct(r)} · Cashflow ${fmt(cf)}`,
+      stockMove: (chg, v) => `Aktiendepot ${chg >= 0 ? '+' : ''}${chg.toFixed(1)} % → ${fmt(v)}`,
+      bankrupt: () => 'Privatinsolvenz – das Eigenkapital ist aufgebraucht.',
+      retired: (nw) => `Ruhestand erreicht mit einem Vermögen von ${fmt(nw)}.`,
+    },
+  },
+  en: {
+    subtitle: 'Economy & life simulation',
+    age: 'Age', inflation: 'Inflation', interest: 'Interest rate', joyTop: 'Joy',
+    guv: 'Income statement', income: 'Income', fixedCosts: 'Fixed costs',
+    interestExp: 'Interest expense', lifestyleSpending: 'Lifestyle spending', netCashflow: 'Net cashflow',
+    balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Debt', equity: 'Equity',
+    actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +25% salary · 15%: layoff (€20,000)',
+    buyStocks: 'Buy stocks', buyStocksHint: '€5,000 / pack → portfolio (annual fluctuation)', stockPack: 'stock pack',
+    buyApartments: 'Buy apartments', buyApartmentsHint: '€25,000 equity / unit → +€250,000 asset, +€225,000 loan, +€15,000 rent', apartment: 'apartment',
+    quantity: 'Quantity',
+    lifestyleTitle: 'Lifestyle / spending',
+    lifestyleA: 'Spending costs cashflow but raises joy. ', lifestyleB: ' lowers joy yearly, above ', lifestyleC: ' raises it notably.',
+    chartTitle: 'Net worth over time', legendAssets: 'Assets', legendLiabilities: 'Liabilities', legendEquity: 'Equity',
+    chartNoData: 'No history yet – start your career.',
+    eventLog: 'Event log',
+    startTitle: 'Age 16 – Your education path', startDesc: 'This decision shapes your career start.',
+    apprentice: 'Apprenticeship', apprenticeDesc: 'Start at 19 · +€5,000 cash · €24,000 salary · no debt',
+    university: 'University', universityDesc: 'Start at 23 · €0 cash · €45,000 salary · €10,000 debt',
+    weddingTitle: 'Age 28 – Marriage?', weddingDesc: 'You met the love of your life.',
+    weddingBody: 'Marrying costs €10,000 once and raises fixed costs by 15%, but grants +20 joy.',
+    weddingYes: 'Yes, marry', no: 'No',
+    kidsTitle: 'Age 32 – Children?', kidsDesc: 'Start a family?',
+    kidsPerChild: 'Per child: €5,000 once, +€6,000 fixed costs ongoing, +15 joy.',
+    numChildren: 'Number of children', costLbl: 'Cost', fixedLbl: 'Fixed costs', joyLbl: 'Joy',
+    kidsYes: (n) => `Yes, ${n} child(ren)`,
+    bankruptTitle: 'Bankruptcy', bankruptDesc: (age) => `At age ${age} your equity is exhausted. The game ends here.`, newGame: 'New game',
+    wonTitle: 'Retirement reached!', wonDesc: (age) => `Congratulations – you reached retirement at ${age}.`, cashLbl: 'Cash', playAgain: 'Play again',
+    L: {
+      start: () => 'Game start – choose your education path.',
+      apprenticeDone: () => 'Apprenticeship completed – career start with €24,000 salary.',
+      universityDone: () => 'University completed – career start with €45,000 salary, €10,000 student debt.',
+      jobFail: (s) => `Job change failed – laid off! Salary now ${fmt(s)}.`,
+      jobOk: (s) => `Job change successful – salary +25% to ${fmt(s)}.`,
+      stocksBuy: (n, c) => `Bought ${n} × stock pack for ${fmt(c)}.`,
+      stocksReject: (c) => `Stock purchase rejected – ${fmt(c)} cash required.`,
+      reBuy: (n, o, l, r) => `Bought ${n} apartment(s) (+${fmt(o)}, +${fmt(l)} loan, +${fmt(r)} rent).`,
+      reReject: (need) => `Property purchase rejected – ${fmt(need)} equity required.`,
+      single: () => 'You stay single.',
+      married: () => 'Married! −€10,000 cash, +15% fixed costs, +20 joy.',
+      noKids: () => 'You decide against children.',
+      kids: (n, c, f, j) => `Offspring: ${n} child(ren)! −${fmt(c)} cash, +${fmt(f)} fixed costs, +${j} joy.`,
+      year: (i, r, cf) => `Inflation ${pct(i)} · rate ${pct(r)} · cashflow ${fmt(cf)}`,
+      stockMove: (chg, v) => `Stock portfolio ${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% → ${fmt(v)}`,
+      bankrupt: () => 'Bankruptcy – your equity is exhausted.',
+      retired: (nw) => `Retirement reached with net worth of ${fmt(nw)}.`,
+    },
+  },
+};
 
 /* ---------- Initialer State ---------- */
 function initialState(){
@@ -106,8 +207,10 @@ function initialState(){
     joy: 50,
     lifestyleSpend: 0,
     stockQty: 1, realEstateQty: 1, kidsQty: 1,
+    lang: 'de',
+    history: [],
     flags: { wedding: false, kids: false },
-    log: [{ age: 16, text: 'Spielstart – wähle deinen Bildungsweg.', kind: 'info' }],
+    log: [{ age: 16, text: T.de.L.start(), kind: 'info' }],
   };
 }
 
@@ -118,6 +221,7 @@ function addLog(log, age, text, kind = 'info'){
 /* ---------- Tick: ein Lebensjahr ---------- */
 function advanceYear(prev){
   const d = derive(prev);
+  const L = T[prev.lang].L;
   let log = prev.log;
 
   // Makro-Updates
@@ -145,9 +249,9 @@ function advanceYear(prev){
   const newAge = prev.age + 1;
 
   // Logs für das Jahr
-  log = addLog(log, newAge, `Inflation ${pct(newInflation)} · Leitzins ${pct(newInterest)} · Cashflow ${fmt(d.netCashflow)}`, d.netCashflow >= 0 ? 'good' : 'bad');
+  log = addLog(log, newAge, L.year(newInflation, newInterest, d.netCashflow), d.netCashflow >= 0 ? 'good' : 'bad');
   if (prev.stocks > 0) {
-    log = addLog(log, newAge, `Aktiendepot ${stockChange >= 0 ? '+' : ''}${stockChange.toFixed(1)} % → ${fmt(newStocks)}`, stockChange >= 0 ? 'good' : 'bad');
+    log = addLog(log, newAge, L.stockMove(stockChange, newStocks), stockChange >= 0 ? 'good' : 'bad');
   }
 
   let next = {
@@ -163,12 +267,13 @@ function advanceYear(prev){
     log,
   };
 
-  // Game-Over-Prüfung (mit aktualisierten Werten)
+  // Game-Over-Prüfung (mit aktualisierten Werten) + Verlaufspunkt
   const nd = derive(next);
+  next.history = [...prev.history, { age: newAge, assets: next.cash + next.stocks + next.realEstate, liabilities: next.loans, equity: nd.netWorth }];
   if (nd.netWorth < 0 || (next.cash < 0 && nd.netCashflow < 0)) {
     next.gameState = 'gameover';
     next.event = null;
-    next.log = addLog(next.log, newAge, 'Privatinsolvenz – das Eigenkapital ist aufgebraucht.', 'bad');
+    next.log = addLog(next.log, newAge, L.bankrupt(), 'bad');
     return next;
   }
 
@@ -176,7 +281,7 @@ function advanceYear(prev){
   if (newAge >= END_AGE) {
     next.gameState = 'won';
     next.event = null;
-    next.log = addLog(next.log, newAge, `Ruhestand erreicht mit einem Vermögen von ${fmt(nd.netWorth)}.`, 'good');
+    next.log = addLog(next.log, newAge, L.retired(nd.netWorth), 'good');
     return next;
   }
 
@@ -241,7 +346,7 @@ function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon
 }
 
 /* Kauf-Karte mit Mengen-Regler (1–10) */
-function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy, busy, cash, hint }){
+function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy, busy, cash, hint, qtyLabel }){
   const total = unitCost * qty;
   const afford = cash >= total;
   const lock = busy || !afford;
@@ -255,7 +360,7 @@ function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy,
         </div>
       </div>
       <div className="mb-2 flex items-center gap-2">
-        <span className="w-12 text-[10px] uppercase tracking-wide text-slate-500">Menge</span>
+        <span className="w-12 text-[10px] uppercase tracking-wide text-slate-500">{qtyLabel}</span>
         <input type="range" min="1" max="10" step="1" value={qty} disabled={busy}
           onChange={(e) => setQty(Number(e.target.value))} className="flex-1" />
         <span className={`w-6 text-center tabular-nums font-bold text-${accent}-400`}>{qty}</span>
@@ -264,6 +369,56 @@ function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy,
         className={`w-full rounded-lg px-3 py-2 text-sm font-semibold transition ${lock ? 'cursor-not-allowed bg-slate-800 text-slate-600' : `bg-${accent}-500/15 text-${accent}-300 hover:bg-${accent}-500/25`}`}>
         {qty} × {unitLabel} · {fmt(total)}
       </button>
+    </div>
+  );
+}
+
+/* ---------- Zeitverlauf-Chart (Assets / Liabilities / Equity) ---------- */
+function TimeChart({ data, t }){
+  if (!data || data.length < 2) {
+    return <div className="grid h-44 place-items-center text-sm text-slate-500">{t.chartNoData}</div>;
+  }
+  const W = 760, H = 220, padL = 56, padR = 12, padT = 14, padB = 26;
+  const minAge = data[0].age, maxAge = data[data.length - 1].age;
+  const vals = [];
+  data.forEach(p => vals.push(p.assets, p.liabilities, p.equity));
+  let maxV = Math.max(...vals, 0);
+  let minV = Math.min(...vals, 0);
+  if (maxV === minV) maxV = minV + 1;
+  const x = (a) => padL + (maxAge === minAge ? 0 : (a - minAge) / (maxAge - minAge)) * (W - padL - padR);
+  const y = (v) => padT + (1 - (v - minV) / (maxV - minV)) * (H - padT - padB);
+  const path = (key) => data.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.age).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(' ');
+  const series = [
+    { key: 'assets', color: '#10b981', label: t.legendAssets },
+    { key: 'liabilities', color: '#f43f5e', label: t.legendLiabilities },
+    { key: 'equity', color: '#38bdf8', label: t.legendEquity },
+  ];
+  const zeroY = y(0);
+  const last = data[data.length - 1];
+  return (
+    <div>
+      <div className="mb-2 flex flex-wrap gap-4">
+        {series.map(se => (
+          <span key={se.key} className="flex items-center gap-1.5 text-xs text-slate-400">
+            <span className="inline-block h-2.5 w-3 rounded-sm" style={{ background: se.color }} />
+            {se.label} <span className="tabular-nums font-semibold text-slate-200">{fmt(last[se.key])}</span>
+          </span>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto' }} preserveAspectRatio="xMidYMid meet">
+        <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="#334155" strokeWidth="1" />
+        <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="#334155" strokeWidth="1" />
+        {minV < 0 && maxV > 0 && (
+          <line x1={padL} y1={zeroY} x2={W - padR} y2={zeroY} stroke="#475569" strokeWidth="1" strokeDasharray="4 4" />
+        )}
+        <text x={padL - 6} y={y(maxV) + 4} textAnchor="end" fill="#64748b" fontSize="11">{fmt(maxV)}</text>
+        <text x={padL - 6} y={y(minV) + 4} textAnchor="end" fill="#64748b" fontSize="11">{fmt(minV)}</text>
+        <text x={padL} y={H - 8} textAnchor="start" fill="#64748b" fontSize="11">{minAge}</text>
+        <text x={W - padR} y={H - 8} textAnchor="end" fill="#64748b" fontSize="11">{maxAge}</text>
+        {series.map(se => (
+          <path key={se.key} d={path(se.key)} fill="none" stroke={se.color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -302,38 +457,50 @@ function App(){
     return () => clearInterval(id);
   }, [s.gameState]);
 
+  CUR_LANG = s.lang;
+  const t = T[s.lang];
   const d = derive(s);
   const busy = s.gameState !== 'running';
+
+  const seedHistory = (st) => {
+    const nd = derive(st);
+    return [{ age: st.age, assets: st.cash + st.stocks + st.realEstate, liabilities: st.loans, equity: nd.netWorth }];
+  };
+
+  const toggleLang = (lng) => setS(p => ({ ...p, lang: lng }));
 
   /* --- Permanente Aktionen --- */
   const changeJob = () => setS(p => {
     if (p.gameState !== 'running') return p;
+    const L = T[p.lang].L;
     if (Math.random() < 0.15) {
       const salary = 20000;
-      return { ...p, salary, log: addLog(p.log, p.age, `Jobwechsel missglückt – Kündigung! Gehalt jetzt ${fmt(salary)}.`, 'bad') };
+      return { ...p, salary, log: addLog(p.log, p.age, L.jobFail(salary), 'bad') };
     }
     const salary = p.salary * 1.25;
-    return { ...p, salary, log: addLog(p.log, p.age, `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(salary)}.`, 'good') };
+    return { ...p, salary, log: addLog(p.log, p.age, L.jobOk(salary), 'good') };
   });
 
   const buyStocks = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
+    const L = T[p.lang].L;
     const cost = 5000 * n;
-    if (p.cash < cost) return { ...p, log: addLog(p.log, p.age, `Aktienkauf abgelehnt – ${fmt(cost)} Cash nötig.`, 'bad') };
-    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, log: addLog(p.log, p.age, `${n} × Aktienpaket für ${fmt(cost)} gekauft.`, 'good') };
+    if (p.cash < cost) return { ...p, log: addLog(p.log, p.age, L.stocksReject(cost), 'bad') };
+    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, log: addLog(p.log, p.age, L.stocksBuy(n, cost), 'good') };
   });
 
   const buyRealEstate = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
+    const L = T[p.lang].L;
     const need = 25000 * n;
-    if (p.cash < need) return { ...p, log: addLog(p.log, p.age, `Immobilienkauf abgelehnt – ${fmt(need)} EK nötig.`, 'bad') };
+    if (p.cash < need) return { ...p, log: addLog(p.log, p.age, L.reReject(need), 'bad') };
     return {
       ...p,
       cash: p.cash - need,
       realEstate: p.realEstate + 250000 * n,
       loans: p.loans + 225000 * n,
       salary: p.salary + 15000 * n,
-      log: addLog(p.log, p.age, `${n} Wohnung(en) gekauft (+${fmt(250000 * n)}, +${fmt(225000 * n)} Kredit, +${fmt(15000 * n)} Miete).`, 'good'),
+      log: addLog(p.log, p.age, L.reBuy(n, 250000 * n, 225000 * n, 15000 * n), 'good'),
     };
   });
 
@@ -344,32 +511,34 @@ function App(){
 
   /* --- Event-Entscheidungen --- */
   const chooseStart = (path) => setS(p => {
-    if (path === 'ausbildung') {
-      return { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0,
-        log: addLog(p.log, 19, 'Ausbildung abgeschlossen – Berufsstart mit 24.000 € Gehalt.', 'good') };
-    }
-    return { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000,
-      log: addLog(p.log, 23, 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.', 'good') };
+    const L = T[p.lang].L;
+    const base = path === 'ausbildung'
+      ? { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0, log: addLog(p.log, 19, L.apprenticeDone(), 'good') }
+      : { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000, log: addLog(p.log, 23, L.universityDone(), 'good') };
+    base.history = seedHistory(base);
+    return base;
   });
 
   const chooseWedding = (yes) => setS(p => {
+    const L = T[p.lang].L;
     const flags = { ...p.flags, wedding: true };
-    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, 'Du bleibst Single.', 'info') };
+    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, L.single(), 'info') };
     return { ...p, gameState: 'running', event: null, flags,
       cash: p.cash - 10000, basisExpenses: p.basisExpenses * 1.15, joy: clamp(p.joy + 20, 0, 100),
-      log: addLog(p.log, p.age, 'Hochzeit! −10.000 € Cash, +15 % Fixkosten, +20 Lebensfreude.', 'good') };
+      log: addLog(p.log, p.age, L.married(), 'good') };
   });
 
   const chooseKids = (yes) => setS(p => {
+    const L = T[p.lang].L;
     const flags = { ...p.flags, kids: true };
-    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, 'Du entscheidest dich gegen Kinder.', 'info') };
+    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, L.noKids(), 'info') };
     const n = p.kidsQty;
     return { ...p, gameState: 'running', event: null, flags,
       cash: p.cash - 5000 * n, basisExpenses: p.basisExpenses + 6000 * n, joy: clamp(p.joy + 15 * n, 0, 100),
-      log: addLog(p.log, p.age, `Nachwuchs: ${n} Kind(er)! −${fmt(5000 * n)} Cash, +${fmt(6000 * n)} Fixkosten, +${Math.min(15 * n, 100)} Lebensfreude.`, 'good') };
+      log: addLog(p.log, p.age, L.kids(n, 5000 * n, 6000 * n, Math.min(15 * n, 100)), 'good') };
   });
 
-  const restart = () => setS(initialState());
+  const restart = () => setS(p => ({ ...initialState(), lang: p.lang, log: [{ age: 16, text: T[p.lang].L.start(), kind: 'info' }] }));
 
   /* ---------- Render ---------- */
   return (
@@ -383,25 +552,33 @@ function App(){
             </span>
             <div>
               <h1 className="text-lg font-bold text-slate-100 leading-tight">Cashflow Life</h1>
-              <p className="text-xs text-slate-500">Wirtschafts- &amp; Lebenssimulation</p>
+              <p className="text-xs text-slate-500">{t.subtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-5">
             <div className="text-center">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500">Alter</div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500">{t.age}</div>
               <div className="text-xl font-bold text-slate-100 tabular-nums">{s.age} <span className="text-sm text-slate-500">/ {END_AGE}</span></div>
             </div>
             <div className="text-center">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="TrendingUp" size={12} />Inflation</div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="TrendingUp" size={12} />{t.inflation}</div>
               <div className="text-xl font-bold text-amber-400 tabular-nums">{pct(s.inflation)}</div>
             </div>
             <div className="text-center">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="Landmark" size={12} />Leitzins</div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="Landmark" size={12} />{t.interest}</div>
               <div className="text-xl font-bold text-sky-400 tabular-nums">{pct(s.interestRate)}</div>
             </div>
             <div className="min-w-[150px]">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Icon name="Smile" size={12} />Lebensfreude {Math.round(s.joy)}</div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Icon name="Smile" size={12} />{t.joyTop} {Math.round(s.joy)}</div>
               <Bar value={s.joy} />
+            </div>
+            <div className="flex overflow-hidden rounded-lg border border-slate-700">
+              {['de', 'en'].map(lng => (
+                <button key={lng} onClick={() => toggleLang(lng)}
+                  className={`px-2.5 py-1 text-xs font-bold uppercase transition ${s.lang === lng ? 'bg-emerald-500 text-slate-900' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                  {lng}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -411,42 +588,42 @@ function App(){
         {/* Spalte Links – Financial Statement */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
           <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
-            <Icon name="ScrollText" size={16} /> Gewinn &amp; Verlust
+            <Icon name="ScrollText" size={16} /> {t.guv}
           </h2>
           {(() => {
             const guvMax = Math.max(s.salary, d.totalExpenses, 1);
             return (
               <div>
-                <FinBar label="Einkommen" value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
-                <FinBar label="Fixkosten" value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " />
-                <FinBar label="Zinsaufwand" value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " />
-                <FinBar label="Konsumausgaben" value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " />
+                <FinBar label={t.income} value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
+                <FinBar label={t.fixedCosts} value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " />
+                <FinBar label={t.interestExp} value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " />
+                <FinBar label={t.lifestyleSpending} value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " />
               </div>
             );
           })()}
           <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
-            <span className="text-sm font-semibold text-slate-300">Netto-Cashflow</span>
+            <span className="text-sm font-semibold text-slate-300">{t.netCashflow}</span>
             <span className={`text-base font-bold tabular-nums ${d.netCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
               {d.netCashflow >= 0 ? '+ ' : '− '}{fmt(Math.abs(d.netCashflow))}
             </span>
           </div>
 
           <h2 className="mb-2 mt-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
-            <Icon name="Scale" size={16} /> Bilanz
+            <Icon name="Scale" size={16} /> {t.balance}
           </h2>
           {(() => {
             const balMax = Math.max(Math.abs(s.cash), s.stocks, s.realEstate, s.loans, Math.abs(d.netWorth), 1);
             return (
               <div>
-                <FinBar label="Cash" value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
-                <FinBar label="Aktien" value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
-                <FinBar label="Immobilien" value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
-                <FinBar label="Schulden" value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
+                <FinBar label={t.cash} value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
+                <FinBar label={t.stocks} value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
+                <FinBar label={t.realEstate} value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
+                <FinBar label={t.debt} value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
               </div>
             );
           })()}
           <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
-            <span className="text-sm font-semibold text-slate-300">Eigenkapital</span>
+            <span className="text-sm font-semibold text-slate-300">{t.equity}</span>
             <span className={`text-base font-bold tabular-nums ${d.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fmt(d.netWorth)}</span>
           </div>
         </section>
@@ -454,33 +631,32 @@ function App(){
         {/* Spalte Mitte – Aktionen */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
-            <Icon name="Briefcase" size={16} /> Aktionen
+            <Icon name="Briefcase" size={16} /> {t.actions}
           </h2>
           <div className="space-y-2.5">
             <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
-              title="Job wechseln" subtitle="85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)" />
-            <BuyCard icon="TrendingUp" accent="emerald" title="Aktien kaufen"
-              hint="5.000 € / Paket → Depot (jährliche Schwankung)"
-              unitLabel="Aktienpaket" unitCost={5000} qty={s.stockQty} setQty={setStockQty}
+              title={t.changeJob} subtitle={t.changeJobSub} />
+            <BuyCard icon="TrendingUp" accent="emerald" title={t.buyStocks}
+              hint={t.buyStocksHint} qtyLabel={t.quantity}
+              unitLabel={t.stockPack} unitCost={5000} qty={s.stockQty} setQty={setStockQty}
               onBuy={buyStocks} busy={busy} cash={s.cash} />
-            <BuyCard icon="Building2" accent="violet" title="Wohnungen kaufen"
-              hint="25.000 € EK / Wohnung → +250.000 € Objekt, +225.000 € Kredit, +15.000 € Miete"
-              unitLabel="Wohnung" unitCost={25000} qty={s.realEstateQty} setQty={setRealEstateQty}
+            <BuyCard icon="Building2" accent="violet" title={t.buyApartments}
+              hint={t.buyApartmentsHint} qtyLabel={t.quantity}
+              unitLabel={t.apartment} unitCost={25000} qty={s.realEstateQty} setQty={setRealEstateQty}
               onBuy={buyRealEstate} busy={busy} cash={s.cash} />
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Icon name="Sparkles" size={15} className="text-fuchsia-400" /> Lifestyle / Konsum</span>
+              <span className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Icon name="Sparkles" size={15} className="text-fuchsia-400" /> {t.lifestyleTitle}</span>
               <span className="tabular-nums font-bold text-fuchsia-400">{fmt(s.lifestyleSpend)}</span>
             </div>
             <input type="range" min="0" max="40000" step="1000" value={s.lifestyleSpend}
               onChange={(e) => setLifestyle(Number(e.target.value))} disabled={busy}
               className="w-full" />
-            <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>0 €</span><span>40.000 €</span></div>
+            <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>{fmt(0)}</span><span>{fmt(40000)}</span></div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              Konsum kostet Cashflow, steigert aber die Lebensfreude. <span className="text-rose-400">0 €</span> senkt die Freude jährlich,
-              über <span className="text-emerald-400">15.000 €</span> hebt sie deutlich.
+              {t.lifestyleA}<span className="text-rose-400">{fmt(0)}</span>{t.lifestyleB}<span className="text-emerald-400">{fmt(15000)}</span>{t.lifestyleC}
             </p>
           </div>
         </section>
@@ -488,7 +664,7 @@ function App(){
         {/* Spalte Rechts – Event-Log */}
         <section className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
-            <Icon name="ScrollText" size={16} /> Event-Log
+            <Icon name="ScrollText" size={16} /> {t.eventLog}
           </h2>
           <div className="flex-1 space-y-1.5 overflow-y-auto pr-1" style={{ maxHeight: '70vh' }}>
             {s.log.map((e, i) => (
@@ -501,22 +677,30 @@ function App(){
         </section>
       </div>
 
+      {/* Vermögensverlauf über die Zeit */}
+      <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+          <Icon name="TrendingUp" size={16} /> {t.chartTitle}
+        </h2>
+        <TimeChart data={s.history} t={t} />
+      </section>
+
       {/* ---------- Overlays ---------- */}
       {s.gameState === 'modal' && s.event === 'start' && (
         <Modal>
           <div className="mb-4 flex items-center gap-3">
             <span className="grid place-items-center w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400"><Icon name="GraduationCap" size={24} /></span>
-            <div><h3 className="text-lg font-bold text-slate-100">Alter 16 – Dein Bildungsweg</h3>
-            <p className="text-xs text-slate-400">Diese Entscheidung bestimmt deinen Start ins Berufsleben.</p></div>
+            <div><h3 className="text-lg font-bold text-slate-100">{t.startTitle}</h3>
+            <p className="text-xs text-slate-400">{t.startDesc}</p></div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => chooseStart('ausbildung')} className="flex-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-left hover:bg-emerald-500/20 transition">
-              <div className="font-bold text-emerald-300">Ausbildung</div>
-              <div className="mt-1 text-xs text-slate-400">Start mit 19 · +5.000 € Cash · 24.000 € Gehalt · keine Schulden</div>
+              <div className="font-bold text-emerald-300">{t.apprentice}</div>
+              <div className="mt-1 text-xs text-slate-400">{t.apprenticeDesc}</div>
             </button>
             <button onClick={() => chooseStart('studium')} className="flex-1 rounded-xl border border-sky-500/40 bg-sky-500/10 p-4 text-left hover:bg-sky-500/20 transition">
-              <div className="font-bold text-sky-300">Studium</div>
-              <div className="mt-1 text-xs text-slate-400">Start mit 23 · 0 € Cash · 45.000 € Gehalt · 10.000 € Schulden</div>
+              <div className="font-bold text-sky-300">{t.university}</div>
+              <div className="mt-1 text-xs text-slate-400">{t.universityDesc}</div>
             </button>
           </div>
         </Modal>
@@ -526,13 +710,13 @@ function App(){
         <Modal>
           <div className="mb-4 flex items-center gap-3">
             <span className="grid place-items-center w-11 h-11 rounded-xl bg-rose-500/15 text-rose-400"><Icon name="Heart" size={24} /></span>
-            <div><h3 className="text-lg font-bold text-slate-100">Alter 28 – Hochzeit?</h3>
-            <p className="text-xs text-slate-400">Du hast die große Liebe getroffen.</p></div>
+            <div><h3 className="text-lg font-bold text-slate-100">{t.weddingTitle}</h3>
+            <p className="text-xs text-slate-400">{t.weddingDesc}</p></div>
           </div>
-          <p className="mb-4 text-sm text-slate-300">Heiraten kostet einmalig <b>10.000 €</b> und erhöht die Fixkosten um <b>15 %</b>, schenkt dir aber <b>+20 Lebensfreude</b>.</p>
+          <p className="mb-4 text-sm text-slate-300">{t.weddingBody}</p>
           <div className="flex gap-3">
-            <ChoiceBtn onClick={() => chooseWedding(true)} accent="rose">Ja, heiraten</ChoiceBtn>
-            <ChoiceBtn onClick={() => chooseWedding(false)} accent="slate">Nein</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseWedding(true)} accent="rose">{t.weddingYes}</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseWedding(false)} accent="slate">{t.no}</ChoiceBtn>
           </div>
         </Modal>
       )}
@@ -541,26 +725,26 @@ function App(){
         <Modal>
           <div className="mb-4 flex items-center gap-3">
             <span className="grid place-items-center w-11 h-11 rounded-xl bg-amber-500/15 text-amber-400"><Icon name="Baby" size={24} /></span>
-            <div><h3 className="text-lg font-bold text-slate-100">Alter 32 – Kinder?</h3>
-            <p className="text-xs text-slate-400">Eine Familie gründen?</p></div>
+            <div><h3 className="text-lg font-bold text-slate-100">{t.kidsTitle}</h3>
+            <p className="text-xs text-slate-400">{t.kidsDesc}</p></div>
           </div>
-          <p className="mb-3 text-sm text-slate-300">Pro Kind: einmalig <b>5.000 €</b>, dauerhaft <b>+6.000 €</b> Fixkosten, <b>+15 Lebensfreude</b>.</p>
+          <p className="mb-3 text-sm text-slate-300">{t.kidsPerChild}</p>
           <div className="mb-4 rounded-xl border border-slate-700 bg-slate-800/40 p-3">
             <div className="mb-2 flex items-center gap-2">
-              <span className="w-20 text-[10px] uppercase tracking-wide text-slate-500">Anzahl Kinder</span>
+              <span className="w-20 text-[10px] uppercase tracking-wide text-slate-500">{t.numChildren}</span>
               <input type="range" min="1" max="10" step="1" value={s.kidsQty}
                 onChange={(e) => setKidsQty(Number(e.target.value))} className="flex-1" />
               <span className="w-6 text-center tabular-nums font-bold text-amber-400">{s.kidsQty}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Kosten</div><div className="font-semibold text-rose-300">− {fmt(5000 * s.kidsQty)}</div></div>
-              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Fixkosten</div><div className="font-semibold text-amber-300">+ {fmt(6000 * s.kidsQty)}</div></div>
-              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Freude</div><div className="font-semibold text-emerald-300">+ {Math.min(15 * s.kidsQty, 100)}</div></div>
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">{t.costLbl}</div><div className="font-semibold text-rose-300">− {fmt(5000 * s.kidsQty)}</div></div>
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">{t.fixedLbl}</div><div className="font-semibold text-amber-300">+ {fmt(6000 * s.kidsQty)}</div></div>
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">{t.joyLbl}</div><div className="font-semibold text-emerald-300">+ {Math.min(15 * s.kidsQty, 100)}</div></div>
             </div>
           </div>
           <div className="flex gap-3">
-            <ChoiceBtn onClick={() => chooseKids(true)} accent="amber">Ja, {s.kidsQty} Kind(er)</ChoiceBtn>
-            <ChoiceBtn onClick={() => chooseKids(false)} accent="slate">Nein</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseKids(true)} accent="amber">{t.kidsYes(s.kidsQty)}</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseKids(false)} accent="slate">{t.no}</ChoiceBtn>
           </div>
         </Modal>
       )}
@@ -569,13 +753,13 @@ function App(){
         <Modal>
           <div className="text-center">
             <span className="mx-auto mb-3 grid place-items-center w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400"><Icon name="AlertTriangle" size={34} /></span>
-            <h3 className="text-2xl font-bold text-rose-400">Privatinsolvenz</h3>
-            <p className="mt-2 text-sm text-slate-400">Mit {s.age} Jahren ist dein Eigenkapital aufgebraucht. Das Spiel endet hier.</p>
+            <h3 className="text-2xl font-bold text-rose-400">{t.bankruptTitle}</h3>
+            <p className="mt-2 text-sm text-slate-400">{t.bankruptDesc(s.age)}</p>
             <div className="mt-4 rounded-xl bg-slate-800/60 p-3 text-sm">
-              <div className="flex justify-between"><span className="text-slate-400">Eigenkapital</span><span className="font-bold text-rose-400">{fmt(d.netWorth)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Lebensfreude</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">{t.equity}</span><span className="font-bold text-rose-400">{fmt(d.netWorth)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">{t.joyTop}</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
             </div>
-            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">Neues Spiel</button>
+            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">{t.newGame}</button>
           </div>
         </Modal>
       )}
@@ -584,14 +768,14 @@ function App(){
         <Modal>
           <div className="text-center">
             <span className="mx-auto mb-3 grid place-items-center w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400"><Icon name="Trophy" size={34} /></span>
-            <h3 className="text-2xl font-bold text-amber-400">Ruhestand erreicht!</h3>
-            <p className="mt-2 text-sm text-slate-400">Glückwunsch – du hast es mit {END_AGE} in den Ruhestand geschafft.</p>
+            <h3 className="text-2xl font-bold text-amber-400">{t.wonTitle}</h3>
+            <p className="mt-2 text-sm text-slate-400">{t.wonDesc(END_AGE)}</p>
             <div className="mt-4 rounded-xl bg-slate-800/60 p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span className="text-slate-400">Eigenkapital</span><span className="font-bold text-emerald-400">{fmt(d.netWorth)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Cash</span><span className="font-bold text-slate-200">{fmt(s.cash)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Lebensfreude</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">{t.equity}</span><span className="font-bold text-emerald-400">{fmt(d.netWorth)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">{t.cashLbl}</span><span className="font-bold text-slate-200">{fmt(s.cash)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">{t.joyTop}</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
             </div>
-            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">Nochmal spielen</button>
+            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">{t.playAgain}</button>
           </div>
         </Modal>
       )}
