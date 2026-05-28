@@ -105,6 +105,7 @@ function initialState(){
     inflation: 2, interestRate: 3,
     joy: 50,
     lifestyleSpend: 0,
+    stockQty: 1, realEstateQty: 1, kidsQty: 1,
     flags: { wedding: false, kids: false },
     log: [{ age: 16, text: 'Spielstart – wähle deinen Bildungsweg.', kind: 'info' }],
   };
@@ -192,17 +193,6 @@ function advanceYear(prev){
 }
 
 /* ---------- UI-Bausteine ---------- */
-function StatRow({ label, value, color = 'text-slate-200', icon }){
-  return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="flex items-center gap-2 text-sm text-slate-400">
-        {icon && <Icon name={icon} size={15} className="text-slate-500" />}{label}
-      </span>
-      <span className={`text-sm font-semibold tabular-nums ${color}`}>{value}</span>
-    </div>
-  );
-}
-
 function ActionButton({ onClick, disabled, icon, title, subtitle, accent }){
   return (
     <button onClick={onClick} disabled={disabled}
@@ -228,6 +218,52 @@ function Bar({ value, max = 100 }){
   return (
     <div className="h-2 w-full rounded-full bg-slate-700 overflow-hidden">
       <div className={`h-full ${color} transition-all`} style={{ width: w + '%' }} />
+    </div>
+  );
+}
+
+/* Grafischer Balken für GuV / Bilanz */
+function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon, sign = '' }){
+  const w = max > 0 ? clamp((Math.abs(value) / max) * 100, 0, 100) : 0;
+  return (
+    <div className="mb-2.5">
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="flex items-center gap-1.5 text-slate-400">
+          {icon && <Icon name={icon} size={13} className="text-slate-500" />}{label}
+        </span>
+        <span className={`tabular-nums font-semibold ${valClass}`}>{sign}{fmt(Math.abs(value))}</span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
+        <div className={`h-full ${barClass} transition-all duration-500`} style={{ width: w + '%' }} />
+      </div>
+    </div>
+  );
+}
+
+/* Kauf-Karte mit Mengen-Regler (1–10) */
+function BuyCard({ icon, accent, title, unitLabel, unitCost, qty, setQty, onBuy, busy, cash, hint }){
+  const total = unitCost * qty;
+  const afford = cash >= total;
+  const lock = busy || !afford;
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+      <div className="mb-2 flex items-center gap-3">
+        <span className={`grid place-items-center w-9 h-9 rounded-lg bg-${accent}-500/15 text-${accent}-400 shrink-0`}><Icon name={icon} size={18} /></span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-100">{title}</div>
+          <div className="text-xs text-slate-400 leading-tight">{hint}</div>
+        </div>
+      </div>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="w-12 text-[10px] uppercase tracking-wide text-slate-500">Menge</span>
+        <input type="range" min="1" max="10" step="1" value={qty} disabled={busy}
+          onChange={(e) => setQty(Number(e.target.value))} className="flex-1" />
+        <span className={`w-6 text-center tabular-nums font-bold text-${accent}-400`}>{qty}</span>
+      </div>
+      <button onClick={() => onBuy(qty)} disabled={lock}
+        className={`w-full rounded-lg px-3 py-2 text-sm font-semibold transition ${lock ? 'cursor-not-allowed bg-slate-800 text-slate-600' : `bg-${accent}-500/15 text-${accent}-300 hover:bg-${accent}-500/25`}`}>
+        {qty} × {unitLabel} · {fmt(total)}
+      </button>
     </div>
   );
 }
@@ -280,26 +316,31 @@ function App(){
     return { ...p, salary, log: addLog(p.log, p.age, `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(salary)}.`, 'good') };
   });
 
-  const buyStocks = () => setS(p => {
+  const buyStocks = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
-    if (p.cash < 5000) return { ...p, log: addLog(p.log, p.age, 'Aktienkauf abgelehnt – weniger als 5.000 € Cash.', 'bad') };
-    return { ...p, cash: p.cash - 5000, stocks: p.stocks + 5000, log: addLog(p.log, p.age, 'Aktien für 5.000 € gekauft.', 'good') };
+    const cost = 5000 * n;
+    if (p.cash < cost) return { ...p, log: addLog(p.log, p.age, `Aktienkauf abgelehnt – ${fmt(cost)} Cash nötig.`, 'bad') };
+    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, log: addLog(p.log, p.age, `${n} × Aktienpaket für ${fmt(cost)} gekauft.`, 'good') };
   });
 
-  const buyRealEstate = () => setS(p => {
+  const buyRealEstate = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
-    if (p.cash < 25000) return { ...p, log: addLog(p.log, p.age, 'Immobilienkauf abgelehnt – mind. 25.000 € Cash nötig.', 'bad') };
+    const need = 25000 * n;
+    if (p.cash < need) return { ...p, log: addLog(p.log, p.age, `Immobilienkauf abgelehnt – ${fmt(need)} EK nötig.`, 'bad') };
     return {
       ...p,
-      cash: p.cash - 25000,
-      realEstate: p.realEstate + 250000,
-      loans: p.loans + 225000,
-      salary: p.salary + 15000,
-      log: addLog(p.log, p.age, 'Immobilie gekauft (+250.000 €, +225.000 € Kredit, +15.000 € Mieteinnahmen).', 'good'),
+      cash: p.cash - need,
+      realEstate: p.realEstate + 250000 * n,
+      loans: p.loans + 225000 * n,
+      salary: p.salary + 15000 * n,
+      log: addLog(p.log, p.age, `${n} Wohnung(en) gekauft (+${fmt(250000 * n)}, +${fmt(225000 * n)} Kredit, +${fmt(15000 * n)} Miete).`, 'good'),
     };
   });
 
   const setLifestyle = (v) => setS(p => ({ ...p, lifestyleSpend: v }));
+  const setStockQty = (v) => setS(p => ({ ...p, stockQty: v }));
+  const setRealEstateQty = (v) => setS(p => ({ ...p, realEstateQty: v }));
+  const setKidsQty = (v) => setS(p => ({ ...p, kidsQty: v }));
 
   /* --- Event-Entscheidungen --- */
   const chooseStart = (path) => setS(p => {
@@ -322,9 +363,10 @@ function App(){
   const chooseKids = (yes) => setS(p => {
     const flags = { ...p.flags, kids: true };
     if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, 'Du entscheidest dich gegen Kinder.', 'info') };
+    const n = p.kidsQty;
     return { ...p, gameState: 'running', event: null, flags,
-      cash: p.cash - 5000, basisExpenses: p.basisExpenses + 6000, joy: clamp(p.joy + 15, 0, 100),
-      log: addLog(p.log, p.age, 'Nachwuchs! −5.000 € Cash, +6.000 € Fixkosten, +15 Lebensfreude.', 'good') };
+      cash: p.cash - 5000 * n, basisExpenses: p.basisExpenses + 6000 * n, joy: clamp(p.joy + 15 * n, 0, 100),
+      log: addLog(p.log, p.age, `Nachwuchs: ${n} Kind(er)! −${fmt(5000 * n)} Cash, +${fmt(6000 * n)} Fixkosten, +${Math.min(15 * n, 100)} Lebensfreude.`, 'good') };
   });
 
   const restart = () => setS(initialState());
@@ -371,12 +413,17 @@ function App(){
           <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
             <Icon name="ScrollText" size={16} /> Gewinn &amp; Verlust
           </h2>
-          <div className="divide-y divide-slate-800/70">
-            <StatRow label="Einkommen" value={fmt(s.salary)} color="text-emerald-400" icon="Banknote" />
-            <StatRow label="Fixkosten" value={'− ' + fmt(s.basisExpenses)} color="text-slate-300" icon="ShoppingBag" />
-            <StatRow label="Zinsaufwand" value={'− ' + fmt(d.interestExpenses)} color="text-slate-300" icon="Percent" />
-            <StatRow label="Konsumausgaben" value={'− ' + fmt(s.lifestyleSpend)} color="text-slate-300" icon="Sparkles" />
-          </div>
+          {(() => {
+            const guvMax = Math.max(s.salary, d.totalExpenses, 1);
+            return (
+              <div>
+                <FinBar label="Einkommen" value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
+                <FinBar label="Fixkosten" value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " />
+                <FinBar label="Zinsaufwand" value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " />
+                <FinBar label="Konsumausgaben" value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " />
+              </div>
+            );
+          })()}
           <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
             <span className="text-sm font-semibold text-slate-300">Netto-Cashflow</span>
             <span className={`text-base font-bold tabular-nums ${d.netCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -387,12 +434,17 @@ function App(){
           <h2 className="mb-2 mt-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
             <Icon name="Scale" size={16} /> Bilanz
           </h2>
-          <div className="divide-y divide-slate-800/70">
-            <StatRow label="Cash" value={fmt(s.cash)} color={s.cash < 0 ? 'text-rose-400' : 'text-slate-200'} icon="Wallet" />
-            <StatRow label="Aktien" value={fmt(s.stocks)} color="text-slate-200" icon="TrendingUp" />
-            <StatRow label="Immobilien" value={fmt(s.realEstate)} color="text-slate-200" icon="Building2" />
-            <StatRow label="Schulden" value={'− ' + fmt(s.loans)} color="text-rose-400" icon="Landmark" />
-          </div>
+          {(() => {
+            const balMax = Math.max(Math.abs(s.cash), s.stocks, s.realEstate, s.loans, Math.abs(d.netWorth), 1);
+            return (
+              <div>
+                <FinBar label="Cash" value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
+                <FinBar label="Aktien" value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
+                <FinBar label="Immobilien" value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
+                <FinBar label="Schulden" value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
+              </div>
+            );
+          })()}
           <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
             <span className="text-sm font-semibold text-slate-300">Eigenkapital</span>
             <span className={`text-base font-bold tabular-nums ${d.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fmt(d.netWorth)}</span>
@@ -407,10 +459,14 @@ function App(){
           <div className="space-y-2.5">
             <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
               title="Job wechseln" subtitle="85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)" />
-            <ActionButton onClick={buyStocks} disabled={busy || s.cash < 5000} icon="TrendingUp" accent="emerald"
-              title="Aktien kaufen" subtitle="5.000 € Cash → Depot (+/− jährliche Schwankung)" />
-            <ActionButton onClick={buyRealEstate} disabled={busy || s.cash < 25000} icon="Building2" accent="violet"
-              title="Immobilie kaufen" subtitle="25.000 € EK → 250.000 € Objekt, 225.000 € Kredit, +15.000 € Miete" />
+            <BuyCard icon="TrendingUp" accent="emerald" title="Aktien kaufen"
+              hint="5.000 € / Paket → Depot (jährliche Schwankung)"
+              unitLabel="Aktienpaket" unitCost={5000} qty={s.stockQty} setQty={setStockQty}
+              onBuy={buyStocks} busy={busy} cash={s.cash} />
+            <BuyCard icon="Building2" accent="violet" title="Wohnungen kaufen"
+              hint="25.000 € EK / Wohnung → +250.000 € Objekt, +225.000 € Kredit, +15.000 € Miete"
+              unitLabel="Wohnung" unitCost={25000} qty={s.realEstateQty} setQty={setRealEstateQty}
+              onBuy={buyRealEstate} busy={busy} cash={s.cash} />
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
@@ -488,9 +544,22 @@ function App(){
             <div><h3 className="text-lg font-bold text-slate-100">Alter 32 – Kinder?</h3>
             <p className="text-xs text-slate-400">Eine Familie gründen?</p></div>
           </div>
-          <p className="mb-4 text-sm text-slate-300">Kinder kosten einmalig <b>5.000 €</b> und erhöhen die Fixkosten dauerhaft um <b>6.000 €</b>, schenken dir aber <b>+15 Lebensfreude</b>.</p>
+          <p className="mb-3 text-sm text-slate-300">Pro Kind: einmalig <b>5.000 €</b>, dauerhaft <b>+6.000 €</b> Fixkosten, <b>+15 Lebensfreude</b>.</p>
+          <div className="mb-4 rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="w-20 text-[10px] uppercase tracking-wide text-slate-500">Anzahl Kinder</span>
+              <input type="range" min="1" max="10" step="1" value={s.kidsQty}
+                onChange={(e) => setKidsQty(Number(e.target.value))} className="flex-1" />
+              <span className="w-6 text-center tabular-nums font-bold text-amber-400">{s.kidsQty}</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Kosten</div><div className="font-semibold text-rose-300">− {fmt(5000 * s.kidsQty)}</div></div>
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Fixkosten</div><div className="font-semibold text-amber-300">+ {fmt(6000 * s.kidsQty)}</div></div>
+              <div className="rounded-lg bg-slate-900/60 p-2"><div className="text-slate-500">Freude</div><div className="font-semibold text-emerald-300">+ {Math.min(15 * s.kidsQty, 100)}</div></div>
+            </div>
+          </div>
           <div className="flex gap-3">
-            <ChoiceBtn onClick={() => chooseKids(true)} accent="amber">Ja, Kinder</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseKids(true)} accent="amber">Ja, {s.kidsQty} Kind(er)</ChoiceBtn>
             <ChoiceBtn onClick={() => chooseKids(false)} accent="slate">Nein</ChoiceBtn>
           </div>
         </Modal>
