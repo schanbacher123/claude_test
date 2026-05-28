@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cashflow Life – Wirtschafts- &amp; Lebenssimulation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    html,body{background:#0b1120;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;}
+    ::-webkit-scrollbar{width:8px;}
+    ::-webkit-scrollbar-track{background:#0f172a;}
+    ::-webkit-scrollbar-thumb{background:#334155;border-radius:8px;}
+    input[type=range]{accent-color:#22c55e;}
+    @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+    .pop{animation:pop .18s ease-out;}
+  </style>
+</head>
+<body class="dark">
+<div id="root" class="min-h-screen"></div>
+
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js"></script>
+
+<script>
+  window.onerror = function(msg, src, line, col, err){
+    var d = document.getElementById('root');
+    if(d) d.innerHTML = '<div style="color:#f87171;padding:2rem;font-family:monospace;background:#1e293b;margin:2rem;border-radius:8px">'+
+      '<b>JS-Fehler Zeile '+line+':</b> '+msg+
+      (err && err.stack ? '<pre style="margin-top:1rem;font-size:.75rem;white-space:pre-wrap">'+err.stack+'</pre>' : '')+'</div>';
+  };
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+
+/* ---------- Lucide Icon Wrapper (robust + Emoji-Fallback) ---------- */
+const EMOJI_FALLBACK = {
+  Wallet:'👛', PiggyBank:'🐷', TrendingUp:'📈', Building2:'🏠', Banknote:'💵',
+  Briefcase:'💼', Heart:'❤️', Baby:'👶', Smile:'🙂', Percent:'%', Landmark:'🏛️',
+  AlertTriangle:'⚠️', Trophy:'🏆', Scale:'⚖️', ScrollText:'📜', Coins:'🪙',
+  ShoppingBag:'🛍️', GraduationCap:'🎓', PartyPopper:'🎉', Sparkles:'✨'
+};
+function Icon({ name, size = 18, className = '', strokeWidth = 2 }){
+  const lib = (typeof lucide !== 'undefined') ? lucide : null;
+  const node = lib ? (lib.icons ? lib.icons[name] : lib[name]) : null;
+  if (!node || !Array.isArray(node)) {
+    return <span className={className} style={{fontSize: size}}>{EMOJI_FALLBACK[name] || '•'}</span>;
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round"
+         strokeLinejoin="round" className={className}>
+      {node.map((child, i) => {
+        const tag = child[0];
+        const attrs = child[1] || {};
+        return React.createElement(tag, { key: i, ...attrs });
+      })}
+    </svg>
+  );
+}
+
+/* ---------- Helpers ---------- */
+const TICK_MS = 4000;
+const END_AGE = 67;
+const rand = (min, max) => Math.random() * (max - min) + min;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const fmt = (n) => Math.round(n).toLocaleString('de-DE') + ' €';
+const pct = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+
+/* Abgeleitete Finanzkennzahlen (rein, ohne Seiteneffekt) */
+function derive(s){
+  const interestExpenses = s.loans * (s.interestRate / 100);
+  const totalExpenses = s.basisExpenses + s.lifestyleSpend + interestExpenses;
+  const netCashflow = s.salary - totalExpenses;
+  const netWorth = (s.cash + s.stocks + s.realEstate) - s.loans;
+  return { interestExpenses, totalExpenses, netCashflow, netWorth };
+}
+
+/* ---------- Initialer State ---------- */
+function initialState(){
+  return {
+    gameState: 'modal',      // running | modal | gameover | won
+    event: 'start',          // start | wedding | kids | null
+    age: 16,
+    cash: 0, stocks: 0, realEstate: 0,
+    loans: 0,
+    salary: 0,
+    basisExpenses: 15000,
+    inflation: 2, interestRate: 3,
+    joy: 50,
+    lifestyleSpend: 0,
+    flags: { wedding: false, kids: false },
+    log: [{ age: 16, text: 'Spielstart – wähle deinen Bildungsweg.', kind: 'info' }],
+  };
+}
+
+function addLog(log, age, text, kind = 'info'){
+  return [{ age, text, kind }, ...log].slice(0, 80);
+}
+
+/* ---------- Tick: ein Lebensjahr ---------- */
+function advanceYear(prev){
+  const d = derive(prev);
+  let log = prev.log;
+
+  // Makro-Updates
+  const newInflation = rand(1, 6);
+  const newInterest = newInflation + rand(0, 3);
+  const newBasis = prev.basisExpenses * (1 + newInflation / 100);
+  const newSalary = prev.salary * 1.02;
+  const newCash = prev.cash + d.netCashflow;
+
+  // Aktien schwanken (nur wenn vorhanden)
+  let newStocks = prev.stocks;
+  let stockChange = 0;
+  if (prev.stocks > 0) {
+    stockChange = rand(-15, 20);
+    newStocks = prev.stocks * (1 + stockChange / 100);
+  }
+
+  // Joy
+  let joyDelta;
+  if (prev.lifestyleSpend === 0) joyDelta = -5;
+  else if (prev.lifestyleSpend > 15000) joyDelta = 5;
+  else joyDelta = 1;
+  const newJoy = clamp(prev.joy + joyDelta, 0, 100);
+
+  const newAge = prev.age + 1;
+
+  // Logs für das Jahr
+  log = addLog(log, newAge, `Inflation ${pct(newInflation)} · Leitzins ${pct(newInterest)} · Cashflow ${fmt(d.netCashflow)}`, d.netCashflow >= 0 ? 'good' : 'bad');
+  if (prev.stocks > 0) {
+    log = addLog(log, newAge, `Aktiendepot ${stockChange >= 0 ? '+' : ''}${stockChange.toFixed(1)} % → ${fmt(newStocks)}`, stockChange >= 0 ? 'good' : 'bad');
+  }
+
+  let next = {
+    ...prev,
+    age: newAge,
+    inflation: newInflation,
+    interestRate: newInterest,
+    basisExpenses: newBasis,
+    salary: newSalary,
+    cash: newCash,
+    stocks: newStocks,
+    joy: newJoy,
+    log,
+  };
+
+  // Game-Over-Prüfung (mit aktualisierten Werten)
+  const nd = derive(next);
+  if (nd.netWorth < 0 || (next.cash < 0 && nd.netCashflow < 0)) {
+    next.gameState = 'gameover';
+    next.event = null;
+    next.log = addLog(next.log, newAge, 'Privatinsolvenz – das Eigenkapital ist aufgebraucht.', 'bad');
+    return next;
+  }
+
+  // Gewonnen
+  if (newAge >= END_AGE) {
+    next.gameState = 'won';
+    next.event = null;
+    next.log = addLog(next.log, newAge, `Ruhestand erreicht mit einem Vermögen von ${fmt(nd.netWorth)}.`, 'good');
+    return next;
+  }
+
+  // Lebensereignisse → Spiel pausieren
+  if (newAge >= 28 && !next.flags.wedding) {
+    next.gameState = 'modal';
+    next.event = 'wedding';
+  } else if (newAge >= 32 && !next.flags.kids) {
+    next.gameState = 'modal';
+    next.event = 'kids';
+  }
+
+  return next;
+}
+
+/* ---------- UI-Bausteine ---------- */
+function StatRow({ label, value, color = 'text-slate-200', icon }){
+  return (
+    <div className="flex items-center justify-between py-1.5">
+      <span className="flex items-center gap-2 text-sm text-slate-400">
+        {icon && <Icon name={icon} size={15} className="text-slate-500" />}{label}
+      </span>
+      <span className={`text-sm font-semibold tabular-nums ${color}`}>{value}</span>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, disabled, icon, title, subtitle, accent }){
+  return (
+    <button onClick={onClick} disabled={disabled}
+      className={`w-full text-left rounded-xl border p-3 transition group
+        ${disabled ? 'opacity-40 cursor-not-allowed border-slate-800 bg-slate-900'
+        : `border-slate-700 bg-slate-800/60 hover:border-${accent}-500 hover:bg-slate-800`}`}>
+      <div className="flex items-center gap-3">
+        <span className={`grid place-items-center w-9 h-9 rounded-lg bg-${accent}-500/15 text-${accent}-400 shrink-0`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-100">{title}</div>
+          <div className="text-xs text-slate-400 leading-tight">{subtitle}</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function Bar({ value, max = 100 }){
+  const w = clamp((value / max) * 100, 0, 100);
+  const color = w > 60 ? 'bg-emerald-500' : w > 30 ? 'bg-amber-500' : 'bg-rose-500';
+  return (
+    <div className="h-2 w-full rounded-full bg-slate-700 overflow-hidden">
+      <div className={`h-full ${color} transition-all`} style={{ width: w + '%' }} />
+    </div>
+  );
+}
+
+/* ---------- Modals ---------- */
+function Modal({ children }){
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="pop w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-7 shadow-2xl">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ChoiceBtn({ onClick, accent, children }){
+  return (
+    <button onClick={onClick}
+      className={`flex-1 rounded-xl border border-${accent}-500/40 bg-${accent}-500/10 px-4 py-3
+        text-${accent}-300 font-semibold hover:bg-${accent}-500/20 transition`}>
+      {children}
+    </button>
+  );
+}
+
+/* ---------- Haupt-App ---------- */
+function App(){
+  const [s, setS] = useState(initialState);
+  const stateRef = useRef(s);
+  stateRef.current = s;
+
+  // Game Loop – pausiert automatisch, wenn nicht "running"
+  useEffect(() => {
+    if (s.gameState !== 'running') return;
+    const id = setInterval(() => setS(prev => advanceYear(prev)), TICK_MS);
+    return () => clearInterval(id);
+  }, [s.gameState]);
+
+  const d = derive(s);
+  const busy = s.gameState !== 'running';
+
+  /* --- Permanente Aktionen --- */
+  const changeJob = () => setS(p => {
+    if (p.gameState !== 'running') return p;
+    if (Math.random() < 0.15) {
+      const salary = 20000;
+      return { ...p, salary, log: addLog(p.log, p.age, `Jobwechsel missglückt – Kündigung! Gehalt jetzt ${fmt(salary)}.`, 'bad') };
+    }
+    const salary = p.salary * 1.25;
+    return { ...p, salary, log: addLog(p.log, p.age, `Jobwechsel erfolgreich – Gehalt +25 % auf ${fmt(salary)}.`, 'good') };
+  });
+
+  const buyStocks = () => setS(p => {
+    if (p.gameState !== 'running') return p;
+    if (p.cash < 5000) return { ...p, log: addLog(p.log, p.age, 'Aktienkauf abgelehnt – weniger als 5.000 € Cash.', 'bad') };
+    return { ...p, cash: p.cash - 5000, stocks: p.stocks + 5000, log: addLog(p.log, p.age, 'Aktien für 5.000 € gekauft.', 'good') };
+  });
+
+  const buyRealEstate = () => setS(p => {
+    if (p.gameState !== 'running') return p;
+    if (p.cash < 25000) return { ...p, log: addLog(p.log, p.age, 'Immobilienkauf abgelehnt – mind. 25.000 € Cash nötig.', 'bad') };
+    return {
+      ...p,
+      cash: p.cash - 25000,
+      realEstate: p.realEstate + 250000,
+      loans: p.loans + 225000,
+      salary: p.salary + 15000,
+      log: addLog(p.log, p.age, 'Immobilie gekauft (+250.000 €, +225.000 € Kredit, +15.000 € Mieteinnahmen).', 'good'),
+    };
+  });
+
+  const setLifestyle = (v) => setS(p => ({ ...p, lifestyleSpend: v }));
+
+  /* --- Event-Entscheidungen --- */
+  const chooseStart = (path) => setS(p => {
+    if (path === 'ausbildung') {
+      return { ...p, gameState: 'running', event: null, age: 19, cash: 5000, salary: 24000, loans: 0,
+        log: addLog(p.log, 19, 'Ausbildung abgeschlossen – Berufsstart mit 24.000 € Gehalt.', 'good') };
+    }
+    return { ...p, gameState: 'running', event: null, age: 23, cash: 0, salary: 45000, loans: 10000,
+      log: addLog(p.log, 23, 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.', 'good') };
+  });
+
+  const chooseWedding = (yes) => setS(p => {
+    const flags = { ...p.flags, wedding: true };
+    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, 'Du bleibst Single.', 'info') };
+    return { ...p, gameState: 'running', event: null, flags,
+      cash: p.cash - 10000, basisExpenses: p.basisExpenses * 1.15, joy: clamp(p.joy + 20, 0, 100),
+      log: addLog(p.log, p.age, 'Hochzeit! −10.000 € Cash, +15 % Fixkosten, +20 Lebensfreude.', 'good') };
+  });
+
+  const chooseKids = (yes) => setS(p => {
+    const flags = { ...p.flags, kids: true };
+    if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, 'Du entscheidest dich gegen Kinder.', 'info') };
+    return { ...p, gameState: 'running', event: null, flags,
+      cash: p.cash - 5000, basisExpenses: p.basisExpenses + 6000, joy: clamp(p.joy + 15, 0, 100),
+      log: addLog(p.log, p.age, 'Nachwuchs! −5.000 € Cash, +6.000 € Fixkosten, +15 Lebensfreude.', 'good') };
+  });
+
+  const restart = () => setS(initialState());
+
+  /* ---------- Render ---------- */
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-5">
+      {/* Top-Bar */}
+      <header className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+        <div className="flex flex-wrap items-center gap-4 justify-between">
+          <div className="flex items-center gap-3">
+            <span className="grid place-items-center w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400">
+              <Icon name="Coins" size={22} />
+            </span>
+            <div>
+              <h1 className="text-lg font-bold text-slate-100 leading-tight">Cashflow Life</h1>
+              <p className="text-xs text-slate-500">Wirtschafts- &amp; Lebenssimulation</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-5">
+            <div className="text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500">Alter</div>
+              <div className="text-xl font-bold text-slate-100 tabular-nums">{s.age} <span className="text-sm text-slate-500">/ {END_AGE}</span></div>
+            </div>
+            <div className="text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="TrendingUp" size={12} />Inflation</div>
+              <div className="text-xl font-bold text-amber-400 tabular-nums">{pct(s.inflation)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 justify-center"><Icon name="Landmark" size={12} />Leitzins</div>
+              <div className="text-xl font-bold text-sky-400 tabular-nums">{pct(s.interestRate)}</div>
+            </div>
+            <div className="min-w-[150px]">
+              <div className="text-[10px] uppercase tracking-wide text-slate-500 flex items-center gap-1 mb-1"><Icon name="Smile" size={12} />Lebensfreude {Math.round(s.joy)}</div>
+              <Bar value={s.joy} />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Spalte Links – Financial Statement */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <Icon name="ScrollText" size={16} /> Gewinn &amp; Verlust
+          </h2>
+          <div className="divide-y divide-slate-800/70">
+            <StatRow label="Einkommen" value={fmt(s.salary)} color="text-emerald-400" icon="Banknote" />
+            <StatRow label="Fixkosten" value={'− ' + fmt(s.basisExpenses)} color="text-slate-300" icon="ShoppingBag" />
+            <StatRow label="Zinsaufwand" value={'− ' + fmt(d.interestExpenses)} color="text-slate-300" icon="Percent" />
+            <StatRow label="Konsumausgaben" value={'− ' + fmt(s.lifestyleSpend)} color="text-slate-300" icon="Sparkles" />
+          </div>
+          <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
+            <span className="text-sm font-semibold text-slate-300">Netto-Cashflow</span>
+            <span className={`text-base font-bold tabular-nums ${d.netCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {d.netCashflow >= 0 ? '+ ' : '− '}{fmt(Math.abs(d.netCashflow))}
+            </span>
+          </div>
+
+          <h2 className="mb-2 mt-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <Icon name="Scale" size={16} /> Bilanz
+          </h2>
+          <div className="divide-y divide-slate-800/70">
+            <StatRow label="Cash" value={fmt(s.cash)} color={s.cash < 0 ? 'text-rose-400' : 'text-slate-200'} icon="Wallet" />
+            <StatRow label="Aktien" value={fmt(s.stocks)} color="text-slate-200" icon="TrendingUp" />
+            <StatRow label="Immobilien" value={fmt(s.realEstate)} color="text-slate-200" icon="Building2" />
+            <StatRow label="Schulden" value={'− ' + fmt(s.loans)} color="text-rose-400" icon="Landmark" />
+          </div>
+          <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
+            <span className="text-sm font-semibold text-slate-300">Eigenkapital</span>
+            <span className={`text-base font-bold tabular-nums ${d.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fmt(d.netWorth)}</span>
+          </div>
+        </section>
+
+        {/* Spalte Mitte – Aktionen */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <Icon name="Briefcase" size={16} /> Aktionen
+          </h2>
+          <div className="space-y-2.5">
+            <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
+              title="Job wechseln" subtitle="85 %: +25 % Gehalt · 15 %: Kündigung (20.000 €)" />
+            <ActionButton onClick={buyStocks} disabled={busy || s.cash < 5000} icon="TrendingUp" accent="emerald"
+              title="Aktien kaufen" subtitle="5.000 € Cash → Depot (+/− jährliche Schwankung)" />
+            <ActionButton onClick={buyRealEstate} disabled={busy || s.cash < 25000} icon="Building2" accent="violet"
+              title="Immobilie kaufen" subtitle="25.000 € EK → 250.000 € Objekt, 225.000 € Kredit, +15.000 € Miete" />
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-sm font-semibold text-slate-200"><Icon name="Sparkles" size={15} className="text-fuchsia-400" /> Lifestyle / Konsum</span>
+              <span className="tabular-nums font-bold text-fuchsia-400">{fmt(s.lifestyleSpend)}</span>
+            </div>
+            <input type="range" min="0" max="40000" step="1000" value={s.lifestyleSpend}
+              onChange={(e) => setLifestyle(Number(e.target.value))} disabled={busy}
+              className="w-full" />
+            <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>0 €</span><span>40.000 €</span></div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              Konsum kostet Cashflow, steigert aber die Lebensfreude. <span className="text-rose-400">0 €</span> senkt die Freude jährlich,
+              über <span className="text-emerald-400">15.000 €</span> hebt sie deutlich.
+            </p>
+          </div>
+        </section>
+
+        {/* Spalte Rechts – Event-Log */}
+        <section className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
+            <Icon name="ScrollText" size={16} /> Event-Log
+          </h2>
+          <div className="flex-1 space-y-1.5 overflow-y-auto pr-1" style={{ maxHeight: '70vh' }}>
+            {s.log.map((e, i) => (
+              <div key={i} className="flex gap-2 rounded-lg bg-slate-800/40 px-2.5 py-1.5 text-xs">
+                <span className="shrink-0 font-mono font-semibold text-slate-500">{e.age}</span>
+                <span className={e.kind === 'good' ? 'text-emerald-300' : e.kind === 'bad' ? 'text-rose-300' : 'text-slate-300'}>{e.text}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* ---------- Overlays ---------- */}
+      {s.gameState === 'modal' && s.event === 'start' && (
+        <Modal>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="grid place-items-center w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400"><Icon name="GraduationCap" size={24} /></span>
+            <div><h3 className="text-lg font-bold text-slate-100">Alter 16 – Dein Bildungsweg</h3>
+            <p className="text-xs text-slate-400">Diese Entscheidung bestimmt deinen Start ins Berufsleben.</p></div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => chooseStart('ausbildung')} className="flex-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-left hover:bg-emerald-500/20 transition">
+              <div className="font-bold text-emerald-300">Ausbildung</div>
+              <div className="mt-1 text-xs text-slate-400">Start mit 19 · +5.000 € Cash · 24.000 € Gehalt · keine Schulden</div>
+            </button>
+            <button onClick={() => chooseStart('studium')} className="flex-1 rounded-xl border border-sky-500/40 bg-sky-500/10 p-4 text-left hover:bg-sky-500/20 transition">
+              <div className="font-bold text-sky-300">Studium</div>
+              <div className="mt-1 text-xs text-slate-400">Start mit 23 · 0 € Cash · 45.000 € Gehalt · 10.000 € Schulden</div>
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {s.gameState === 'modal' && s.event === 'wedding' && (
+        <Modal>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="grid place-items-center w-11 h-11 rounded-xl bg-rose-500/15 text-rose-400"><Icon name="Heart" size={24} /></span>
+            <div><h3 className="text-lg font-bold text-slate-100">Alter 28 – Hochzeit?</h3>
+            <p className="text-xs text-slate-400">Du hast die große Liebe getroffen.</p></div>
+          </div>
+          <p className="mb-4 text-sm text-slate-300">Heiraten kostet einmalig <b>10.000 €</b> und erhöht die Fixkosten um <b>15 %</b>, schenkt dir aber <b>+20 Lebensfreude</b>.</p>
+          <div className="flex gap-3">
+            <ChoiceBtn onClick={() => chooseWedding(true)} accent="rose">Ja, heiraten</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseWedding(false)} accent="slate">Nein</ChoiceBtn>
+          </div>
+        </Modal>
+      )}
+
+      {s.gameState === 'modal' && s.event === 'kids' && (
+        <Modal>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="grid place-items-center w-11 h-11 rounded-xl bg-amber-500/15 text-amber-400"><Icon name="Baby" size={24} /></span>
+            <div><h3 className="text-lg font-bold text-slate-100">Alter 32 – Kinder?</h3>
+            <p className="text-xs text-slate-400">Eine Familie gründen?</p></div>
+          </div>
+          <p className="mb-4 text-sm text-slate-300">Kinder kosten einmalig <b>5.000 €</b> und erhöhen die Fixkosten dauerhaft um <b>6.000 €</b>, schenken dir aber <b>+15 Lebensfreude</b>.</p>
+          <div className="flex gap-3">
+            <ChoiceBtn onClick={() => chooseKids(true)} accent="amber">Ja, Kinder</ChoiceBtn>
+            <ChoiceBtn onClick={() => chooseKids(false)} accent="slate">Nein</ChoiceBtn>
+          </div>
+        </Modal>
+      )}
+
+      {s.gameState === 'gameover' && (
+        <Modal>
+          <div className="text-center">
+            <span className="mx-auto mb-3 grid place-items-center w-16 h-16 rounded-2xl bg-rose-500/15 text-rose-400"><Icon name="AlertTriangle" size={34} /></span>
+            <h3 className="text-2xl font-bold text-rose-400">Privatinsolvenz</h3>
+            <p className="mt-2 text-sm text-slate-400">Mit {s.age} Jahren ist dein Eigenkapital aufgebraucht. Das Spiel endet hier.</p>
+            <div className="mt-4 rounded-xl bg-slate-800/60 p-3 text-sm">
+              <div className="flex justify-between"><span className="text-slate-400">Eigenkapital</span><span className="font-bold text-rose-400">{fmt(d.netWorth)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Lebensfreude</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
+            </div>
+            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">Neues Spiel</button>
+          </div>
+        </Modal>
+      )}
+
+      {s.gameState === 'won' && (
+        <Modal>
+          <div className="text-center">
+            <span className="mx-auto mb-3 grid place-items-center w-16 h-16 rounded-2xl bg-amber-500/15 text-amber-400"><Icon name="Trophy" size={34} /></span>
+            <h3 className="text-2xl font-bold text-amber-400">Ruhestand erreicht!</h3>
+            <p className="mt-2 text-sm text-slate-400">Glückwunsch – du hast es mit {END_AGE} in den Ruhestand geschafft.</p>
+            <div className="mt-4 rounded-xl bg-slate-800/60 p-3 text-sm space-y-1">
+              <div className="flex justify-between"><span className="text-slate-400">Eigenkapital</span><span className="font-bold text-emerald-400">{fmt(d.netWorth)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Cash</span><span className="font-bold text-slate-200">{fmt(s.cash)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Lebensfreude</span><span className="font-bold text-slate-200">{Math.round(s.joy)} / 100</span></div>
+            </div>
+            <button onClick={restart} className="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-3 font-semibold text-slate-900 hover:bg-emerald-400 transition">Nochmal spielen</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
