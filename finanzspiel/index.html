@@ -298,10 +298,11 @@ function advanceYear(prev){
     log,
   };
 
-  // Game-Over-Prüfung (mit aktualisierten Werten) + Verlaufspunkt
+  // Game-Over-Prüfung + Verlaufspunkt: Privatinsolvenz nur bei negativem
+  // Eigenkapital (mit positivem Eigenkapital könnten Assets verkauft werden).
   const nd = derive(next);
   next.history = [...prev.history, { age: newAge, assets: next.cash + nd.stocksVal + nd.reVal, liabilities: next.loans, equity: nd.netWorth, stockPrice: next.stockPrice, realEstatePrice: next.realEstatePrice }];
-  if (nd.netWorth < 0 || (next.cash < 0 && nd.netCashflow < 0)) {
+  if (nd.netWorth < 0) {
     next.gameState = 'gameover';
     next.event = null;
     next.log = addLog(next.log, newAge, L.bankrupt(), 'bad');
