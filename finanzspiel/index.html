@@ -140,6 +140,7 @@ const T = {
       kids: (n, c, f, j) => `Nachwuchs: ${n} Kind(er)! −${fmt(c)} Cash, +${fmt(f)} Fixkosten, +${j} Lebensfreude.`,
       year: (i, r, cf) => `Inflation ${pct(i)} · Leitzins ${pct(r)} · Cashflow ${fmt(cf)}`,
       stockMove: (chg, v) => `Aktiendepot ${chg >= 0 ? '+' : ''}${chg.toFixed(1)} % → ${fmt(v)}`,
+      reMove: (chg, v) => `Immobilienpreis ${chg >= 0 ? '+' : ''}${chg.toFixed(1)} % → ${fmt(v)}`,
       bankrupt: () => 'Privatinsolvenz – das Eigenkapital ist aufgebraucht.',
       retired: (nw) => `Ruhestand erreicht mit einem Vermögen von ${fmt(nw)}.`,
     },
@@ -187,6 +188,7 @@ const T = {
       kids: (n, c, f, j) => `Offspring: ${n} child(ren)! −${fmt(c)} cash, +${fmt(f)} fixed costs, +${j} joy.`,
       year: (i, r, cf) => `Inflation ${pct(i)} · rate ${pct(r)} · cashflow ${fmt(cf)}`,
       stockMove: (chg, v) => `Stock portfolio ${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% → ${fmt(v)}`,
+      reMove: (chg, v) => `Property price ${chg >= 0 ? '+' : ''}${chg.toFixed(1)}% → ${fmt(v)}`,
       bankrupt: () => 'Bankruptcy – your equity is exhausted.',
       retired: (nw) => `Retirement reached with net worth of ${fmt(nw)}.`,
     },
@@ -202,11 +204,12 @@ function initialState(){
     cash: 0, stocks: 0, realEstate: 0,
     loans: 0,
     salary: 0,
-    basisExpenses: 15000,
+    basisExpenses: 30000,
     inflation: 2, interestRate: 3,
-    joy: 50,
+    joy: 50, joyFloor: 0,
     lifestyleSpend: 0,
     stockQty: 1, realEstateQty: 1, kidsQty: 1,
+    stockUnits: 0, realEstateUnits: 0,
     lang: 'de',
     history: [],
     flags: { wedding: false, kids: false },
@@ -231,7 +234,7 @@ function advanceYear(prev){
   const newSalary = prev.salary * 1.02;
   const newCash = prev.cash + d.netCashflow;
 
-  // Aktien schwanken (nur wenn vorhanden)
+  // Aktienpreis schwankt (nur wenn vorhanden)
   let newStocks = prev.stocks;
   let stockChange = 0;
   if (prev.stocks > 0) {
@@ -239,12 +242,20 @@ function advanceYear(prev){
     newStocks = prev.stocks * (1 + stockChange / 100);
   }
 
-  // Joy
+  // Immobilienpreis schwankt (nur wenn vorhanden)
+  let newRealEstate = prev.realEstate;
+  let reChange = 0;
+  if (prev.realEstate > 0) {
+    reChange = rand(-8, 12);
+    newRealEstate = prev.realEstate * (1 + reChange / 100);
+  }
+
+  // Joy – Lebensfreude aus Heirat/Kindern (joyFloor) geht nicht zurück
   let joyDelta;
   if (prev.lifestyleSpend === 0) joyDelta = -5;
   else if (prev.lifestyleSpend > 15000) joyDelta = 5;
   else joyDelta = 1;
-  const newJoy = clamp(prev.joy + joyDelta, 0, 100);
+  const newJoy = clamp(prev.joy + joyDelta, prev.joyFloor, 100);
 
   const newAge = prev.age + 1;
 
@@ -252,6 +263,9 @@ function advanceYear(prev){
   log = addLog(log, newAge, L.year(newInflation, newInterest, d.netCashflow), d.netCashflow >= 0 ? 'good' : 'bad');
   if (prev.stocks > 0) {
     log = addLog(log, newAge, L.stockMove(stockChange, newStocks), stockChange >= 0 ? 'good' : 'bad');
+  }
+  if (prev.realEstate > 0) {
+    log = addLog(log, newAge, L.reMove(reChange, newRealEstate), reChange >= 0 ? 'good' : 'bad');
   }
 
   let next = {
@@ -263,6 +277,7 @@ function advanceYear(prev){
     salary: newSalary,
     cash: newCash,
     stocks: newStocks,
+    realEstate: newRealEstate,
     joy: newJoy,
     log,
   };
@@ -486,7 +501,7 @@ function App(){
     const L = T[p.lang].L;
     const cost = 5000 * n;
     if (p.cash < cost) return { ...p, log: addLog(p.log, p.age, L.stocksReject(cost), 'bad') };
-    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, log: addLog(p.log, p.age, L.stocksBuy(n, cost), 'good') };
+    return { ...p, cash: p.cash - cost, stocks: p.stocks + cost, stockUnits: p.stockUnits + n, log: addLog(p.log, p.age, L.stocksBuy(n, cost), 'good') };
   });
 
   const buyRealEstate = (n) => setS(p => {
@@ -498,6 +513,7 @@ function App(){
       ...p,
       cash: p.cash - need,
       realEstate: p.realEstate + 250000 * n,
+      realEstateUnits: p.realEstateUnits + n,
       loans: p.loans + 225000 * n,
       salary: p.salary + 15000 * n,
       log: addLog(p.log, p.age, L.reBuy(n, 250000 * n, 225000 * n, 15000 * n), 'good'),
@@ -524,7 +540,8 @@ function App(){
     const flags = { ...p.flags, wedding: true };
     if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, L.single(), 'info') };
     return { ...p, gameState: 'running', event: null, flags,
-      cash: p.cash - 10000, basisExpenses: p.basisExpenses * 1.15, joy: clamp(p.joy + 20, 0, 100),
+      cash: p.cash - 10000, basisExpenses: p.basisExpenses * 1.15,
+      joyFloor: clamp(p.joyFloor + 20, 0, 100), joy: clamp(p.joy + 20, 0, 100),
       log: addLog(p.log, p.age, L.married(), 'good') };
   });
 
@@ -534,7 +551,8 @@ function App(){
     if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, L.noKids(), 'info') };
     const n = p.kidsQty;
     return { ...p, gameState: 'running', event: null, flags,
-      cash: p.cash - 5000 * n, basisExpenses: p.basisExpenses + 6000 * n, joy: clamp(p.joy + 15 * n, 0, 100),
+      cash: p.cash - 5000 * n, basisExpenses: p.basisExpenses + 6000 * n,
+      joyFloor: clamp(p.joyFloor + 15 * n, 0, 100), joy: clamp(p.joy + 15 * n, 0, 100),
       log: addLog(p.log, p.age, L.kids(n, 5000 * n, 6000 * n, Math.min(15 * n, 100)), 'good') };
   });
 
@@ -616,8 +634,8 @@ function App(){
             return (
               <div>
                 <FinBar label={t.cash} value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
-                <FinBar label={t.stocks} value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
-                <FinBar label={t.realEstate} value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
+                <FinBar label={`${t.stocks} (${s.stockUnits}×)`} value={s.stocks} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
+                <FinBar label={`${t.realEstate} (${s.realEstateUnits}×)`} value={s.realEstate} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
                 <FinBar label={t.debt} value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
               </div>
             );
