@@ -513,6 +513,11 @@ class Entity {
     this.ninjaAirHits = 0;
     this.jetpackOn = false;
     this.jetVx = 0; this.jetVy = 0;
+    this.jetpackTargetX = null; this.jetpackTargetY = null;
+    this.ninjaJumping = false;
+    this.ninjaJumpVx = 0; this.ninjaJumpVy = 0;
+    this.ninjaJumpStartY = 0;
+    this.playerTargetLocked = false;
 
     this.speed = role === ROLE.KING ? 1.3 : 1.6;
     this.baseDmg = role === ROLE.KING ? CFG.KING_DMG : CFG.KATANA_DMG;
@@ -646,8 +651,8 @@ class Entity {
     return true;
   }
 
-  // Movement along path
-  moveAlongPath() {
+  // Movement along path — with wall-collision resolution
+  moveAlongPath(map) {
     if (!this.path.length) { this.isMoving = false; return; }
     const next = this.path[0];
     const tx = next.c * TILE + TILE / 2;
@@ -655,25 +660,88 @@ class Entity {
     const dist = Math.hypot(tx - this.x, ty - this.y);
     if (dist < 4) {
       this.path.shift();
+      // Path finished → release player-lock
+      if (!this.path.length) this.playerTargetLocked = false;
     } else {
-      const spd = this.speed * (this.ninjaOn ? 1.5 : 1);
+      const spd = this.speed * (this.ninjaOn ? 1.5 : 1) * (this.ninjaJumping ? 0 : 1);
       this.x += (tx - this.x) / dist * spd;
       this.y += (ty - this.y) / dist * spd;
       this.facingRight = tx > this.x;
       this.isMoving = true;
     }
+    this._resolveWallCollision(map);
+  }
+
+  // Push entity out of any wall tile it overlaps
+  _resolveWallCollision(map) {
+    const cr = Math.floor(this.y / TILE);
+    const cc = Math.floor(this.x / TILE);
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = cr + dr, nc = cc + dc;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+        if (map[nr][nc] !== 1) continue;
+        const wx = nc * TILE, wy = nr * TILE;
+        const clampX = Math.max(wx, Math.min(this.x, wx + TILE));
+        const clampY = Math.max(wy, Math.min(this.y, wy + TILE));
+        const dx = this.x - clampX, dy = this.y - clampY;
+        const d = Math.hypot(dx, dy);
+        if (d < this.r && d > 0) {
+          this.x += (dx / d) * (this.r - d + 1);
+          this.y += (dy / d) * (this.r - d + 1);
+        }
+      }
+    }
+  }
+
+  // Ninja jump — launched by double-tap, ends when entity lands
+  startNinjaJump() {
+    if (!this.ninjaOn || this.ninjaJumping) return;
+    this.ninjaJumping = true;
+    this.ninjaJumpVy = -9;
+    this.ninjaJumpVx = this.facingRight ? 5 : -5;
+    this.ninjaJumpStartY = this.y;
+    spawnParticles(this.x, this.y, '#0f8', 6, 3);
   }
 
   updateJetpack(dt, map) {
-    // Simple jetpack physics
-    this.jetVy += 0.12; // gravity
-    const spd = CFG.JETPACK_SPEED;
-    this.jetVx *= 0.95;
+    // AI/player steers toward jetpackTargetX/Y; gravity opposes upward flight
+    const tY = this.jetpackTargetY ?? this.y;
+    const tX = this.jetpackTargetX ?? this.x;
+
+    const dy = tY - this.y;
+    const dx = tX - this.x;
+
+    // Thrust: push toward target Y, overcome gravity
+    if (Math.abs(dy) > 8) {
+      this.jetVy += dy > 0 ? 0.4 : -0.6; // stronger upward thrust than gravity
+    }
+    this.jetVy += 0.15; // gravity
+    this.jetVy = Math.max(-CFG.JETPACK_SPEED * 2, Math.min(CFG.JETPACK_SPEED * 2, this.jetVy));
+
+    // Horizontal thrust
+    if (Math.abs(dx) > 8) {
+      this.jetVx += Math.sign(dx) * 0.35;
+    }
+    this.jetVx = Math.max(-CFG.JETPACK_SPEED * 2, Math.min(CFG.JETPACK_SPEED * 2, this.jetVx));
+    this.jetVx *= 0.90;
+
     this.x += this.jetVx;
     this.y += this.jetVy;
     this.isMoving = true;
-    this.x = Math.max(this.r, Math.min(W - this.r, this.x));
-    this.y = Math.max(this.r, Math.min(H - this.r, this.y));
+    this.facingRight = this.jetVx >= 0;
+
+    // Wall bounce
+    const tc = Math.floor(this.x / TILE);
+    const tr = Math.floor(this.y / TILE);
+    if (map[tr]?.[tc] === 1) {
+      this.jetVx *= -0.5; this.jetVy *= -0.5;
+      this.x -= this.jetVx * 2; this.y -= this.jetVy * 2;
+    }
+
+    const BOTTOM = (ROWS - 1) * TILE - this.r;
+    this.x = Math.max(this.r + 1, Math.min(W - this.r - 1, this.x));
+    this.y = Math.max(this.r + 1, Math.min(BOTTOM, this.y));
   }
 
   update(dt, now, map) {
@@ -692,11 +760,28 @@ class Entity {
     if (this.jetpackOn) {
       this.updateJetpack(dt, map);
     } else {
-      this.moveAlongPath();
+      this.moveAlongPath(map);
+
+      // Ninja jump arc
+      if (this.ninjaJumping) {
+        this.ninjaJumpVy += 0.5; // gravity
+        this.x += this.ninjaJumpVx;
+        this.y += this.ninjaJumpVy;
+        this._resolveWallCollision(map);
+        // Land when back to start height or hits floor
+        const BOTTOM = (ROWS - 1) * TILE - this.r;
+        if (this.y >= this.ninjaJumpStartY || this.y >= BOTTOM) {
+          this.y = Math.min(this.ninjaJumpStartY, BOTTOM);
+          this.ninjaJumping = false;
+          this.ninjaJumpVx = 0; this.ninjaJumpVy = 0;
+          spawnParticles(this.x, this.y, '#0f8', 4, 2);
+        }
+      }
     }
 
+    const BOTTOM = (ROWS - 1) * TILE - this.r;
     this.x = Math.max(this.r + 1, Math.min(W - this.r - 1, this.x));
-    this.y = Math.max(this.r + 1, Math.min(H - this.r - 1, this.y));
+    this.y = Math.max(this.r + 1, Math.min(BOTTOM, this.y));
   }
 
   draw(ctx) {
@@ -920,13 +1005,16 @@ class AIController {
     this.thinkTimer = 0;
 
     const e = this.e;
+
+    // Don't override a player-issued manual path until the entity arrives
+    if (e.playerTargetLocked && e.path.length > 0) return;
+
     const enemies = game.entities.filter(en => !en.dead && en.team !== e.team);
     const myCastle = game.castles[e.team];
     const enemyCastle = game.castles[1 - e.team];
 
     if (enemies.length === 0) return;
 
-    // Sort enemies by distance
     enemies.sort((a, b) =>
       Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)
     );
@@ -934,16 +1022,23 @@ class AIController {
     const distNearest = Math.hypot(nearest.x - e.x, nearest.y - e.y);
     const distCastle = Math.hypot(enemyCastle.x - e.x, enemyCastle.y - e.y);
 
-    // King AI: stay near own castle, defend
+    // Jetpack entities: steer via target coordinates instead of A* path
+    if (e.jetpackOn) {
+      const tgt = e.target && !e.target.dead ? e.target : nearest;
+      e.target = tgt;
+      e.jetpackTargetX = tgt.x;
+      e.jetpackTargetY = tgt.y - 60; // hover above target to shoot down
+      return;
+    }
+
+    // King AI: guard near castle
     if (e.role === ROLE.KING) {
       if (e.hp < e.maxHp * 0.4) {
-        // Retreat to castle
         this._moveTo(e, myCastle.x, myCastle.y, game.map);
       } else if (distNearest < e.weaponRange * 1.5) {
         e.target = nearest;
         this._moveTo(e, nearest.x, nearest.y, game.map);
       } else {
-        // Guard position near own castle
         const gx = myCastle.x + (e.team === TEAM.BLUE ? 100 : -100);
         if (Math.hypot(e.x - gx, e.y - myCastle.y) > 40)
           this._moveTo(e, gx, myCastle.y, game.map);
@@ -960,7 +1055,6 @@ class AIController {
       return;
     }
 
-    // Attack enemy castle if close
     if (distCastle < 120 && !enemyCastle.destroyed) {
       e.aiState = 'attack_castle';
       e.castleTarget = enemyCastle;
@@ -969,14 +1063,13 @@ class AIController {
       return;
     }
 
-    // Prefer attacking king
     const enemyKing = enemies.find(en => en.role === ROLE.KING);
     const priorityTarget = enemyKing || nearest;
     e.target = nearest;
 
     if (distNearest <= e.weaponRange) {
       e.aiState = 'attack';
-      e.path = []; // stop moving, just attack
+      e.path = [];
     } else {
       e.aiState = 'advance';
       this._moveTo(e, priorityTarget.x, priorityTarget.y, game.map);
@@ -1217,10 +1310,17 @@ class Game {
       !en.dead && en.team === TEAM.RED && Math.hypot(en.x - mx, en.y - my) < en.r + 14
     );
     const ai = this.aiControllers.find(a => a.e === e);
-    if (enemy) {
+    if (e.jetpackOn) {
+      // Jetpack: steer toward tapped position
+      e.jetpackTargetX = mx;
+      e.jetpackTargetY = my;
+      if (enemy) e.target = enemy;
+    } else if (enemy) {
       e.target = enemy;
+      e.playerTargetLocked = true;
       if (ai) ai._moveTo(e, enemy.x, enemy.y, this.map);
     } else {
+      e.playerTargetLocked = true;
       if (ai) ai._moveTo(e, mx, my, this.map);
       e.target = null;
     }
@@ -1246,6 +1346,14 @@ class Game {
     canvas.addEventListener('click', (ev) => {
       const { mx, my } = this._eventPos(ev);
       this._doSelect(mx, my);
+    });
+
+    canvas.addEventListener('dblclick', (ev) => {
+      const { mx, my } = this._eventPos(ev);
+      if (this.selectedBlue && this.selectedBlue.ninjaOn) {
+        const onSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 14;
+        if (onSelf) this.selectedBlue.startNinjaJump();
+      }
     });
 
     canvas.addEventListener('contextmenu', (ev) => {
@@ -1277,6 +1385,7 @@ class Game {
     // ---- Touch (iPad / Mobile) ----
     let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
     let touchMoved = false;
+    let lastTapTime = 0, lastTapX = 0, lastTapY = 0;
 
     canvas.addEventListener('touchstart', (ev) => {
       ev.preventDefault();
@@ -1294,25 +1403,37 @@ class Game {
 
     canvas.addEventListener('touchend', (ev) => {
       ev.preventDefault();
-      if (touchMoved) return; // ignore swipes
-      const dt = Date.now() - touchStartTime;
-      if (dt > 600) return; // ignore long press
+      if (touchMoved) return;
+      const elapsed = Date.now() - touchStartTime;
+      if (elapsed > 600) return; // ignore long press
       const mx = touchStartX, my = touchStartY;
+      const now = Date.now();
 
-      // If a blue unit is selected and we tap somewhere else → command
+      // Detect double-tap (two taps within 300ms near same spot)
+      const isDoubleTap = (now - lastTapTime < 300) &&
+        Math.hypot(mx - lastTapX, my - lastTapY) < 30;
+      lastTapTime = now; lastTapX = mx; lastTapY = my;
+
+      // Double-tap on selected ninja unit → jump
+      if (isDoubleTap && this.selectedBlue && this.selectedBlue.ninjaOn && !this.selectedBlue.dead) {
+        const onSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 20;
+        if (onSelf) {
+          this.selectedBlue.startNinjaJump();
+          return;
+        }
+      }
+
       if (this.selectedBlue && !this.selectedBlue.dead) {
-        const tappedSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 10;
+        const tappedSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 14;
         if (tappedSelf) {
-          // Deselect on second tap of same unit
+          // Single tap on selected unit = deselect (path keeps running)
           this.selectedBlue.selected = false;
           this.selectedBlue = null;
           this._updateModeIndicator();
         } else {
-          // Issue command
           this._doCommand(mx, my);
         }
       } else {
-        // Try to select a blue unit
         this._doSelect(mx, my);
       }
     }, { passive: false });
