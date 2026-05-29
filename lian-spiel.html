@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lian-Spiel – Strichmännchen Teamkampf</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0f0f1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+  color: #eee;
+  padding: 10px 0;
+  user-select: none;
+}
+#header { text-align: center; margin-bottom: 6px; }
+h1 { font-size: 26px; color: #ffd700; text-shadow: 0 0 12px #ffd700aa; letter-spacing: 2px; }
+#hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 1200px;
+  padding: 5px 10px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid #333;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  gap: 10px;
+}
+.team-hud { display: flex; gap: 14px; align-items: center; flex: 1; }
+.team-hud.red { flex-direction: row-reverse; }
+.hud-block { display: flex; flex-direction: column; gap: 2px; }
+.hud-label { font-size: 10px; color: #888; }
+.hud-val { font-size: 13px; font-weight: bold; }
+.bar-wrap { width: 80px; height: 7px; background: #333; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
+#gameWrap { position: relative; }
+canvas { display: block; border: 2px solid #2a2a3a; cursor: crosshair; }
+#overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+  background: rgba(0,0,0,0.7);
+  border-radius: 4px;
+}
+#overlay.show { display: flex; }
+#overlayTitle { font-size: 42px; font-weight: bold; text-shadow: 0 0 20px currentColor; }
+#overlayBtn {
+  padding: 10px 28px; font-size: 16px; font-family: monospace;
+  background: #ffd700; color: #000; border: none; border-radius: 6px;
+  cursor: pointer; font-weight: bold;
+}
+#overlayBtn:hover { background: #ffe44d; }
+#controls {
+  margin-top: 5px; font-size: 11px; color: #556; text-align: center; line-height: 1.7;
+}
+#tooltip {
+  position: absolute; background: rgba(0,0,0,0.85); border: 1px solid #555;
+  padding: 6px 10px; border-radius: 5px; font-size: 11px; pointer-events: none;
+  display: none; color: #ddd; z-index: 10;
+}
+</style>
+</head>
+<body>
+<div id="header"><h1>⚔ Lian-Spiel ⚔</h1></div>
+
+<div id="hud">
+  <div class="team-hud blue" id="blueHud">
+    <div class="hud-block">
+      <span class="hud-label">🔵 BLAU</span>
+      <span class="hud-val" id="blueKingHp">König: 11</span>
+    </div>
+    <div class="hud-block">
+      <span class="hud-label">Burg</span>
+      <div class="bar-wrap"><div class="bar-fill" id="blueCastleBar" style="width:100%;background:#4af"></div></div>
+      <span class="hud-val" id="blueCastleHp">25</span>
+    </div>
+    <div class="hud-block">
+      <span class="hud-label">Einheiten</span>
+      <span class="hud-val" id="blueCount">11</span>
+    </div>
+    <div class="hud-block" id="blueWeapon">
+      <span class="hud-label">Waffe (gewählt)</span>
+      <span class="hud-val">–</span>
+    </div>
+  </div>
+  <div id="roundInfo" style="text-align:center;min-width:80px">
+    <div style="font-size:11px;color:#888">Runde</div>
+    <div style="font-size:22px;font-weight:bold;color:#ffd700" id="roundNum">1</div>
+  </div>
+  <div class="team-hud red" id="redHud">
+    <div class="hud-block" style="text-align:right">
+      <span class="hud-label">🔴 ROT</span>
+      <span class="hud-val" id="redKingHp">König: 11</span>
+    </div>
+    <div class="hud-block" style="text-align:right">
+      <span class="hud-label">Burg</span>
+      <div class="bar-wrap"><div class="bar-fill" id="redCastleBar" style="width:100%;background:#f64;margin-left:auto"></div></div>
+      <span class="hud-val" id="redCastleHp">25</span>
+    </div>
+    <div class="hud-block" style="text-align:right">
+      <span class="hud-label">Einheiten</span>
+      <span class="hud-val" id="redCount">11</span>
+    </div>
+  </div>
+</div>
+
+<div id="gameWrap">
+  <canvas id="gameCanvas" width="1200" height="660"></canvas>
+  <div id="overlay">
+    <div id="overlayTitle">–</div>
+    <button id="overlayBtn" onclick="game.restart()">Neue Runde ▶</button>
+  </div>
+  <div id="tooltip"></div>
+</div>
+
+<div id="controls">
+  <strong>Linksklick</strong>: Blaue Einheit auswählen &nbsp;|&nbsp;
+  <strong>Rechtsklick</strong>: Bewegen / Angreifen &nbsp;|&nbsp;
+  <strong>[Space]</strong>: Pause &nbsp;|&nbsp;
+  <strong>[R]</strong>: Neustart &nbsp;|&nbsp;
+  <strong>[A]</strong>: Alle blauen Einheiten angreifen lassen &nbsp;|&nbsp;
+  <strong>[G]</strong>: Rückzug
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const W = 1200, H = 660;
+const TILE = 20;
+const COLS = W / TILE;       // 60
+const ROWS = H / TILE;       // 33
+
+const TEAM = { BLUE: 0, RED: 1 };
+const ROLE = { SUBJECT: 0, KING: 1 };
+
+const CFG = {
+  SUBJECT_HP: 10,
+  KING_HP: 11,
+  CASTLE_HP: 25,
+  KATANA_DMG: 2,
+  KATANA_RANGE: 38,
+  KATANA_CD: 650,
+  KATANA2_CD: 380,
+  PISTOL_DMG: 1,
+  PISTOL_RANGE: 380,
+  PISTOL_CD: 900,
+  KING_DMG: 3,
+  CASTLE_AURA_DMG: 1,
+  CASTLE_AURA_RANGE: 90,
+  CASTLE_AURA_INTERVAL: 1000,
+  REGEN_DELAY: 15000,
+  NINJA_MAX_WALL_JUMPS: 5,
+  NINJA_MAX_HITS_PER_MIN: 10,
+  NINJA_MAX_AIR_HITS: 2,
+  JETPACK_SPEED: 3.5,
+};
+
+// ============================================================
+// MAP
+// ============================================================
+function buildMap() {
+  const m = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
+
+  // border
+  for (let c = 0; c < COLS; c++) { m[0][c] = 1; m[ROWS-1][c] = 1; }
+  for (let r = 0; r < ROWS; r++) { m[r][0] = 1; m[r][COLS-1] = 1; }
+
+  const walls = [
+    // centre vertical splits (leave gaps for movement)
+    [6, 26, 5, 'h'], [21, 26, 5, 'h'],
+    [6, 29, 5, 'h'], [21, 29, 'h'],
+    // left quadrant covers
+    [13, 10, 4, 'h'], [18, 10, 4, 'h'],
+    [9, 14, 1, 'v', 4], [20, 14, 1, 'v', 4],
+    // right quadrant (mirror)
+    [13, 46, 4, 'h'], [18, 46, 4, 'h'],
+    [9, 45, 1, 'v', 4], [20, 45, 1, 'v', 4],
+    // centre horizontal dividers
+    [11, 20, 5, 'h'], [20, 20, 5, 'h'],
+    [11, 35, 5, 'h'], [20, 35, 5, 'h'],
+  ];
+
+  for (const [r, c, len, dir, vlen] of walls) {
+    const l = dir === 'h' ? (len || 1) : 1;
+    const vl = dir === 'v' ? (vlen || len || 1) : 1;
+    for (let dr = 0; dr < vl; dr++) {
+      for (let dc = 0; dc < l; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr > 0 && nr < ROWS-1 && nc > 0 && nc < COLS-1) m[nr][nc] = 1;
+      }
+    }
+  }
+
+  // rocks (type 2, bullets pass over)
+  const rocks = [
+    [4,7],[4,8],[27,7],[27,8],
+    [4,51],[4,52],[27,51],[27,52],
+    [15,28],[15,29],[15,30],[15,31],
+    [11,23],[11,24],[20,23],[20,24],
+    [11,35],[11,36],[20,35],[20,36],
+  ];
+  for (const [r, c] of rocks) {
+    if (r > 0 && r < ROWS-1 && c > 0 && c < COLS-1) m[r][c] = 2;
+  }
+
+  return m;
+}
+
+// ============================================================
+// A* PATHFINDING
+// ============================================================
+function aStar(map, sr, sc, gr, gc) {
+  if (gr < 0 || gr >= ROWS || gc < 0 || gc >= COLS) return [];
+  if (map[gr][gc] === 1) {
+    // find nearest walkable goal
+    let best = null, bd = Infinity;
+    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+      const nr = gr+dr, nc = gc+dc;
+      if (nr > 0 && nr < ROWS-1 && nc > 0 && nc < COLS-1 && map[nr][nc] === 0) {
+        const d = dr*dr+dc*dc;
+        if (d < bd) { bd = d; best = [nr, nc]; }
+      }
+    }
+    if (!best) return [];
+    [gr, gc] = best;
+  }
+
+  const key = (r, c) => r * COLS + c;
+  const startKey = key(sr, sc);
+  const goalKey = key(gr, gc);
+
+  if (startKey === goalKey) return [];
+
+  const g = new Float32Array(ROWS * COLS).fill(Infinity);
+  g[startKey] = 0;
+
+  const open = [{ r: sr, c: sc, f: 0, parent: -1 }];
+  const prev = new Int32Array(ROWS * COLS).fill(-1);
+  const closed = new Uint8Array(ROWS * COLS);
+
+  const dirs = [[-1,0,1],[1,0,1],[0,-1,1],[0,1,1],[-1,-1,1.41],[-1,1,1.41],[1,-1,1.41],[1,1,1.41]];
+
+  let iters = 0;
+  while (open.length && iters++ < 600) {
+    open.sort((a, b) => a.f - b.f);
+    const cur = open.shift();
+    const ck = key(cur.r, cur.c);
+    if (closed[ck]) continue;
+    closed[ck] = 1;
+
+    if (ck === goalKey) {
+      const path = [];
+      let k = goalKey;
+      while (k !== startKey && k !== -1) {
+        path.unshift(k);
+        k = prev[k];
+      }
+      return path.map(k => ({ r: Math.floor(k / COLS), c: k % COLS }));
+    }
+
+    for (const [dr, dc, cost] of dirs) {
+      const nr = cur.r + dr, nc = cur.c + dc;
+      if (nr <= 0 || nr >= ROWS-1 || nc <= 0 || nc >= COLS-1) continue;
+      if (map[nr][nc] === 1) continue;
+      const nk = key(nr, nc);
+      if (closed[nk]) continue;
+      const ng = g[ck] + cost;
+      if (ng < g[nk]) {
+        g[nk] = ng;
+        prev[nk] = ck;
+        const h = Math.abs(nr - gr) + Math.abs(nc - gc);
+        open.push({ r: nr, c: nc, f: ng + h });
+      }
+    }
+  }
+  return [];
+}
+
+// ============================================================
+// PARTICLES
+// ============================================================
+const particles = [];
+
+function spawnParticles(x, y, color, n, speed) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = speed * (0.4 + Math.random() * 0.8);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+      color, life: 250 + Math.random() * 350,
+      maxLife: 600, size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.25;
+    p.vx *= 0.97;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles(ctx) {
+  for (const p of particles) {
+    const a = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+// BULLET
+// ============================================================
+class Bullet {
+  constructor(x, y, tx, ty, team, dmg, overWalls) {
+    const d = Math.hypot(tx - x, ty - y) || 1;
+    const spd = 9;
+    this.x = x; this.y = y;
+    this.vx = (tx - x) / d * spd;
+    this.vy = (ty - y) / d * spd;
+    this.team = team; this.dmg = dmg;
+    this.overWalls = overWalls; // pistol passes over rocks
+    this.alive = true;
+  }
+
+  update(map) {
+    this.x += this.vx; this.y += this.vy;
+    if (this.x < 0 || this.x > W || this.y < 0 || this.y > H) { this.alive = false; return; }
+    const tc = Math.floor(this.x / TILE);
+    const tr = Math.floor(this.y / TILE);
+    const tile = map[tr]?.[tc];
+    if (tile === 1) { this.alive = false; }
+    // rocks (2) don't block pistol bullets
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = this.team === TEAM.BLUE ? '#6cf' : '#f86';
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ============================================================
+// GROUND ITEM
+// ============================================================
+const ITEM_ICONS = {
+  katana2: { icon: '⚔', color: '#ffd700', label: '2× Katana' },
+  pistol:  { icon: '🔫', color: '#aaa',    label: 'Pistole'   },
+  shield:  { icon: '🛡', color: '#88f',    label: 'Schild'    },
+  ninja:   { icon: '🥷', color: '#0f8',    label: 'Ninja-Anzug' },
+  jetpack: { icon: '🚀', color: '#f90',    label: 'Jetpack'   },
+};
+
+class GroundItem {
+  constructor(x, y, type) {
+    this.x = x; this.y = y; this.type = type;
+    this.radius = 14;
+    this.t = 0;
+    this.gone = false;
+  }
+  update(dt) { this.t += dt * 0.003; }
+  draw(ctx) {
+    if (this.gone) return;
+    const { icon, color } = ITEM_ICONS[this.type];
+    const pulse = 0.7 + 0.3 * Math.sin(this.t);
+    ctx.save();
+    ctx.translate(this.x, this.y + Math.sin(this.t) * 3);
+    ctx.globalAlpha = pulse;
+    ctx.shadowColor = color; ctx.shadowBlur = 18;
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = '16px serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(icon, 0, 0);
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// ENTITY
+// ============================================================
+let _eid = 0;
+
+class Entity {
+  constructor(x, y, team, role) {
+    this.id = _eid++;
+    this.x = x; this.y = y;
+    this.team = team; this.role = role;
+    this.r = 11; // collision radius
+
+    this.maxHp = role === ROLE.KING ? CFG.KING_HP : CFG.SUBJECT_HP;
+    this.hp = this.maxHp;
+
+    this.weaponType = 'katana';
+    this.dualKatana = false;
+    this.shieldHp = 0;
+    this.ninjaOn = false;
+    this.ninjaWallJumps = 0;
+    this.ninjaHitTimes = [];
+    this.ninjaAirHits = 0;
+    this.jetpackOn = false;
+    this.jetVx = 0; this.jetVy = 0;
+
+    this.speed = role === ROLE.KING ? 1.3 : 1.6;
+    this.baseDmg = role === ROLE.KING ? CFG.KING_DMG : CFG.KATANA_DMG;
+
+    this.path = [];
+    this.target = null;   // entity target
+    this.castleTarget = null;
+    this.manualTarget = null; // player overrides
+    this.aiState = 'advance';
+
+    this.lastFired = 0;
+    this.lastHit = -99999;
+    this.hitFlash = 0;
+    this.dead = false;
+
+    this.facingRight = team === TEAM.BLUE;
+    this.animT = 0;
+    this.animFrame = 0;
+    this.isMoving = false;
+    this.selected = false;
+    this.playerControlled = false; // blue team manual control
+  }
+
+  get weaponRange() {
+    if (this.weaponType === 'pistol') return CFG.PISTOL_RANGE;
+    return CFG.KATANA_RANGE;
+  }
+  get weaponCd() {
+    if (this.weaponType === 'pistol') return CFG.PISTOL_CD;
+    if (this.dualKatana) return CFG.KATANA2_CD;
+    return CFG.KATANA_CD;
+  }
+  get attackDmg() {
+    const bonus = this.ninjaOn ? 1 : 0;
+    if (this.weaponType === 'pistol') return CFG.PISTOL_DMG;
+    return this.baseDmg + bonus;
+  }
+  get color() {
+    if (this.team === TEAM.BLUE) return this.role === ROLE.KING ? '#0ff' : '#4af';
+    return this.role === ROLE.KING ? '#f0f' : '#f64';
+  }
+
+  pickupItem(item) {
+    switch (item.type) {
+      case 'katana2':
+        this.weaponType = 'katana';
+        this.dualKatana = true;
+        break;
+      case 'pistol':
+        this.weaponType = 'pistol';
+        this.dualKatana = false;
+        break;
+      case 'shield':
+        this.shieldHp = 5;
+        break;
+      case 'ninja':
+        if (this.role === ROLE.KING) return; // kings can't use ninja
+        this.ninjaOn = true;
+        this.ninjaWallJumps = 0;
+        this.ninjaHitTimes = [];
+        this.ninjaAirHits = 0;
+        if (this.weaponType === 'katana') this.dualKatana = true;
+        else { this.weaponType = 'katana'; this.dualKatana = false; }
+        break;
+      case 'jetpack':
+        this.jetpackOn = true;
+        if (this.weaponType !== 'pistol') this.weaponType = 'pistol';
+        this.jetVx = 0; this.jetVy = -2;
+        break;
+    }
+    item.gone = true;
+    spawnParticles(item.x, item.y, ITEM_ICONS[item.type].color, 10, 4);
+  }
+
+  takeDamage(amount, now) {
+    if (this.dead) return;
+    // Shield blocks half from front
+    if (this.shieldHp > 0) {
+      amount = Math.ceil(amount / 2);
+      this.shieldHp = Math.max(0, this.shieldHp - 1);
+    }
+    this.hp = Math.max(0, this.hp - amount);
+    this.lastHit = now;
+    this.hitFlash = 180;
+
+    if (this.ninjaOn) {
+      this.ninjaHitTimes.push(now);
+      this.ninjaHitTimes = this.ninjaHitTimes.filter(t => now - t < 60000);
+      if (this.ninjaHitTimes.length >= CFG.NINJA_MAX_HITS_PER_MIN) {
+        this.ninjaOn = false; spawnParticles(this.x, this.y, '#0f0', 6, 3);
+      }
+    }
+
+    spawnParticles(this.x, this.y, '#f44', 4, 3);
+    if (this.hp <= 0) this.die(now);
+  }
+
+  die(now) {
+    this.dead = true;
+    spawnParticles(this.x, this.y, this.color, 14, 6);
+  }
+
+  tryAttack(target, bullets, now, castles) {
+    if (this.dead || !target) return false;
+
+    // Castle attack
+    if (target.__castle) {
+      if (target.team === this.team || target.destroyed) return false;
+      const dist = Math.hypot(target.x - this.x, target.y - this.y);
+      if (dist > 85) return false;
+      if (now - this.lastFired < this.weaponCd) return false;
+      this.lastFired = now;
+      target.takeDamage(this.attackDmg, now);
+      spawnParticles(target.x + (Math.random()-0.5)*40, target.y + (Math.random()-0.5)*40, '#f80', 3, 3);
+      return true;
+    }
+
+    if (target.dead || target.team === this.team) return false;
+    const dist = Math.hypot(target.x - this.x, target.y - this.y);
+    if (dist > this.weaponRange) return false;
+    if (now - this.lastFired < this.weaponCd) return false;
+    this.lastFired = now;
+    this.facingRight = target.x > this.x;
+
+    if (this.weaponType === 'pistol') {
+      bullets.push(new Bullet(this.x, this.y - 15, target.x, target.y - 15, this.team, this.attackDmg, true));
+    } else {
+      target.takeDamage(this.attackDmg, now);
+      spawnParticles((this.x + target.x)/2, (this.y + target.y)/2, '#ffd700', 4, 2);
+    }
+    return true;
+  }
+
+  // Movement along path
+  moveAlongPath() {
+    if (!this.path.length) { this.isMoving = false; return; }
+    const next = this.path[0];
+    const tx = next.c * TILE + TILE / 2;
+    const ty = next.r * TILE + TILE / 2;
+    const dist = Math.hypot(tx - this.x, ty - this.y);
+    if (dist < 4) {
+      this.path.shift();
+    } else {
+      const spd = this.speed * (this.ninjaOn ? 1.5 : 1);
+      this.x += (tx - this.x) / dist * spd;
+      this.y += (ty - this.y) / dist * spd;
+      this.facingRight = tx > this.x;
+      this.isMoving = true;
+    }
+  }
+
+  updateJetpack(dt, map) {
+    // Simple jetpack physics
+    this.jetVy += 0.12; // gravity
+    const spd = CFG.JETPACK_SPEED;
+    this.jetVx *= 0.95;
+    this.x += this.jetVx;
+    this.y += this.jetVy;
+    this.isMoving = true;
+    this.x = Math.max(this.r, Math.min(W - this.r, this.x));
+    this.y = Math.max(this.r, Math.min(H - this.r, this.y));
+  }
+
+  update(dt, now, map) {
+    if (this.dead) return;
+    this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.animT += dt;
+    if (this.animT > 180) { this.animFrame = (this.animFrame + 1) % 4; this.animT = 0; }
+
+    // Regen
+    if (this.hp < this.maxHp && now - this.lastHit >= CFG.REGEN_DELAY) {
+      this.hp = Math.min(this.maxHp, this.hp + 1);
+      this.lastHit = now; // throttle regen to 1 per interval
+      spawnParticles(this.x, this.y, '#4f4', 2, 1);
+    }
+
+    if (this.jetpackOn) {
+      this.updateJetpack(dt, map);
+    } else {
+      this.moveAlongPath();
+    }
+
+    this.x = Math.max(this.r + 1, Math.min(W - this.r - 1, this.x));
+    this.y = Math.max(this.r + 1, Math.min(H - this.r - 1, this.y));
+  }
+
+  draw(ctx) {
+    if (this.dead) return;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+
+    if (this.hitFlash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 12; }
+    if (this.ninjaOn)  { ctx.shadowColor = '#0f8'; ctx.shadowBlur = 10; }
+    if (this.jetpackOn){ ctx.shadowColor = '#f90'; ctx.shadowBlur = 10; }
+
+    const flip = this.facingRight ? 1 : -1;
+    ctx.scale(flip, 1);
+    this._drawBody(ctx);
+    ctx.restore();
+
+    this._drawHpBar(ctx);
+    this._drawRoleIcon(ctx);
+  }
+
+  _drawBody(ctx) {
+    const c = this.color;
+    const walk = this.isMoving ? Math.sin(this.animFrame * Math.PI / 2) : 0;
+    ctx.strokeStyle = c; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+
+    // head
+    ctx.beginPath(); ctx.arc(0, -22, 7, 0, Math.PI * 2); ctx.stroke();
+
+    // crown for king
+    if (this.role === ROLE.KING) {
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-7, -29); ctx.lineTo(-5, -34);
+      ctx.lineTo(0, -31); ctx.lineTo(5, -34); ctx.lineTo(7, -29);
+      ctx.stroke();
+      ctx.strokeStyle = c; ctx.lineWidth = 2.5;
+    }
+
+    // ninja hood
+    if (this.ninjaOn) {
+      ctx.strokeStyle = '#0a0'; ctx.lineWidth = 3.5;
+      ctx.beginPath(); ctx.arc(0, -22, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = c; ctx.lineWidth = 2.5;
+    }
+
+    // body
+    ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(0, 0); ctx.stroke();
+
+    // arms
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(-10 + walk*10, -5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10 - walk*10, -5); ctx.stroke();
+
+    // legs
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-8 + walk*10, 13); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(8 - walk*10, 13); ctx.stroke();
+
+    // weapon
+    this._drawWeapon(ctx, c);
+
+    // shield
+    if (this.shieldHp > 0) {
+      ctx.strokeStyle = '#88f'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(-16, -8, 9, -1.1, 1.1); ctx.stroke();
+    }
+
+    // jetpack
+    if (this.jetpackOn) {
+      ctx.fillStyle = '#f90'; ctx.fillRect(4, -10, 8, 16);
+      ctx.strokeStyle = '#ff0'; ctx.lineWidth = 1; ctx.strokeRect(4, -10, 8, 16);
+      ctx.strokeStyle = '#f90'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(6, 6); ctx.lineTo(4, 14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10, 6); ctx.lineTo(12, 14); ctx.stroke();
+    }
+  }
+
+  _drawWeapon(ctx, color) {
+    if (this.weaponType === 'katana') {
+      ctx.strokeStyle = '#ccc'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(7, -10); ctx.lineTo(22, -1); ctx.stroke();
+      if (this.dualKatana) {
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(9, -6); ctx.lineTo(25, 3); ctx.stroke();
+      }
+    } else if (this.weaponType === 'pistol') {
+      ctx.fillStyle = '#666';
+      ctx.fillRect(7, -9, 16, 7);
+      ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(7, -9, 16, 7);
+      ctx.beginPath(); ctx.moveTo(23, -6); ctx.lineTo(29, -6); ctx.stroke();
+    }
+  }
+
+  _drawHpBar(ctx) {
+    const bw = 30, bh = 4;
+    const bx = this.x - bw / 2, by = this.y - 42;
+    ctx.fillStyle = '#222'; ctx.fillRect(bx, by, bw, bh);
+    const ratio = this.hp / this.maxHp;
+    ctx.fillStyle = ratio > 0.6 ? '#4f4' : ratio > 0.3 ? '#ff4' : '#f44';
+    ctx.fillRect(bx, by, bw * ratio, bh);
+  }
+
+  _drawRoleIcon(ctx) {
+    if (this.role === ROLE.KING) {
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'center';
+      ctx.fillText('KÖNIG', this.x, this.y - 46);
+    }
+    if (this.selected) {
+      ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(this.x, this.y - 5, this.r + 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+// ============================================================
+// CASTLE
+// ============================================================
+class Castle {
+  constructor(x, y, team) {
+    this.x = x; this.y = y; this.team = team;
+    this.__castle = true;
+    this.w = 90; this.h = 110;
+    this.maxHp = CFG.CASTLE_HP;
+    this.hp = this.maxHp;
+    this.auraTimer = 0;
+    this.destroyed = false;
+    this.hitFlash = 0;
+  }
+
+  takeDamage(amount, now) {
+    if (this.destroyed) return;
+    this.hp = Math.max(0, this.hp - amount);
+    this.hitFlash = 200;
+    spawnParticles(this.x + (Math.random()-0.5)*this.w, this.y + (Math.random()-0.5)*this.h, '#f80', 4, 3);
+    if (this.hp <= 0) {
+      this.destroyed = true;
+      for (let i = 0; i < 40; i++) spawnParticles(this.x + (Math.random()-0.5)*this.w, this.y, '#f80', 3, 6);
+    }
+  }
+
+  update(dt, entities, now) {
+    if (this.destroyed) return;
+    this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.auraTimer += dt;
+    if (this.auraTimer >= CFG.CASTLE_AURA_INTERVAL) {
+      this.auraTimer = 0;
+      for (const e of entities) {
+        if (e.dead || e.team === this.team) continue;
+        if (Math.hypot(e.x - this.x, e.y - this.y) < CFG.CASTLE_AURA_RANGE) {
+          e.takeDamage(CFG.CASTLE_AURA_DMG, now);
+        }
+      }
+    }
+  }
+
+  draw(ctx) {
+    const x = this.x - this.w / 2;
+    const y = this.y - this.h / 2;
+    const teamColor = this.team === TEAM.BLUE ? '#1a5a99' : '#991a1a';
+    const lightColor = this.team === TEAM.BLUE ? '#2a7acc' : '#cc2a2a';
+
+    if (this.destroyed) ctx.globalAlpha = 0.35;
+    if (this.hitFlash > 0) { ctx.shadowColor = '#fff'; ctx.shadowBlur = 14; }
+
+    // Base
+    ctx.fillStyle = teamColor;
+    ctx.fillRect(x, y, this.w, this.h);
+
+    // Wall texture
+    ctx.strokeStyle = lightColor; ctx.lineWidth = 1;
+    for (let i = 10; i < this.h; i += 16) ctx.strokeRect(x+2, y+i, this.w-4, 14);
+
+    // Battlements
+    ctx.fillStyle = lightColor;
+    for (let i = 0; i < 4; i++) ctx.fillRect(x + i*22 + 4, y - 14, 15, 18);
+
+    // Gate arch
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.rect(this.x - 14, y + this.h - 38, 28, 38);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(this.x, y + this.h - 38, 14, Math.PI, 0);
+    ctx.fill();
+
+    // HP bar
+    const bw = this.w;
+    const ratio = this.hp / this.maxHp;
+    ctx.fillStyle = '#111'; ctx.fillRect(x, y - 22, bw, 8);
+    ctx.fillStyle = ratio > 0.5 ? '#4f4' : ratio > 0.25 ? '#ff4' : '#f44';
+    ctx.fillRect(x, y - 22, bw * ratio, 8);
+    ctx.font = '10px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+    ctx.fillText(`Burg ${this.hp}/${this.maxHp}`, this.x, y - 25);
+
+    // Aura ring
+    ctx.strokeStyle = this.team === TEAM.BLUE ? 'rgba(68,170,255,0.12)' : 'rgba(255,100,64,0.12)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(this.x, this.y, CFG.CASTLE_AURA_RANGE, 0, Math.PI * 2); ctx.stroke();
+
+    ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  }
+}
+
+// ============================================================
+// AI CONTROLLER
+// ============================================================
+class AIController {
+  constructor(entity) {
+    this.e = entity;
+    this.thinkTimer = Math.random() * 400; // stagger AI ticks
+    this.retargetTimer = 0;
+  }
+
+  think(dt, game, now) {
+    if (this.e.dead) return;
+    this.thinkTimer += dt;
+    if (this.thinkTimer < 350) return;
+    this.thinkTimer = 0;
+
+    const e = this.e;
+    const enemies = game.entities.filter(en => !en.dead && en.team !== e.team);
+    const myCastle = game.castles[e.team];
+    const enemyCastle = game.castles[1 - e.team];
+
+    if (enemies.length === 0) return;
+
+    // Sort enemies by distance
+    enemies.sort((a, b) =>
+      Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)
+    );
+    const nearest = enemies[0];
+    const distNearest = Math.hypot(nearest.x - e.x, nearest.y - e.y);
+    const distCastle = Math.hypot(enemyCastle.x - e.x, enemyCastle.y - e.y);
+
+    // King AI: stay near own castle, defend
+    if (e.role === ROLE.KING) {
+      if (e.hp < e.maxHp * 0.4) {
+        // Retreat to castle
+        this._moveTo(e, myCastle.x, myCastle.y, game.map);
+      } else if (distNearest < e.weaponRange * 1.5) {
+        e.target = nearest;
+        this._moveTo(e, nearest.x, nearest.y, game.map);
+      } else {
+        // Guard position near own castle
+        const gx = myCastle.x + (e.team === TEAM.BLUE ? 100 : -100);
+        if (Math.hypot(e.x - gx, e.y - myCastle.y) > 40)
+          this._moveTo(e, gx, myCastle.y, game.map);
+        else e.path = [];
+      }
+      return;
+    }
+
+    // Subject AI
+    if (e.hp <= 2) {
+      e.aiState = 'retreat';
+      e.target = null;
+      this._moveTo(e, myCastle.x, myCastle.y, game.map);
+      return;
+    }
+
+    // Attack enemy castle if close
+    if (distCastle < 120 && !enemyCastle.destroyed) {
+      e.aiState = 'attack_castle';
+      e.castleTarget = enemyCastle;
+      e.target = null;
+      this._moveTo(e, enemyCastle.x, enemyCastle.y, game.map);
+      return;
+    }
+
+    // Prefer attacking king
+    const enemyKing = enemies.find(en => en.role === ROLE.KING);
+    const priorityTarget = enemyKing || nearest;
+    e.target = nearest;
+
+    if (distNearest <= e.weaponRange) {
+      e.aiState = 'attack';
+      e.path = []; // stop moving, just attack
+    } else {
+      e.aiState = 'advance';
+      this._moveTo(e, priorityTarget.x, priorityTarget.y, game.map);
+    }
+  }
+
+  _moveTo(e, tx, ty, map) {
+    const sr = Math.floor(e.y / TILE);
+    const sc = Math.floor(e.x / TILE);
+    const gr = Math.floor(ty / TILE);
+    const gc = Math.floor(tx / TILE);
+    if (sr === gr && sc === gc) { e.path = []; return; }
+    const path = aStar(map, sr, sc, gr, gc);
+    if (path.length) e.path = path;
+  }
+
+  execute(game, bullets, now) {
+    const e = this.e;
+    if (e.dead) return;
+
+    // Attack enemy in range
+    if (e.target && !e.target.dead) {
+      e.tryAttack(e.target, bullets, now, game.castles);
+    } else {
+      // Find closest attackable enemy
+      for (const en of game.entities) {
+        if (!en.dead && en.team !== e.team) {
+          if (e.tryAttack(en, bullets, now, game.castles)) break;
+        }
+      }
+    }
+
+    // Attack castle if in range
+    const enemyCastle = game.castles[1 - e.team];
+    if (!enemyCastle.destroyed) {
+      e.tryAttack(enemyCastle, bullets, now, game.castles);
+    }
+  }
+}
+
+// ============================================================
+// ITEM SPAWNER
+// ============================================================
+class ItemSpawner {
+  constructor() {
+    this.items = [];
+    this.timer = 0;
+    this.interval = 18000;
+    this.round = 1;
+    this.spawnPoints = [
+      { x: W/2, y: H/2 },
+      { x: W/2 - 120, y: H/2 - 90 },
+      { x: W/2 + 120, y: H/2 - 90 },
+      { x: W/2 - 120, y: H/2 + 90 },
+      { x: W/2 + 120, y: H/2 + 90 },
+      { x: W/2, y: H/2 - 130 },
+      { x: W/2, y: H/2 + 130 },
+    ];
+  }
+
+  reset() { this.items = []; this.timer = 0; }
+
+  update(dt) {
+    this.timer += dt;
+    for (const i of this.items) i.update(dt);
+    this.items = this.items.filter(i => !i.gone);
+    if (this.timer >= this.interval) {
+      this.timer = 0;
+      this._spawn();
+    }
+  }
+
+  _spawn() {
+    const available = this.spawnPoints.filter(p =>
+      !this.items.some(i => Math.hypot(i.x - p.x, i.y - p.y) < 40)
+    );
+    if (!available.length) return;
+    const p = available[Math.floor(Math.random() * available.length)];
+    const r = Math.random();
+    let type;
+    if (r < 0.28)      type = 'katana2';
+    else if (r < 0.50) type = 'pistol';
+    else if (r < 0.68) type = 'shield';
+    else if (r < 0.88) type = 'jetpack';
+    else               type = 'ninja';
+    if (type === 'ninja' && this.round < 3) type = 'shield';
+    this.items.push(new GroundItem(p.x, p.y, type));
+  }
+
+  checkPickup(entities) {
+    for (const item of this.items) {
+      if (item.gone) continue;
+      for (const e of entities) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - item.x, e.y - item.y) < e.r + item.radius) {
+          e.pickupItem(item);
+          break;
+        }
+      }
+    }
+  }
+
+  draw(ctx) {
+    for (const i of this.items) i.draw(ctx);
+  }
+}
+
+// ============================================================
+// TACTIC LOG (cosmetic suggestion system)
+// ============================================================
+class TacticLog {
+  constructor() { this.messages = []; }
+  add(team, text) {
+    this.messages.unshift({ team, text, age: 0, maxAge: 5000 });
+    if (this.messages.length > 5) this.messages.pop();
+  }
+  update(dt) {
+    for (const m of this.messages) m.age += dt;
+    this.messages = this.messages.filter(m => m.age < m.maxAge);
+  }
+  draw(ctx) {
+    let y = H - 20;
+    for (const m of this.messages) {
+      const alpha = 1 - m.age / m.maxAge;
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = m.team === TEAM.BLUE ? '#6cf' : '#f86';
+      ctx.textAlign = 'left';
+      ctx.fillText(`[${m.team === TEAM.BLUE ? 'Blau' : 'Rot'}] ${m.text}`, 10, y);
+      y -= 16;
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ============================================================
+// GAME
+// ============================================================
+class Game {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.map = buildMap();
+    this.entities = [];
+    this.castles = [];
+    this.bullets = [];
+    this.aiControllers = [];
+    this.spawner = new ItemSpawner();
+    this.tacticLog = new TacticLog();
+
+    this.round = 1;
+    this.paused = false;
+    this.over = false;
+    this.lastTime = 0;
+    this.selectedBlue = null; // player-selected entity
+
+    this._init();
+    this._setupInput();
+    this._setupKeys();
+  }
+
+  _init() {
+    this.entities = [];
+    this.bullets = [];
+    this.aiControllers = [];
+
+    this.castles = [
+      new Castle(68, H / 2, TEAM.BLUE),
+      new Castle(W - 68, H / 2, TEAM.RED),
+    ];
+
+    this._spawnTeam(TEAM.BLUE, 160, H / 2);
+    this._spawnTeam(TEAM.RED, W - 160, H / 2);
+
+    this.spawner.reset();
+    this.spawner.round = this.round;
+    this.selectedBlue = null;
+    this.over = false;
+    this.tacticLog.messages = [];
+  }
+
+  _spawnTeam(team, cx, cy) {
+    const dir = team === TEAM.BLUE ? 1 : -1;
+
+    const king = new Entity(cx, cy, team, ROLE.KING);
+    this.entities.push(king);
+    this.aiControllers.push(new AIController(king));
+
+    for (let i = 0; i < 10; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x = cx + dir * (col * 26 + 26);
+      const y = cy - 110 + row * 50;
+      const s = new Entity(
+        Math.max(30, Math.min(W - 30, x)),
+        Math.max(30, Math.min(H - 30, y)),
+        team, ROLE.SUBJECT
+      );
+      this.entities.push(s);
+      this.aiControllers.push(new AIController(s));
+    }
+  }
+
+  _setupInput() {
+    this.canvas.addEventListener('click', (ev) => {
+      if (this.over) return;
+      const { mx, my } = this._mouse(ev);
+      const hit = this.entities.find(e =>
+        !e.dead && e.team === TEAM.BLUE && Math.hypot(e.x - mx, e.y - my) < e.r + 6
+      );
+      if (this.selectedBlue) this.selectedBlue.selected = false;
+      this.selectedBlue = hit || null;
+      if (this.selectedBlue) this.selectedBlue.selected = true;
+    });
+
+    this.canvas.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      if (this.over || !this.selectedBlue || this.selectedBlue.dead) return;
+      const { mx, my } = this._mouse(ev);
+      const e = this.selectedBlue;
+
+      // Click on enemy?
+      const enemy = this.entities.find(en =>
+        !en.dead && en.team === TEAM.RED && Math.hypot(en.x - mx, en.y - my) < en.r + 8
+      );
+      if (enemy) {
+        e.target = enemy;
+        const ai = this.aiControllers.find(a => a.e === e);
+        if (ai) ai._moveTo(e, enemy.x, enemy.y, this.map);
+      } else {
+        // Move command
+        const ai = this.aiControllers.find(a => a.e === e);
+        if (ai) ai._moveTo(e, mx, my, this.map);
+        e.target = null;
+      }
+    });
+
+    // Tooltip on hover
+    this.canvas.addEventListener('mousemove', (ev) => {
+      const { mx, my } = this._mouse(ev);
+      const hit = this.entities.find(e => !e.dead && Math.hypot(e.x - mx, e.y - my) < e.r + 5);
+      const tip = document.getElementById('tooltip');
+      if (hit) {
+        tip.style.display = 'block';
+        tip.style.left = (ev.offsetX + 12) + 'px';
+        tip.style.top  = (ev.offsetY + 12) + 'px';
+        const team = hit.team === TEAM.BLUE ? '🔵 Blau' : '🔴 Rot';
+        const role = hit.role === ROLE.KING ? 'König' : 'Untertan';
+        const wpn = hit.weaponType + (hit.dualKatana ? ' (×2)' : '');
+        const spec = hit.ninjaOn ? ' | 🥷 Ninja' : hit.jetpackOn ? ' | 🚀 Jetpack' : '';
+        tip.innerHTML = `${team} ${role}<br>HP: ${hit.hp}/${hit.maxHp}<br>Waffe: ${wpn}${spec}`;
+      } else {
+        tip.style.display = 'none';
+      }
+    });
+  }
+
+  _setupKeys() {
+    document.addEventListener('keydown', (ev) => {
+      if (ev.code === 'Space') { ev.preventDefault(); this.paused = !this.paused; }
+      if (ev.code === 'KeyR') this.restart();
+      if (ev.code === 'KeyA') {
+        // Order all blue subjects to attack nearest red
+        for (const e of this.entities) {
+          if (e.dead || e.team !== TEAM.BLUE) continue;
+          const ai = this.aiControllers.find(a => a.e === e);
+          if (!ai) continue;
+          const redEntities = this.entities.filter(en => !en.dead && en.team === TEAM.RED);
+          if (redEntities.length) {
+            const nearest = redEntities.reduce((a, b) =>
+              Math.hypot(b.x - e.x, b.y - e.y) < Math.hypot(a.x - e.x, a.y - e.y) ? b : a
+            );
+            e.target = nearest;
+            ai._moveTo(e, nearest.x, nearest.y, this.map);
+          }
+        }
+        this.tacticLog.add(TEAM.BLUE, 'Alle Einheiten: Angriff!');
+      }
+      if (ev.code === 'KeyG') {
+        // Retreat all blue to castle
+        for (const e of this.entities) {
+          if (e.dead || e.team !== TEAM.BLUE) continue;
+          const ai = this.aiControllers.find(a => a.e === e);
+          if (ai) ai._moveTo(e, this.castles[TEAM.BLUE].x, this.castles[TEAM.BLUE].y, this.map);
+          e.target = null;
+        }
+        this.tacticLog.add(TEAM.BLUE, 'Rückzug zur Burg!');
+      }
+    });
+  }
+
+  _mouse(ev) {
+    const r = this.canvas.getBoundingClientRect();
+    return { mx: ev.clientX - r.left, my: ev.clientY - r.top };
+  }
+
+  restart() {
+    this.round++;
+    this._init();
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  _checkWin() {
+    const blueKing = this.entities.find(e => e.team === TEAM.BLUE && e.role === ROLE.KING);
+    const redKing  = this.entities.find(e => e.team === TEAM.RED  && e.role === ROLE.KING);
+    const bc = this.castles[TEAM.BLUE];
+    const rc = this.castles[TEAM.RED];
+
+    if (blueKing && !blueKing.dead && !bc.destroyed && !redKing?.dead && !rc.destroyed) return;
+
+    let winTeam = null;
+    if (!blueKing || blueKing.dead || bc.destroyed) winTeam = TEAM.RED;
+    if (!redKing  || redKing.dead  || rc.destroyed) winTeam = TEAM.BLUE;
+
+    if (winTeam !== null) {
+      this.over = true;
+      const t = document.getElementById('overlayTitle');
+      if (winTeam === TEAM.BLUE) { t.textContent = '🔵 Blaues Team gewinnt!'; t.style.color = '#4af'; }
+      else                        { t.textContent = '🔴 Rotes Team gewinnt!';  t.style.color = '#f64'; }
+      document.getElementById('overlay').classList.add('show');
+    }
+  }
+
+  _updateHUD() {
+    const blueAll = this.entities.filter(e => e.team === TEAM.BLUE && !e.dead);
+    const redAll  = this.entities.filter(e => e.team === TEAM.RED  && !e.dead);
+    const bk = blueAll.find(e => e.role === ROLE.KING);
+    const rk = redAll.find(e => e.role === ROLE.KING);
+    const bc = this.castles[TEAM.BLUE];
+    const rc = this.castles[TEAM.RED];
+
+    document.getElementById('blueKingHp').textContent = bk ? `König: ${bk.hp}/${bk.maxHp}` : 'König: 💀';
+    document.getElementById('redKingHp').textContent  = rk ? `König: ${rk.hp}/${rk.maxHp}` : 'König: 💀';
+    document.getElementById('blueCastleHp').textContent = bc.hp;
+    document.getElementById('redCastleHp').textContent  = rc.hp;
+    document.getElementById('blueCastleBar').style.width = (bc.hp / bc.maxHp * 100) + '%';
+    document.getElementById('redCastleBar').style.width  = (rc.hp / rc.maxHp * 100) + '%';
+    document.getElementById('blueCount').textContent = blueAll.length;
+    document.getElementById('redCount').textContent  = redAll.length;
+    document.getElementById('roundNum').textContent  = this.round;
+
+    // Selected entity weapon
+    const wb = document.getElementById('blueWeapon');
+    if (this.selectedBlue && !this.selectedBlue.dead) {
+      const wpn = ITEM_ICONS[this.selectedBlue.weaponType]?.label || this.selectedBlue.weaponType;
+      const spec = this.selectedBlue.ninjaOn ? ' + Ninja' : this.selectedBlue.jetpackOn ? ' + Jetpack' : '';
+      wb.innerHTML = `<span class="hud-label">Waffe (gewählt)</span><span class="hud-val">${wpn}${spec}</span>`;
+    } else {
+      wb.innerHTML = `<span class="hud-label">Waffe (gewählt)</span><span class="hud-val">–</span>`;
+    }
+  }
+
+  update(dt) {
+    if (this.paused || this.over) return;
+    const now = performance.now();
+
+    // Entities
+    for (const e of this.entities) e.update(dt, now, this.map);
+
+    // AI: think + act
+    for (const ai of this.aiControllers) {
+      if (ai.e.dead) continue;
+      // Blue AI only runs for non-selected entities
+      if (ai.e.team === TEAM.BLUE && ai.e === this.selectedBlue) {
+        ai.execute(this, this.bullets, now); // still auto-attacks
+      } else {
+        ai.think(dt, this, now);
+        ai.execute(this, this.bullets, now);
+      }
+    }
+
+    // Remove dead AIs
+    this.aiControllers = this.aiControllers.filter(a => !a.e.dead);
+
+    // Bullets
+    for (const b of this.bullets) {
+      b.update(this.map);
+      if (!b.alive) continue;
+      for (const e of this.entities) {
+        if (e.dead || e.team === b.team) continue;
+        if (Math.hypot(e.x - b.x, e.y - b.y) < e.r) {
+          e.takeDamage(b.dmg, now);
+          b.alive = false;
+          spawnParticles(b.x, b.y, '#ff0', 3, 2);
+          break;
+        }
+      }
+      // Hit castle
+      if (b.alive) {
+        const ec = this.castles[1 - b.team];
+        if (!ec.destroyed && Math.abs(b.x - ec.x) < ec.w/2 && Math.abs(b.y - ec.y) < ec.h/2) {
+          ec.takeDamage(b.dmg, now);
+          b.alive = false;
+        }
+      }
+    }
+    this.bullets = this.bullets.filter(b => b.alive);
+
+    // Castles
+    for (const c of this.castles) c.update(dt, this.entities, now);
+
+    // Items
+    this.spawner.update(dt);
+    this.spawner.checkPickup(this.entities.filter(e => !e.dead));
+
+    // Particles
+    updateParticles(dt);
+
+    // Tactic log occasional AI messages
+    if (Math.random() < 0.001) {
+      const msgs = ['Flankiere links!', 'Halte die Linie!', 'Burg angreifen!', 'Rückzug!', 'Den König schützen!', 'Feuer frei!'];
+      const team = Math.random() < 0.5 ? TEAM.BLUE : TEAM.RED;
+      this.tacticLog.add(team, msgs[Math.floor(Math.random()*msgs.length)]);
+    }
+    this.tacticLog.update(dt);
+
+    this._checkWin();
+    this._updateHUD();
+  }
+
+  _drawMap(ctx) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = this.map[r][c];
+        const x = c * TILE, y = r * TILE;
+        if (t === 0) {
+          ctx.fillStyle = (r + c) % 2 === 0 ? '#1a1a22' : '#1e1e28';
+        } else if (t === 1) {
+          ctx.fillStyle = '#5a4a3a';
+          ctx.fillRect(x, y, TILE, TILE);
+          ctx.strokeStyle = '#7a6a5a'; ctx.lineWidth = 0.5;
+          ctx.strokeRect(x, y, TILE, TILE);
+          continue;
+        } else {
+          // rock
+          ctx.fillStyle = '#6a5a4a';
+          ctx.fillRect(x, y, TILE, TILE);
+          ctx.fillStyle = '#8a7a6a';
+          ctx.fillRect(x+3, y+3, TILE-6, TILE-6);
+          continue;
+        }
+        ctx.fillRect(x, y, TILE, TILE);
+      }
+    }
+  }
+
+  draw() {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, W, H);
+
+    this._drawMap(ctx);
+
+    // Castles
+    for (const c of this.castles) c.draw(ctx);
+
+    // Items
+    this.spawner.draw(ctx);
+
+    // Entities
+    for (const e of this.entities) e.draw(ctx);
+
+    // Bullets
+    for (const b of this.bullets) b.draw(ctx);
+
+    // Particles
+    drawParticles(ctx);
+
+    // Tactic log
+    this.tacticLog.draw(ctx);
+
+    // Pause overlay on canvas
+    if (this.paused) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.font = 'bold 52px monospace';
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'center';
+      ctx.fillText('⏸ PAUSE', W / 2, H / 2);
+    }
+  }
+
+  loop(ts) {
+    const dt = Math.min(ts - this.lastTime, 50);
+    this.lastTime = ts;
+    this.update(dt);
+    this.draw();
+    requestAnimationFrame(t => this.loop(t));
+  }
+
+  start() {
+    requestAnimationFrame(t => { this.lastTime = t; this.loop(t); });
+  }
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+const game = new Game(document.getElementById('gameCanvas'));
+game.start();
+</script>
+</body>
+</html>
