@@ -2,10 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Lian-Spiel – Strichmännchen Teamkampf</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body {
   background: #0f0f1a;
   display: flex;
@@ -15,33 +15,57 @@ body {
   min-height: 100vh;
   font-family: 'Courier New', monospace;
   color: #eee;
-  padding: 10px 0;
+  padding: 6px 0;
   user-select: none;
+  touch-action: none;
+  overflow: hidden;
 }
-#header { text-align: center; margin-bottom: 6px; }
-h1 { font-size: 26px; color: #ffd700; text-shadow: 0 0 12px #ffd700aa; letter-spacing: 2px; }
+#header { text-align: center; margin-bottom: 4px; }
+h1 { font-size: clamp(16px, 3vw, 26px); color: #ffd700; text-shadow: 0 0 12px #ffd700aa; letter-spacing: 2px; }
 #hud {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 1200px;
-  padding: 5px 10px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 4px 8px;
   background: rgba(0,0,0,0.4);
   border: 1px solid #333;
   border-radius: 6px;
   margin-bottom: 4px;
-  font-size: 12px;
-  gap: 10px;
+  font-size: clamp(9px, 1.5vw, 12px);
+  gap: 6px;
 }
-.team-hud { display: flex; gap: 14px; align-items: center; flex: 1; }
+.team-hud { display: flex; gap: clamp(6px, 1.5vw, 14px); align-items: center; flex: 1; }
 .team-hud.red { flex-direction: row-reverse; }
-.hud-block { display: flex; flex-direction: column; gap: 2px; }
-.hud-label { font-size: 10px; color: #888; }
-.hud-val { font-size: 13px; font-weight: bold; }
-.bar-wrap { width: 80px; height: 7px; background: #333; border-radius: 4px; overflow: hidden; }
+.hud-block { display: flex; flex-direction: column; gap: 1px; }
+.hud-label { font-size: clamp(8px, 1.2vw, 10px); color: #888; }
+.hud-val { font-size: clamp(10px, 1.6vw, 13px); font-weight: bold; }
+.bar-wrap { width: clamp(40px, 8vw, 80px); height: 7px; background: #333; border-radius: 4px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.2s; }
-#gameWrap { position: relative; }
-canvas { display: block; border: 2px solid #2a2a3a; cursor: crosshair; }
+
+/* Canvas scales to fit viewport */
+#gameWrap {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+}
+#canvasScaler {
+  width: 100%;
+  position: relative;
+  /* padding-bottom keeps aspect ratio 660/1200 = 55% */
+  padding-bottom: 55%;
+}
+canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+  border: 2px solid #2a2a3a;
+  cursor: crosshair;
+  touch-action: none;
+}
+
 #overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   display: none; align-items: center; justify-content: center;
@@ -50,15 +74,62 @@ canvas { display: block; border: 2px solid #2a2a3a; cursor: crosshair; }
   border-radius: 4px;
 }
 #overlay.show { display: flex; }
-#overlayTitle { font-size: 42px; font-weight: bold; text-shadow: 0 0 20px currentColor; }
+#overlayTitle { font-size: clamp(20px, 4vw, 42px); font-weight: bold; text-shadow: 0 0 20px currentColor; text-align: center; padding: 0 16px; }
 #overlayBtn {
-  padding: 10px 28px; font-size: 16px; font-family: monospace;
+  padding: 12px 32px; font-size: clamp(14px, 2vw, 16px); font-family: monospace;
   background: #ffd700; color: #000; border: none; border-radius: 6px;
   cursor: pointer; font-weight: bold;
 }
-#overlayBtn:hover { background: #ffe44d; }
+
+/* Touch control buttons */
+#touchControls {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  width: 100%;
+  max-width: 1200px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 0 4px;
+}
+.tbtn {
+  padding: 10px 16px;
+  font-size: clamp(12px, 2vw, 14px);
+  font-family: monospace;
+  border: 1px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  flex: 1;
+  min-width: 70px;
+  max-width: 160px;
+  text-align: center;
+  transition: opacity 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.tbtn:active { opacity: 0.7; transform: scale(0.96); }
+#btnAttack  { background: #c0392b; color: #fff; border-color: #e74c3c; }
+#btnRetreat { background: #2c3e50; color: #aad; border-color: #4af; }
+#btnPause   { background: #27292e; color: #ffd700; border-color: #ffd700; }
+#btnRestart { background: #1a3a1a; color: #4f4; border-color: #4f4; }
+
+/* Mode indicator */
+#modeIndicator {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.75); border: 1px solid #555; border-radius: 4px;
+  padding: 3px 10px; font-size: 11px; color: #ffd700; pointer-events: none;
+  white-space: nowrap;
+}
+
 #controls {
-  margin-top: 5px; font-size: 11px; color: #556; text-align: center; line-height: 1.7;
+  margin-top: 4px; font-size: clamp(9px, 1.3vw, 11px); color: #445;
+  text-align: center; line-height: 1.7; padding: 0 8px;
+}
+#controls .desktop { display: inline; }
+#controls .touch   { display: none; }
+@media (pointer: coarse) {
+  #controls .desktop { display: none; }
+  #controls .touch   { display: inline; }
 }
 #tooltip {
   position: absolute; background: rgba(0,0,0,0.85); border: 1px solid #555;
@@ -112,21 +183,37 @@ canvas { display: block; border: 2px solid #2a2a3a; cursor: crosshair; }
 </div>
 
 <div id="gameWrap">
-  <canvas id="gameCanvas" width="1200" height="660"></canvas>
-  <div id="overlay">
-    <div id="overlayTitle">–</div>
-    <button id="overlayBtn" onclick="game.restart()">Neue Runde ▶</button>
+  <div id="canvasScaler">
+    <canvas id="gameCanvas" width="1200" height="660"></canvas>
+    <div id="modeIndicator">Tippe auf eine 🔵 Einheit</div>
+    <div id="overlay">
+      <div id="overlayTitle">–</div>
+      <button id="overlayBtn" onclick="game.restart()">Neue Runde ▶</button>
+    </div>
+    <div id="tooltip"></div>
   </div>
-  <div id="tooltip"></div>
+</div>
+
+<div id="touchControls">
+  <button class="tbtn" id="btnAttack"  onclick="game.cmdAttackAll()">⚔ Alle angreifen</button>
+  <button class="tbtn" id="btnRetreat" onclick="game.cmdRetreat()">🏰 Rückzug</button>
+  <button class="tbtn" id="btnPause"   onclick="game.togglePause()">⏸ Pause</button>
+  <button class="tbtn" id="btnRestart" onclick="game.restart()">🔄 Neustart</button>
 </div>
 
 <div id="controls">
-  <strong>Linksklick</strong>: Blaue Einheit auswählen &nbsp;|&nbsp;
-  <strong>Rechtsklick</strong>: Bewegen / Angreifen &nbsp;|&nbsp;
-  <strong>[Space]</strong>: Pause &nbsp;|&nbsp;
-  <strong>[R]</strong>: Neustart &nbsp;|&nbsp;
-  <strong>[A]</strong>: Alle blauen Einheiten angreifen lassen &nbsp;|&nbsp;
-  <strong>[G]</strong>: Rückzug
+  <span class="desktop">
+    <strong>Linksklick</strong>: Einheit wählen &nbsp;|&nbsp;
+    <strong>Rechtsklick</strong>: Bewegen / Angreifen &nbsp;|&nbsp;
+    <strong>[A]</strong>: Alle angreifen &nbsp;|&nbsp;
+    <strong>[G]</strong>: Rückzug &nbsp;|&nbsp;
+    <strong>[Space]</strong>: Pause
+  </span>
+  <span class="touch">
+    <strong>Tippen</strong>: 🔵 Einheit wählen &nbsp;|&nbsp;
+    <strong>2. Tippen</strong>: Bewegen / Angreifen &nbsp;|&nbsp;
+    Buttons unten für Teamkommandos
+  </span>
 </div>
 
 <script>
@@ -1093,49 +1180,90 @@ class Game {
     }
   }
 
+  // Convert a mouse/touch event coordinate to canvas game coordinates
+  _eventPos(ev) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = 1200 / rect.width;
+    const scaleY = 660  / rect.height;
+    let cx, cy;
+    if (ev.touches && ev.touches.length > 0) {
+      cx = ev.touches[0].clientX - rect.left;
+      cy = ev.touches[0].clientY - rect.top;
+    } else if (ev.changedTouches && ev.changedTouches.length > 0) {
+      cx = ev.changedTouches[0].clientX - rect.left;
+      cy = ev.changedTouches[0].clientY - rect.top;
+    } else {
+      cx = ev.clientX - rect.left;
+      cy = ev.clientY - rect.top;
+    }
+    return { mx: cx * scaleX, my: cy * scaleY };
+  }
+
+  _doSelect(mx, my) {
+    if (this.over) return;
+    const hit = this.entities.find(e =>
+      !e.dead && e.team === TEAM.BLUE && Math.hypot(e.x - mx, e.y - my) < e.r + 10
+    );
+    if (this.selectedBlue) this.selectedBlue.selected = false;
+    this.selectedBlue = hit || null;
+    if (this.selectedBlue) this.selectedBlue.selected = true;
+    this._updateModeIndicator();
+  }
+
+  _doCommand(mx, my) {
+    if (this.over || !this.selectedBlue || this.selectedBlue.dead) return;
+    const e = this.selectedBlue;
+    const enemy = this.entities.find(en =>
+      !en.dead && en.team === TEAM.RED && Math.hypot(en.x - mx, en.y - my) < en.r + 14
+    );
+    const ai = this.aiControllers.find(a => a.e === e);
+    if (enemy) {
+      e.target = enemy;
+      if (ai) ai._moveTo(e, enemy.x, enemy.y, this.map);
+    } else {
+      if (ai) ai._moveTo(e, mx, my, this.map);
+      e.target = null;
+    }
+  }
+
+  _updateModeIndicator() {
+    const el = document.getElementById('modeIndicator');
+    if (!el) return;
+    if (this.selectedBlue && !this.selectedBlue.dead) {
+      const role = this.selectedBlue.role === ROLE.KING ? 'König' : 'Untertan';
+      el.textContent = `✅ ${role} gewählt – tippe Ziel/Position`;
+      el.style.color = '#4af';
+    } else {
+      el.textContent = 'Tippe auf eine 🔵 Einheit';
+      el.style.color = '#ffd700';
+    }
+  }
+
   _setupInput() {
-    this.canvas.addEventListener('click', (ev) => {
-      if (this.over) return;
-      const { mx, my } = this._mouse(ev);
-      const hit = this.entities.find(e =>
-        !e.dead && e.team === TEAM.BLUE && Math.hypot(e.x - mx, e.y - my) < e.r + 6
-      );
-      if (this.selectedBlue) this.selectedBlue.selected = false;
-      this.selectedBlue = hit || null;
-      if (this.selectedBlue) this.selectedBlue.selected = true;
+    const canvas = this.canvas;
+
+    // ---- Mouse (Desktop) ----
+    canvas.addEventListener('click', (ev) => {
+      const { mx, my } = this._eventPos(ev);
+      this._doSelect(mx, my);
     });
 
-    this.canvas.addEventListener('contextmenu', (ev) => {
+    canvas.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
-      if (this.over || !this.selectedBlue || this.selectedBlue.dead) return;
-      const { mx, my } = this._mouse(ev);
-      const e = this.selectedBlue;
-
-      // Click on enemy?
-      const enemy = this.entities.find(en =>
-        !en.dead && en.team === TEAM.RED && Math.hypot(en.x - mx, en.y - my) < en.r + 8
-      );
-      if (enemy) {
-        e.target = enemy;
-        const ai = this.aiControllers.find(a => a.e === e);
-        if (ai) ai._moveTo(e, enemy.x, enemy.y, this.map);
-      } else {
-        // Move command
-        const ai = this.aiControllers.find(a => a.e === e);
-        if (ai) ai._moveTo(e, mx, my, this.map);
-        e.target = null;
-      }
+      const { mx, my } = this._eventPos(ev);
+      this._doCommand(mx, my);
     });
 
-    // Tooltip on hover
-    this.canvas.addEventListener('mousemove', (ev) => {
-      const { mx, my } = this._mouse(ev);
+    canvas.addEventListener('mousemove', (ev) => {
+      const { mx, my } = this._eventPos(ev);
       const hit = this.entities.find(e => !e.dead && Math.hypot(e.x - mx, e.y - my) < e.r + 5);
       const tip = document.getElementById('tooltip');
       if (hit) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / 1200;
         tip.style.display = 'block';
-        tip.style.left = (ev.offsetX + 12) + 'px';
-        tip.style.top  = (ev.offsetY + 12) + 'px';
+        tip.style.left = (mx * scaleX + 12) + 'px';
+        tip.style.top  = (ev.clientY - rect.top + 12) + 'px';
         const team = hit.team === TEAM.BLUE ? '🔵 Blau' : '🔴 Rot';
         const role = hit.role === ROLE.KING ? 'König' : 'Untertan';
         const wpn = hit.weaponType + (hit.dualKatana ? ' (×2)' : '');
@@ -1145,45 +1273,90 @@ class Game {
         tip.style.display = 'none';
       }
     });
+
+    // ---- Touch (iPad / Mobile) ----
+    let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+    let touchMoved = false;
+
+    canvas.addEventListener('touchstart', (ev) => {
+      ev.preventDefault();
+      const { mx, my } = this._eventPos(ev);
+      touchStartX = mx; touchStartY = my;
+      touchStartTime = Date.now();
+      touchMoved = false;
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (ev) => {
+      ev.preventDefault();
+      const { mx, my } = this._eventPos(ev);
+      if (Math.hypot(mx - touchStartX, my - touchStartY) > 12) touchMoved = true;
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (ev) => {
+      ev.preventDefault();
+      if (touchMoved) return; // ignore swipes
+      const dt = Date.now() - touchStartTime;
+      if (dt > 600) return; // ignore long press
+      const mx = touchStartX, my = touchStartY;
+
+      // If a blue unit is selected and we tap somewhere else → command
+      if (this.selectedBlue && !this.selectedBlue.dead) {
+        const tappedSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 10;
+        if (tappedSelf) {
+          // Deselect on second tap of same unit
+          this.selectedBlue.selected = false;
+          this.selectedBlue = null;
+          this._updateModeIndicator();
+        } else {
+          // Issue command
+          this._doCommand(mx, my);
+        }
+      } else {
+        // Try to select a blue unit
+        this._doSelect(mx, my);
+      }
+    }, { passive: false });
   }
 
   _setupKeys() {
     document.addEventListener('keydown', (ev) => {
-      if (ev.code === 'Space') { ev.preventDefault(); this.paused = !this.paused; }
+      if (ev.code === 'Space') { ev.preventDefault(); this.togglePause(); }
       if (ev.code === 'KeyR') this.restart();
-      if (ev.code === 'KeyA') {
-        // Order all blue subjects to attack nearest red
-        for (const e of this.entities) {
-          if (e.dead || e.team !== TEAM.BLUE) continue;
-          const ai = this.aiControllers.find(a => a.e === e);
-          if (!ai) continue;
-          const redEntities = this.entities.filter(en => !en.dead && en.team === TEAM.RED);
-          if (redEntities.length) {
-            const nearest = redEntities.reduce((a, b) =>
-              Math.hypot(b.x - e.x, b.y - e.y) < Math.hypot(a.x - e.x, a.y - e.y) ? b : a
-            );
-            e.target = nearest;
-            ai._moveTo(e, nearest.x, nearest.y, this.map);
-          }
-        }
-        this.tacticLog.add(TEAM.BLUE, 'Alle Einheiten: Angriff!');
-      }
-      if (ev.code === 'KeyG') {
-        // Retreat all blue to castle
-        for (const e of this.entities) {
-          if (e.dead || e.team !== TEAM.BLUE) continue;
-          const ai = this.aiControllers.find(a => a.e === e);
-          if (ai) ai._moveTo(e, this.castles[TEAM.BLUE].x, this.castles[TEAM.BLUE].y, this.map);
-          e.target = null;
-        }
-        this.tacticLog.add(TEAM.BLUE, 'Rückzug zur Burg!');
-      }
+      if (ev.code === 'KeyA') this.cmdAttackAll();
+      if (ev.code === 'KeyG') this.cmdRetreat();
     });
   }
 
-  _mouse(ev) {
-    const r = this.canvas.getBoundingClientRect();
-    return { mx: ev.clientX - r.left, my: ev.clientY - r.top };
+  togglePause() {
+    this.paused = !this.paused;
+    document.getElementById('btnPause').textContent = this.paused ? '▶ Weiter' : '⏸ Pause';
+  }
+
+  cmdAttackAll() {
+    for (const e of this.entities) {
+      if (e.dead || e.team !== TEAM.BLUE) continue;
+      const ai = this.aiControllers.find(a => a.e === e);
+      if (!ai) continue;
+      const reds = this.entities.filter(en => !en.dead && en.team === TEAM.RED);
+      if (reds.length) {
+        const nearest = reds.reduce((a, b) =>
+          Math.hypot(b.x - e.x, b.y - e.y) < Math.hypot(a.x - e.x, a.y - e.y) ? b : a
+        );
+        e.target = nearest;
+        ai._moveTo(e, nearest.x, nearest.y, this.map);
+      }
+    }
+    this.tacticLog.add(TEAM.BLUE, 'Alle Einheiten: Angriff!');
+  }
+
+  cmdRetreat() {
+    for (const e of this.entities) {
+      if (e.dead || e.team !== TEAM.BLUE) continue;
+      const ai = this.aiControllers.find(a => a.e === e);
+      if (ai) ai._moveTo(e, this.castles[TEAM.BLUE].x, this.castles[TEAM.BLUE].y, this.map);
+      e.target = null;
+    }
+    this.tacticLog.add(TEAM.BLUE, 'Rückzug zur Burg!');
   }
 
   restart() {
