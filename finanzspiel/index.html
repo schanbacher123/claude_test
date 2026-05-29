@@ -94,9 +94,11 @@ const pickFrom = (arr, not) => { const o = arr.filter(x => x !== not); return o[
 
 /* Abgeleitete Finanzkennzahlen (rein, ohne Seiteneffekt) */
 function derive(s){
+  const reUnits = s.reLots ? s.reLots.length : 0;
+  const reLoans = s.reLots ? s.reLots.reduce((a, l) => a + l.loan, 0) : 0;
   const stocksVal = s.stockUnits * s.stockPrice;
-  const reVal = s.realEstateUnits * s.realEstatePrice;
-  const rentIncome = s.realEstateUnits * RENT_PER_UNIT;
+  const reVal = reUnits * s.realEstatePrice;
+  const rentIncome = reUnits * RENT_PER_UNIT;
   const dividendIncome = stocksVal * (s.dividendYield / 100);
   const totalIncome = s.salary + rentIncome + dividendIncome;
   const interestExpenses = s.loans * (s.interestRate / 100);
@@ -104,7 +106,7 @@ function derive(s){
   const totalExpenses = s.basisExpenses + childCosts + s.lifestyleSpend + interestExpenses;
   const netCashflow = totalIncome - totalExpenses;
   const netWorth = (s.cash + stocksVal + reVal) - s.loans;
-  return { stocksVal, reVal, rentIncome, dividendIncome, totalIncome, interestExpenses, childCosts, totalExpenses, netCashflow, netWorth };
+  return { reUnits, reLoans, stocksVal, reVal, rentIncome, dividendIncome, totalIncome, interestExpenses, childCosts, totalExpenses, netCashflow, netWorth };
 }
 
 /* ---------- i18n: Wörterbuch DE / EN (inkl. Log-Texte unter L) ---------- */
@@ -130,7 +132,7 @@ const T = {
       stocks: 'Marktwert = Anzahl × Kurs. Kurs schwankt jährlich −15 % bis +20 %. Keine Transaktionskosten. Dividende 1–5 % p. a. auf den Marktwert. Höheres Risiko, höhere Renditechance als Immobilien.',
       realEstate: 'Marktwert = Anzahl × Kurs (= Verkaufswert). Kurs schwankt −8 % bis +12 % p. a. Mietrendite 15.000 €/Wohnung/Jahr. Kaufpreis liegt immer 6 % über dem Kurs (Grunderwerbsteuer, Notar, Makler). 90 % Fremdfinanzierung möglich – Hebel verstärkt Gewinne wie Verluste.',
       reBuyFee: '6 % Kaufnebenkosten: ca. 3,5 % Grunderwerbsteuer + 1,5 % Notar/Grundbuch + 1 % Makler. Die angezeigte Anzahlung (10 %) basiert auf dem Gesamtpreis inkl. Nebenkosten. Beim Verkauf erhältst du den aktuellen Marktpreis ohne Abzüge.',
-      loans: 'Summe aller Hypothekenkredite. Entstehen beim Kauf von Immobilien (90 % des Kaufpreises inkl. 6 % Nebenkosten). Werden beim Verkauf anteilig getilgt. Zinsaufwand: Leitzins × Schulden.',
+      loans: 'Summe aller Schulden (BAföG + Hypotheken). Hypotheken entstehen beim Immobilienkauf (90 % des Kaufpreises inkl. 6 % Nebenkosten). Jede Wohnung führt ihren eigenen Kredit – beim Verkauf wird exakt dieser getilgt (FIFO). Zinsaufwand: Leitzins × Schulden.',
       equity: 'Eigenkapital = Aktiva (Cash + Aktien + Immobilien) minus Verbindlichkeiten (Hypotheken). Eigenkapital < 0 = Privatinsolvenz. Ein wachsendes Eigenkapital zeigt nachhaltigen Vermögensaufbau.',
     },
     actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +10 % Gehalt · 15 %: Kündigung – immer neuer Titel', jobChangedThisYear: 'Dieses Jahr schon gewechselt',
@@ -200,7 +202,7 @@ const T = {
       stocks: 'Market value = count × price. Price fluctuates −15% to +20% per year. No transaction costs. Dividend yield 1–5% p.a. on market value. Higher risk, higher return potential than real estate.',
       realEstate: 'Market value = count × price (= sell value). Price fluctuates −8% to +12% p.a. Rental yield €15,000/apartment/year. Buy price is always 6% above market (transfer tax, notary, agent). 90% leverage available – amplifies gains and losses.',
       reBuyFee: '6% transaction costs: ~3.5% transfer tax + 1.5% notary/land register + 1% agent. The shown down payment (10%) is based on the total price incl. costs. When selling, you receive the current market price with no deductions.',
-      loans: 'Sum of all mortgage loans. Created when buying property (90% of purchase price incl. 6% costs). Repaid proportionally when selling. Interest: current rate × outstanding balance.',
+      loans: 'Sum of all debt (student loan + mortgages). Mortgages arise when buying property (90% of purchase price incl. 6% costs). Each apartment carries its own loan – on sale exactly that loan is repaid (FIFO). Interest: current rate × outstanding balance.',
       equity: 'Equity = Assets (cash + stocks + real estate) minus liabilities (mortgages). Equity < 0 = bankruptcy. Growing equity signals sustainable wealth building.',
     },
     actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +10% salary · 15%: layoff – always a new title', jobChangedThisYear: 'Already changed this year',
@@ -264,7 +266,7 @@ function initialState(){
     basisExpenses: 30000, childCosts: 0,
     inflation: 2, interestRate: 3,
     stockPrice: 5000, realEstatePrice: 250000,
-    stockUnits: 0, realEstateUnits: 0,
+    stockUnits: 0, reLots: [],
     dividendYield: 3,
     joy: 50, joyFloor: 0,
     lifestyleSpend: 0,
@@ -669,30 +671,37 @@ function App(){
   const buyRealEstate = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
     const L = T[p.lang].L;
-    const fullPrice = n * p.realEstatePrice * RE_BUY_FACTOR;
-    const down = fullPrice * 0.1;
-    const loan = fullPrice * 0.9;
+    // Pro Wohnung wird ein eigenes "Lot" mit eigenem Kredit geführt.
+    const unitPrice = p.realEstatePrice * RE_BUY_FACTOR; // Kaufpreis inkl. 6 % Nebenkosten
+    const loanPerUnit = unitPrice * 0.9;
+    const down = n * unitPrice * 0.1;
+    const loan = n * loanPerUnit;
     if (p.cash < down) return { ...p, log: addLog(p.log, p.age, L.reReject(down), 'bad') };
+    const newLots = [...p.reLots];
+    for (let i = 0; i < n; i++) newLots.push({ loan: loanPerUnit });
     return {
       ...p,
       cash: p.cash - down,
-      realEstateUnits: p.realEstateUnits + n,
+      reLots: newLots,
       loans: p.loans + loan,
       log: addLog(p.log, p.age, L.reBuy(n, down, loan, RENT_PER_UNIT * n), 'good'),
     };
   });
 
   const sellRealEstate = (n) => setS(p => {
-    if (p.gameState !== 'running' || p.realEstateUnits <= 0) return p;
+    if (p.gameState !== 'running' || p.reLots.length <= 0) return p;
     const L = T[p.lang].L;
-    const units = Math.min(n, p.realEstateUnits);
-    const proceeds = units * p.realEstatePrice;
-    const repay = (p.loans / p.realEstateUnits) * units;
+    const units = Math.min(n, p.reLots.length);
+    const proceeds = units * p.realEstatePrice; // reiner Marktpreis, keine Abzüge
+    // FIFO: die zuerst gekauften Wohnungen werden verkauft; exakt deren Kredit wird getilgt
+    const sold = p.reLots.slice(0, units);
+    const remaining = p.reLots.slice(units);
+    const repay = sold.reduce((a, l) => a + l.loan, 0);
     return {
       ...p,
       cash: p.cash + proceeds - repay,
       loans: p.loans - repay,
-      realEstateUnits: p.realEstateUnits - units,
+      reLots: remaining,
       log: addLog(p.log, p.age, L.reSell(units, proceeds, repay), 'good'),
     };
   });
@@ -825,7 +834,7 @@ function App(){
                   info={t.info.cash} />
                 <TRow label={`${t.stocks} (${s.stockUnits}×)`} value={d.stocksVal}
                   colorClass="text-teal-300" info={t.info.stocks} />
-                <TRow label={`${t.realEstate} (${s.realEstateUnits}×)`} value={d.reVal}
+                <TRow label={`${t.realEstate} (${d.reUnits}×)`} value={d.reVal}
                   colorClass="text-violet-300" info={t.info.realEstate} />
               </div>
               {/* Passiva */}
@@ -874,13 +883,13 @@ function App(){
             <TradeCard icon="Building2" accent="violet" title={t.buyApartments}
               priceLabel={t.priceLabel} price={s.realEstatePrice}
               buyPrice={s.realEstatePrice * RE_BUY_FACTOR}
-              owned={s.realEstateUnits} ownedLabel={t.owned}
+              owned={d.reUnits} ownedLabel={t.owned}
               qty={s.realEstateQty} setQty={setRealEstateQty} qtyLabel={t.quantity}
               onBuy={buyRealEstate} onSell={sellRealEstate}
               buyTotal={s.realEstateQty * s.realEstatePrice * RE_BUY_FACTOR * 0.1}
-              sellTotal={Math.min(s.realEstateQty, s.realEstateUnits) * s.realEstatePrice - (s.realEstateUnits > 0 ? (s.loans / s.realEstateUnits) * Math.min(s.realEstateQty, s.realEstateUnits) : 0)}
+              sellTotal={(() => { const u = Math.min(s.realEstateQty, d.reUnits); return u * s.realEstatePrice - s.reLots.slice(0, u).reduce((a, l) => a + l.loan, 0); })()}
               canBuy={!busy && s.cash >= s.realEstateQty * s.realEstatePrice * RE_BUY_FACTOR * 0.1}
-              canSell={!busy && s.realEstateUnits > 0}
+              canSell={!busy && d.reUnits > 0}
               busy={busy} buyLabel={t.buy} sellLabel={t.sell}
               reBuyInfo={t.info.reBuyFee} />
           </div>
