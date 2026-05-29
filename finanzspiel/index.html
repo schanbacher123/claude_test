@@ -87,6 +87,7 @@ const fmt = (n) => CUR_LANG === 'en'
 const pct = (n) => n.toLocaleString(CUR_LANG === 'en' ? 'en-US' : 'de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
 
 const RENT_PER_UNIT = 15000;
+const RE_BUY_FACTOR = 1.06; // 6 % Kaufnebenkosten (Grunderwerbsteuer, Notar, Makler)
 const JOB_TITLES = ['Marketing Manager', 'CFO', 'Data Analyst', 'Software Engineer', 'Product Manager', 'Sales Director', 'UX Designer', 'Management Consultant', 'Financial Controller', 'Investment Analyst', 'Operations Lead', 'HR Manager'];
 const FOUNDER_TITLES = ['Founder', 'Startup-CEO', 'Freelancer', 'Solo-Entrepreneur'];
 const pickFrom = (arr, not) => { const o = arr.filter(x => x !== not); return o[Math.floor(Math.random() * o.length)] || arr[0]; };
@@ -99,10 +100,11 @@ function derive(s){
   const dividendIncome = stocksVal * (s.dividendYield / 100);
   const totalIncome = s.salary + rentIncome + dividendIncome;
   const interestExpenses = s.loans * (s.interestRate / 100);
-  const totalExpenses = s.basisExpenses + s.lifestyleSpend + interestExpenses;
+  const childCosts = s.childCosts || 0;
+  const totalExpenses = s.basisExpenses + childCosts + s.lifestyleSpend + interestExpenses;
   const netCashflow = totalIncome - totalExpenses;
   const netWorth = (s.cash + stocksVal + reVal) - s.loans;
-  return { stocksVal, reVal, rentIncome, dividendIncome, totalIncome, interestExpenses, totalExpenses, netCashflow, netWorth };
+  return { stocksVal, reVal, rentIncome, dividendIncome, totalIncome, interestExpenses, childCosts, totalExpenses, netCashflow, netWorth };
 }
 
 /* ---------- i18n: Wörterbuch DE / EN (inkl. Log-Texte unter L) ---------- */
@@ -110,9 +112,27 @@ const T = {
   de: {
     subtitle: 'Wirtschafts- & Lebenssimulation',
     age: 'Alter', inflation: 'Inflation', interest: 'Leitzins', joyTop: 'Lebensfreude', jobLabel: 'Position',
-    guv: 'Gewinn & Verlust', salaryLbl: 'Gehalt', rentLbl: 'Mieteinnahmen', dividendLbl: 'Dividenden', fixedCosts: 'Fixkosten',
+    guv: 'Gewinn & Verlust', salaryLbl: 'Gehalt', rentLbl: 'Mieteinnahmen', dividendLbl: 'Dividenden',
+    livingCostsLbl: 'Lebenshaltungskosten', childCostsLbl: 'Kosten Kinder',
     interestExp: 'Zinsaufwand', lifestyleSpending: 'Konsumausgaben', netCashflow: 'Netto-Cashflow',
-    balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Hypotheken', equity: 'Eigenkapital',
+    balance: 'Bilanz', aktivaTitle: 'Aktiva', passivaTitle: 'Passiva',
+    cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Hypotheken', equity: 'Eigenkapital',
+    info: {
+      salary: 'Dein Jahresgehalt. Wächst automatisch mit 2 % Inflationsausgleich. Jobwechsel: 85 % Chance +10 %, 15 % Risiko auf Einbuße. Selbstständige haben positiveren, aber volatileren Drift (−30 % bis +50 % p. a.).',
+      rent: 'Feste Mieteinnahme von 15.000 €/Wohnung/Jahr – unabhängig vom Immobilienkurs. Mehr Wohnungen = mehr Mieteinnahmen.',
+      dividend: 'Ausschüttung auf den Marktwert deiner Aktien. Dividendenrendite schwankt jährlich 1–5 %. Berechnung: Aktienwert × Rendite.',
+      livingCosts: 'Grundkosten für Wohnen, Ernährung und Alltag. Starten bei 20.000 € (Ausbildung) oder 30.000 € (Studium). Steigen jährlich mit der Inflation. Heirat erhöht sie um +15 %.',
+      childCosts: 'Laufende Kosten für Kinder (6.000 €/Kind/Jahr), die mit der Inflation steigen. Werden beim Kinderwunsch einmalig hinzugefügt.',
+      interest: 'Zinszahlungen auf Hypothekenschulden. Berechnung: Schulden × Leitzins. Leitzins orientiert sich an der Inflation (typisch 2–9 %).',
+      lifestyle: 'Freiwillige Ausgaben für Lifestyle. Kosten Cashflow, steigern aber die Lebensfreude: 0 € → −5/Jahr, bis 15.000 € → +1/Jahr, über 15.000 € → +5/Jahr.',
+      netCashflow: 'Gesamteinkommen minus Gesamtausgaben pro Jahr. Positiver Cashflow erhöht dein Cash-Guthaben; negativer Cashflow reduziert es. Eigenkapital < 0 = Privatinsolvenz.',
+      cash: 'Dein liquides Geldvermögen. Wird durch den jährlichen Cashflow sowie Kauf- und Verkaufsaktionen verändert.',
+      stocks: 'Marktwert = Anzahl × Kurs. Kurs schwankt jährlich −15 % bis +20 %. Keine Transaktionskosten. Dividende 1–5 % p. a. auf den Marktwert. Höheres Risiko, höhere Renditechance als Immobilien.',
+      realEstate: 'Marktwert = Anzahl × Kurs (= Verkaufswert). Kurs schwankt −8 % bis +12 % p. a. Mietrendite 15.000 €/Wohnung/Jahr. Kaufpreis liegt immer 6 % über dem Kurs (Grunderwerbsteuer, Notar, Makler). 90 % Fremdfinanzierung möglich – Hebel verstärkt Gewinne wie Verluste.',
+      reBuyFee: '6 % Kaufnebenkosten: ca. 3,5 % Grunderwerbsteuer + 1,5 % Notar/Grundbuch + 1 % Makler. Die angezeigte Anzahlung (10 %) basiert auf dem Gesamtpreis inkl. Nebenkosten. Beim Verkauf erhältst du den aktuellen Marktpreis ohne Abzüge.',
+      loans: 'Summe aller Hypothekenkredite. Entstehen beim Kauf von Immobilien (90 % des Kaufpreises inkl. 6 % Nebenkosten). Werden beim Verkauf anteilig getilgt. Zinsaufwand: Leitzins × Schulden.',
+      equity: 'Eigenkapital = Aktiva (Cash + Aktien + Immobilien) minus Verbindlichkeiten (Hypotheken). Eigenkapital < 0 = Privatinsolvenz. Ein wachsendes Eigenkapital zeigt nachhaltigen Vermögensaufbau.',
+    },
     actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +10 % Gehalt · 15 %: Kündigung – immer neuer Titel', jobChangedThisYear: 'Dieses Jahr schon gewechselt',
     selfEmployed: 'Selbstständig machen', selfEmployedSub: 'Gleiches Gehalt, danach positiverer aber volatiler Drift', selfEmployedOn: 'Bereits selbstständig',
     buyStocks: 'Aktien', buyApartments: 'Immobilien',
@@ -162,9 +182,27 @@ const T = {
   en: {
     subtitle: 'Economy & life simulation',
     age: 'Age', inflation: 'Inflation', interest: 'Interest rate', joyTop: 'Joy', jobLabel: 'Position',
-    guv: 'Income statement', salaryLbl: 'Salary', rentLbl: 'Rental income', dividendLbl: 'Dividends', fixedCosts: 'Fixed costs',
+    guv: 'Income statement', salaryLbl: 'Salary', rentLbl: 'Rental income', dividendLbl: 'Dividends',
+    livingCostsLbl: 'Living costs', childCostsLbl: 'Child costs',
     interestExp: 'Interest expense', lifestyleSpending: 'Lifestyle spending', netCashflow: 'Net cashflow',
-    balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Mortgages', equity: 'Equity',
+    balance: 'Balance sheet', aktivaTitle: 'Assets', passivaTitle: 'Liabilities & Equity',
+    cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Mortgages', equity: 'Equity',
+    info: {
+      salary: 'Your annual salary. Grows by 2% inflation adjustment automatically. Job change: 85% chance +10%, 15% risk of pay cut. Self-employed have a higher but more volatile drift (−30% to +50% per year).',
+      rent: 'Fixed rental income of €15,000 per apartment per year – independent of the property price. More apartments = more rental income.',
+      dividend: 'Annual payout on the market value of your stocks. Dividend yield fluctuates 1–5% per year. Calculation: stock value × yield.',
+      livingCosts: 'Basic costs for housing, food, and everyday life. Start at €20,000 (apprenticeship) or €30,000 (university). Rise with inflation each year. Marriage raises them by +15%.',
+      childCosts: 'Ongoing costs per child (€6,000/year), rising with inflation. Added when you choose to have children.',
+      interest: 'Interest payments on mortgage debt. Calculation: debt × interest rate. The rate follows inflation (typically 2–9%).',
+      lifestyle: 'Voluntary lifestyle spending. Costs cashflow but raises joy: €0 → −5/year, up to €15k → +1/year, above €15k → +5/year.',
+      netCashflow: 'Total income minus total expenses per year. Positive cashflow adds to cash; negative reduces it. Equity < 0 = bankruptcy.',
+      cash: 'Your liquid cash balance. Changed by annual cashflow, stock trades, and property transactions.',
+      stocks: 'Market value = count × price. Price fluctuates −15% to +20% per year. No transaction costs. Dividend yield 1–5% p.a. on market value. Higher risk, higher return potential than real estate.',
+      realEstate: 'Market value = count × price (= sell value). Price fluctuates −8% to +12% p.a. Rental yield €15,000/apartment/year. Buy price is always 6% above market (transfer tax, notary, agent). 90% leverage available – amplifies gains and losses.',
+      reBuyFee: '6% transaction costs: ~3.5% transfer tax + 1.5% notary/land register + 1% agent. The shown down payment (10%) is based on the total price incl. costs. When selling, you receive the current market price with no deductions.',
+      loans: 'Sum of all mortgage loans. Created when buying property (90% of purchase price incl. 6% costs). Repaid proportionally when selling. Interest: current rate × outstanding balance.',
+      equity: 'Equity = Assets (cash + stocks + real estate) minus liabilities (mortgages). Equity < 0 = bankruptcy. Growing equity signals sustainable wealth building.',
+    },
     actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +10% salary · 15%: layoff – always a new title', jobChangedThisYear: 'Already changed this year',
     selfEmployed: 'Go self-employed', selfEmployedSub: 'Same income, then a higher but volatile drift', selfEmployedOn: 'Already self-employed',
     buyStocks: 'Stocks', buyApartments: 'Real estate',
@@ -223,7 +261,7 @@ function initialState(){
     loans: 0,
     salary: 0,
     jobTitle: '', selfEmployed: false, lastJobChangeAge: -1,
-    basisExpenses: 30000,
+    basisExpenses: 30000, childCosts: 0,
     inflation: 2, interestRate: 3,
     stockPrice: 5000, realEstatePrice: 250000,
     stockUnits: 0, realEstateUnits: 0,
@@ -253,6 +291,7 @@ function advanceYear(prev){
   const newInflation = rand(1, 6);
   const newInterest = newInflation + rand(0, 3);
   const newBasis = prev.basisExpenses * (1 + newInflation / 100);
+  const newChildCosts = (prev.childCosts || 0) * (1 + newInflation / 100);
   // Angestellt: stetiger Inflationsausgleich. Selbstständig: höher, aber volatil.
   const newSalary = prev.selfEmployed
     ? Math.max(0, prev.salary * (1 + rand(-30, 50) / 100))
@@ -289,6 +328,7 @@ function advanceYear(prev){
     inflation: newInflation,
     interestRate: newInterest,
     basisExpenses: newBasis,
+    childCosts: newChildCosts,
     salary: newSalary,
     cash: newCash,
     stockPrice: newStockPrice,
@@ -359,17 +399,29 @@ function Bar({ value, max = 100 }){
   );
 }
 
-/* Grafischer Balken für GuV / Bilanz */
-function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon, sign = '' }){
+/* Grafischer Balken für GuV – mit optionaler Info-Box */
+function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon, sign = '', info }){
+  const [open, setOpen] = useState(false);
   const w = max > 0 ? clamp((Math.abs(value) / max) * 100, 0, 100) : 0;
   return (
     <div className="mb-2.5">
       <div className="mb-1 flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1.5 text-slate-400">
-          {icon && <Icon name={icon} size={13} className="text-slate-500" />}{label}
+        <span className="flex items-center gap-1 text-slate-400">
+          {icon && <Icon name={icon} size={13} className="text-slate-500" />}
+          <span>{label}</span>
+          {info && (
+            <button onClick={() => setOpen(o => !o)}
+              className="ml-0.5 shrink-0 text-[10px] leading-none text-slate-600 hover:text-sky-400 transition select-none">ⓘ</button>
+          )}
         </span>
         <span className={`tabular-nums font-semibold ${valClass}`}>{sign}{fmt(Math.abs(value))}</span>
       </div>
+      {open && info && (
+        <div className="mb-1.5 flex items-start gap-1.5 rounded-lg border border-sky-800/50 bg-slate-900/90 px-2.5 py-2 text-[11px] text-slate-300 leading-relaxed">
+          <span className="flex-1">{info}</span>
+          <button onClick={() => setOpen(false)} className="shrink-0 text-slate-500 hover:text-slate-300 leading-none mt-0.5">×</button>
+        </div>
+      )}
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-800">
         <div className={`h-full ${barClass} transition-all duration-500`} style={{ width: w + '%' }} />
       </div>
@@ -377,9 +429,63 @@ function FinBar({ label, value, max, barClass, valClass = 'text-slate-200', icon
   );
 }
 
+/* Zeile für Aktiva/Passiva T-Konto */
+function TRow({ label, value, colorClass, sign, info, dimmed }){
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`px-3 py-2 ${dimmed ? 'opacity-40' : ''}`}>
+      <div className="flex items-center justify-between gap-1 min-w-0">
+        <span className="flex items-center gap-1 text-xs text-slate-400 min-w-0 truncate">
+          <span className="truncate">{label}</span>
+          {info && (
+            <button onClick={() => setOpen(o => !o)}
+              className="shrink-0 ml-0.5 text-[10px] leading-none text-slate-600 hover:text-sky-400 transition select-none">ⓘ</button>
+          )}
+        </span>
+        <span className={`tabular-nums text-xs font-semibold shrink-0 ${colorClass}`}>{sign || ''}{fmt(Math.abs(value))}</span>
+      </div>
+      {open && info && (
+        <div className="mt-1 flex items-start gap-1.5 rounded-lg border border-sky-800/50 bg-slate-900/90 px-2 py-1.5 text-[11px] text-slate-300 leading-relaxed">
+          <span className="flex-1">{info}</span>
+          <button onClick={() => setOpen(false)} className="shrink-0 text-slate-500 hover:text-slate-300">×</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Zusammenfassungszeile mit optionaler Info (z. B. Netto-Cashflow, Eigenkapital) */
+function NetCashflowRow({ label, value, info }){
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-2 rounded-lg bg-slate-800/60 px-3 py-2">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1 text-sm font-semibold text-slate-300">
+          {label}
+          {info && (
+            <button onClick={() => setOpen(o => !o)}
+              className="text-[11px] leading-none text-slate-600 hover:text-sky-400 transition select-none">ⓘ</button>
+          )}
+        </span>
+        <span className={`text-base font-bold tabular-nums ${value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          {value >= 0 ? '+ ' : '− '}{fmt(Math.abs(value))}
+        </span>
+      </div>
+      {open && info && (
+        <div className="mt-1.5 flex items-start gap-1.5 rounded-lg border border-sky-800/50 bg-slate-900/90 px-2.5 py-2 text-[11px] text-slate-300 leading-relaxed">
+          <span className="flex-1">{info}</span>
+          <button onClick={() => setOpen(false)} className="shrink-0 text-slate-500 hover:text-slate-300">×</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* Handels-Karte: Kurs anzeigen, mit Mengen-Regler kaufen ODER verkaufen */
-function TradeCard({ icon, accent, title, price, priceLabel, owned, ownedLabel, qty, setQty, qtyLabel,
-                    onBuy, onSell, buyTotal, sellTotal, canBuy, canSell, busy, buyLabel, sellLabel }){
+function TradeCard({ icon, accent, title, price, buyPrice, priceLabel, owned, ownedLabel, qty, setQty, qtyLabel,
+                    onBuy, onSell, buyTotal, sellTotal, canBuy, canSell, busy, buyLabel, sellLabel, reBuyInfo }){
+  const [infoOpen, setInfoOpen] = useState(false);
+  const effectiveBuyPrice = buyPrice || price;
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
       <div className="mb-2 flex items-center gap-3">
@@ -387,11 +493,24 @@ function TradeCard({ icon, accent, title, price, priceLabel, owned, ownedLabel, 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <div className="text-sm font-semibold text-slate-100">{title}</div>
-            <div className="text-xs text-slate-400">{priceLabel}: <span className={`tabular-nums font-bold text-${accent}-300`}>{fmt(price)}</span></div>
+            <div className="text-xs text-slate-400 flex items-center gap-1">
+              {priceLabel}: <span className={`tabular-nums font-bold text-${accent}-300`}>{fmt(price)}</span>
+              {buyPrice && <span className="text-slate-600">(Kauf {fmt(buyPrice)})</span>}
+              {reBuyInfo && (
+                <button onClick={() => setInfoOpen(o => !o)}
+                  className="text-[10px] leading-none text-slate-600 hover:text-sky-400 transition select-none">ⓘ</button>
+              )}
+            </div>
           </div>
           <div className="text-xs text-slate-400 leading-tight">{owned}× {ownedLabel}</div>
         </div>
       </div>
+      {infoOpen && reBuyInfo && (
+        <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-sky-800/50 bg-slate-900/90 px-2.5 py-2 text-[11px] text-slate-300 leading-relaxed">
+          <span className="flex-1">{reBuyInfo}</span>
+          <button onClick={() => setInfoOpen(false)} className="shrink-0 text-slate-500 hover:text-slate-300">×</button>
+        </div>
+      )}
       <div className="mb-2 flex items-center gap-2">
         <span className="w-12 text-[10px] uppercase tracking-wide text-slate-500">{qtyLabel}</span>
         <input type="range" min="1" max="10" step="1" value={qty} disabled={busy}
@@ -550,8 +669,9 @@ function App(){
   const buyRealEstate = (n) => setS(p => {
     if (p.gameState !== 'running') return p;
     const L = T[p.lang].L;
-    const down = n * p.realEstatePrice * 0.1;
-    const loan = n * p.realEstatePrice * 0.9;
+    const fullPrice = n * p.realEstatePrice * RE_BUY_FACTOR;
+    const down = fullPrice * 0.1;
+    const loan = fullPrice * 0.9;
     if (p.cash < down) return { ...p, log: addLog(p.log, p.age, L.reReject(down), 'bad') };
     return {
       ...p,
@@ -608,7 +728,7 @@ function App(){
     if (!yes) return { ...p, gameState: 'running', event: null, flags, log: addLog(p.log, p.age, L.noKids(), 'info') };
     const n = p.kidsQty;
     return { ...p, gameState: 'running', event: null, flags,
-      cash: p.cash - 5000 * n, basisExpenses: p.basisExpenses + 6000 * n,
+      cash: p.cash - 5000 * n, childCosts: (p.childCosts || 0) + 6000 * n,
       joyFloor: clamp(p.joyFloor + 15 * n, 0, 100), joy: clamp(p.joy + 15 * n, 0, 100),
       log: addLog(p.log, p.age, L.kids(n, 5000 * n, 6000 * n, Math.min(15 * n, 100)), 'good') };
   });
@@ -673,39 +793,64 @@ function App(){
             const guvMax = Math.max(s.salary, d.rentIncome, d.dividendIncome, d.totalExpenses, 1);
             return (
               <div>
-                <FinBar label={t.salaryLbl} value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " />
-                <FinBar label={t.rentLbl} value={d.rentIncome} max={guvMax} barClass="bg-teal-500" valClass="text-teal-300" icon="Building2" sign="+ " />
-                <FinBar label={t.dividendLbl} value={d.dividendIncome} max={guvMax} barClass="bg-sky-500" valClass="text-sky-300" icon="TrendingUp" sign="+ " />
-                <FinBar label={t.fixedCosts} value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " />
-                <FinBar label={t.interestExp} value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " />
-                <FinBar label={t.lifestyleSpending} value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " />
+                <FinBar label={t.salaryLbl} value={s.salary} max={guvMax} barClass="bg-emerald-500" valClass="text-emerald-400" icon="Banknote" sign="+ " info={t.info.salary} />
+                <FinBar label={t.rentLbl} value={d.rentIncome} max={guvMax} barClass="bg-teal-500" valClass="text-teal-300" icon="Building2" sign="+ " info={t.info.rent} />
+                <FinBar label={t.dividendLbl} value={d.dividendIncome} max={guvMax} barClass="bg-sky-500" valClass="text-sky-300" icon="TrendingUp" sign="+ " info={t.info.dividend} />
+                <FinBar label={t.livingCostsLbl} value={s.basisExpenses} max={guvMax} barClass="bg-rose-500" valClass="text-rose-300" icon="ShoppingBag" sign="− " info={t.info.livingCosts} />
+                {d.childCosts > 0 && <FinBar label={t.childCostsLbl} value={d.childCosts} max={guvMax} barClass="bg-orange-500" valClass="text-orange-300" icon="Baby" sign="− " info={t.info.childCosts} />}
+                <FinBar label={t.interestExp} value={d.interestExpenses} max={guvMax} barClass="bg-amber-500" valClass="text-amber-300" icon="Percent" sign="− " info={t.info.interest} />
+                <FinBar label={t.lifestyleSpending} value={s.lifestyleSpend} max={guvMax} barClass="bg-fuchsia-500" valClass="text-fuchsia-300" icon="Sparkles" sign="− " info={t.info.lifestyle} />
               </div>
             );
           })()}
-          <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
-            <span className="text-sm font-semibold text-slate-300">{t.netCashflow}</span>
-            <span className={`text-base font-bold tabular-nums ${d.netCashflow >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {d.netCashflow >= 0 ? '+ ' : '− '}{fmt(Math.abs(d.netCashflow))}
-            </span>
-          </div>
+          <NetCashflowRow label={t.netCashflow} value={d.netCashflow} info={t.info.netCashflow} />
 
           <h2 className="mb-2 mt-5 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-400">
             <Icon name="Scale" size={16} /> {t.balance}
           </h2>
-          {(() => {
-            const balMax = Math.max(Math.abs(s.cash), d.stocksVal, d.reVal, s.loans, Math.abs(d.netWorth), 1);
-            return (
-              <div>
-                <FinBar label={t.cash} value={s.cash} max={balMax} barClass={s.cash < 0 ? 'bg-rose-500' : 'bg-emerald-500'} valClass={s.cash < 0 ? 'text-rose-300' : 'text-slate-200'} icon="Wallet" sign={s.cash < 0 ? '− ' : ''} />
-                <FinBar label={`${t.stocks} (${s.stockUnits}×)`} value={d.stocksVal} max={balMax} barClass="bg-teal-500" valClass="text-slate-200" icon="TrendingUp" />
-                <FinBar label={`${t.realEstate} (${s.realEstateUnits}×)`} value={d.reVal} max={balMax} barClass="bg-violet-500" valClass="text-slate-200" icon="Building2" />
-                <FinBar label={t.debt} value={s.loans} max={balMax} barClass="bg-rose-500" valClass="text-rose-300" icon="Landmark" sign="− " />
+          {/* T-Konto: Aktiva links, Passiva rechts */}
+          <div className="rounded-xl border border-slate-700 overflow-hidden text-xs">
+            {/* Kopfzeile */}
+            <div className="grid grid-cols-2 divide-x divide-slate-700 bg-slate-800">
+              <div className="px-3 py-1.5 font-bold uppercase tracking-wide text-slate-400">{t.aktivaTitle}</div>
+              <div className="px-3 py-1.5 font-bold uppercase tracking-wide text-slate-400">{t.passivaTitle}</div>
+            </div>
+            {/* Inhalt */}
+            <div className="grid grid-cols-2 divide-x divide-slate-700">
+              {/* Aktiva */}
+              <div className="divide-y divide-slate-800/80">
+                <TRow label={t.cash} value={s.cash}
+                  colorClass={s.cash < 0 ? 'text-rose-300' : 'text-emerald-400'}
+                  sign={s.cash < 0 ? '− ' : ''}
+                  info={t.info.cash} />
+                <TRow label={`${t.stocks} (${s.stockUnits}×)`} value={d.stocksVal}
+                  colorClass="text-teal-300" info={t.info.stocks} />
+                <TRow label={`${t.realEstate} (${s.realEstateUnits}×)`} value={d.reVal}
+                  colorClass="text-violet-300" info={t.info.realEstate} />
               </div>
-            );
-          })()}
-          <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-800/60 px-3 py-2">
-            <span className="text-sm font-semibold text-slate-300">{t.equity}</span>
-            <span className={`text-base font-bold tabular-nums ${d.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{fmt(d.netWorth)}</span>
+              {/* Passiva */}
+              <div className="divide-y divide-slate-800/80">
+                <TRow label={t.debt} value={s.loans}
+                  colorClass="text-rose-300" sign="− "
+                  info={t.info.loans} />
+                <TRow label={t.equity} value={d.netWorth}
+                  colorClass={d.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}
+                  sign={d.netWorth < 0 ? '− ' : ''}
+                  info={t.info.equity} />
+                <div className="px-3 py-2 opacity-0 select-none"><span className="text-xs">—</span></div>
+              </div>
+            </div>
+            {/* Summenzeile */}
+            <div className="grid grid-cols-2 divide-x divide-slate-600 border-t border-slate-600 bg-slate-800/60">
+              <div className="px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">Σ {t.aktivaTitle}</div>
+                <div className="tabular-nums font-bold text-slate-200">{fmt(s.cash + d.stocksVal + d.reVal)}</div>
+              </div>
+              <div className="px-3 py-2">
+                <div className="text-[10px] uppercase tracking-wide text-slate-500">Σ {t.passivaTitle}</div>
+                <div className="tabular-nums font-bold text-slate-200">{fmt(s.loans + d.netWorth)}</div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -727,13 +872,17 @@ function App(){
               canBuy={!busy && s.cash >= s.stockQty * s.stockPrice} canSell={!busy && s.stockUnits > 0}
               busy={busy} buyLabel={t.buy} sellLabel={t.sell} />
             <TradeCard icon="Building2" accent="violet" title={t.buyApartments}
-              priceLabel={t.priceLabel} price={s.realEstatePrice} owned={s.realEstateUnits} ownedLabel={t.owned}
+              priceLabel={t.priceLabel} price={s.realEstatePrice}
+              buyPrice={s.realEstatePrice * RE_BUY_FACTOR}
+              owned={s.realEstateUnits} ownedLabel={t.owned}
               qty={s.realEstateQty} setQty={setRealEstateQty} qtyLabel={t.quantity}
               onBuy={buyRealEstate} onSell={sellRealEstate}
-              buyTotal={s.realEstateQty * s.realEstatePrice * 0.1}
+              buyTotal={s.realEstateQty * s.realEstatePrice * RE_BUY_FACTOR * 0.1}
               sellTotal={Math.min(s.realEstateQty, s.realEstateUnits) * s.realEstatePrice - (s.realEstateUnits > 0 ? (s.loans / s.realEstateUnits) * Math.min(s.realEstateQty, s.realEstateUnits) : 0)}
-              canBuy={!busy && s.cash >= s.realEstateQty * s.realEstatePrice * 0.1} canSell={!busy && s.realEstateUnits > 0}
-              busy={busy} buyLabel={t.buy} sellLabel={t.sell} />
+              canBuy={!busy && s.cash >= s.realEstateQty * s.realEstatePrice * RE_BUY_FACTOR * 0.1}
+              canSell={!busy && s.realEstateUnits > 0}
+              busy={busy} buyLabel={t.buy} sellLabel={t.sell}
+              reBuyInfo={t.info.reBuyFee} />
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
