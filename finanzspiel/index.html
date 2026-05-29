@@ -113,8 +113,8 @@ const T = {
     guv: 'Gewinn & Verlust', salaryLbl: 'Gehalt', rentLbl: 'Mieteinnahmen', dividendLbl: 'Dividenden', fixedCosts: 'Fixkosten',
     interestExp: 'Zinsaufwand', lifestyleSpending: 'Konsumausgaben', netCashflow: 'Netto-Cashflow',
     balance: 'Bilanz', cash: 'Cash', stocks: 'Aktien', realEstate: 'Immobilien', debt: 'Hypotheken', equity: 'Eigenkapital',
-    actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +25 % Gehalt · 15 %: Kündigung – immer neuer Titel',
-    selfEmployed: 'Selbstständig machen', selfEmployedSub: '+50 % Einkommen, danach stark schwankend', selfEmployedOn: 'Bereits selbstständig',
+    actions: 'Aktionen', changeJob: 'Job wechseln', changeJobSub: '85 %: +10 % Gehalt · 15 %: Kündigung – immer neuer Titel', jobChangedThisYear: 'Dieses Jahr schon gewechselt',
+    selfEmployed: 'Selbstständig machen', selfEmployedSub: 'Gleiches Gehalt, danach positiverer aber volatiler Drift', selfEmployedOn: 'Bereits selbstständig',
     buyStocks: 'Aktien', buyApartments: 'Immobilien',
     quantity: 'Menge', priceLabel: 'Kurs', buy: 'Kaufen', sell: 'Verkaufen', owned: 'im Bestand',
     lifestyleTitle: 'Lifestyle / Konsum',
@@ -140,8 +140,8 @@ const T = {
       apprenticeDone: () => 'Ausbildung abgeschlossen – Berufsstart mit 24.000 € Gehalt.',
       universityDone: () => 'Studium abgeschlossen – Berufsstart mit 45.000 € Gehalt, 10.000 € BAföG-Schulden.',
       jobFail: (title, s) => `Rückschlag als ${title} – Gehalt nur noch ${fmt(s)}.`,
-      jobOk: (title, s) => `Neuer Job: ${title} – Gehalt +25 % auf ${fmt(s)}.`,
-      selfStart: (title, s) => `Selbstständig als ${title} – Einkommen ${fmt(s)} (ab jetzt volatil).`,
+      jobOk: (title, s) => `Neuer Job: ${title} – Gehalt +10 % auf ${fmt(s)}.`,
+      selfStart: (title, s) => `Selbstständig als ${title} – Gehalt bleibt ${fmt(s)}, ab jetzt volatil.`,
       dividend: (amt, y) => `Dividende ${fmt(amt)} (${y.toFixed(1)} % Rendite)`,
       stocksBuy: (n, c) => `${n} Aktien für ${fmt(c)} gekauft.`,
       stocksSell: (n, p) => `${n} Aktien für ${fmt(p)} verkauft.`,
@@ -165,8 +165,8 @@ const T = {
     guv: 'Income statement', salaryLbl: 'Salary', rentLbl: 'Rental income', dividendLbl: 'Dividends', fixedCosts: 'Fixed costs',
     interestExp: 'Interest expense', lifestyleSpending: 'Lifestyle spending', netCashflow: 'Net cashflow',
     balance: 'Balance sheet', cash: 'Cash', stocks: 'Stocks', realEstate: 'Real estate', debt: 'Mortgages', equity: 'Equity',
-    actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +25% salary · 15%: layoff – always a new title',
-    selfEmployed: 'Go self-employed', selfEmployedSub: '+50% income, then highly volatile', selfEmployedOn: 'Already self-employed',
+    actions: 'Actions', changeJob: 'Change job', changeJobSub: '85%: +10% salary · 15%: layoff – always a new title', jobChangedThisYear: 'Already changed this year',
+    selfEmployed: 'Go self-employed', selfEmployedSub: 'Same income, then a higher but volatile drift', selfEmployedOn: 'Already self-employed',
     buyStocks: 'Stocks', buyApartments: 'Real estate',
     quantity: 'Quantity', priceLabel: 'Price', buy: 'Buy', sell: 'Sell', owned: 'owned',
     lifestyleTitle: 'Lifestyle / spending',
@@ -192,8 +192,8 @@ const T = {
       apprenticeDone: () => 'Apprenticeship completed – career start with €24,000 salary.',
       universityDone: () => 'University completed – career start with €45,000 salary, €10,000 student debt.',
       jobFail: (title, s) => `Setback as ${title} – salary down to ${fmt(s)}.`,
-      jobOk: (title, s) => `New job: ${title} – salary +25% to ${fmt(s)}.`,
-      selfStart: (title, s) => `Self-employed as ${title} – income ${fmt(s)} (volatile from now on).`,
+      jobOk: (title, s) => `New job: ${title} – salary +10% to ${fmt(s)}.`,
+      selfStart: (title, s) => `Self-employed as ${title} – income stays ${fmt(s)}, volatile from now on.`,
       dividend: (amt, y) => `Dividend ${fmt(amt)} (${y.toFixed(1)}% yield)`,
       stocksBuy: (n, c) => `Bought ${n} shares for ${fmt(c)}.`,
       stocksSell: (n, p) => `Sold ${n} shares for ${fmt(p)}.`,
@@ -222,7 +222,7 @@ function initialState(){
     cash: 0,
     loans: 0,
     salary: 0,
-    jobTitle: '', selfEmployed: false,
+    jobTitle: '', selfEmployed: false, lastJobChangeAge: -1,
     basisExpenses: 30000,
     inflation: 2, interestRate: 3,
     stockPrice: 5000, realEstatePrice: 250000,
@@ -512,23 +512,23 @@ function App(){
 
   /* --- Permanente Aktionen --- */
   const changeJob = () => setS(p => {
-    if (p.gameState !== 'running') return p;
+    if (p.gameState !== 'running' || p.lastJobChangeAge === p.age) return p;
     const L = T[p.lang].L;
     const title = pickFrom(JOB_TITLES, p.jobTitle);
     if (Math.random() < 0.15) {
       const salary = 20000;
-      return { ...p, salary, jobTitle: title, selfEmployed: false, log: addLog(p.log, p.age, L.jobFail(title, salary), 'bad') };
+      return { ...p, salary, jobTitle: title, selfEmployed: false, lastJobChangeAge: p.age, log: addLog(p.log, p.age, L.jobFail(title, salary), 'bad') };
     }
-    const salary = p.salary * 1.25;
-    return { ...p, salary, jobTitle: title, selfEmployed: false, log: addLog(p.log, p.age, L.jobOk(title, salary), 'good') };
+    const salary = p.salary * 1.10;
+    return { ...p, salary, jobTitle: title, selfEmployed: false, lastJobChangeAge: p.age, log: addLog(p.log, p.age, L.jobOk(title, salary), 'good') };
   });
 
   const goSelfEmployed = () => setS(p => {
-    if (p.gameState !== 'running' || p.selfEmployed) return p;
+    if (p.gameState !== 'running' || p.selfEmployed || p.lastJobChangeAge === p.age) return p;
     const L = T[p.lang].L;
     const title = pickFrom(FOUNDER_TITLES, p.jobTitle);
-    const salary = p.salary * 1.5;
-    return { ...p, salary, selfEmployed: true, jobTitle: title, log: addLog(p.log, p.age, L.selfStart(title, salary), 'good') };
+    // Gleiches Gehalt zum Start – nur der jährliche Drift wird volatiler/positiver.
+    return { ...p, selfEmployed: true, jobTitle: title, lastJobChangeAge: p.age, log: addLog(p.log, p.age, L.selfStart(title, p.salary), 'good') };
   });
 
   const buyStocks = (n) => setS(p => {
@@ -715,9 +715,9 @@ function App(){
             <Icon name="Briefcase" size={16} /> {t.actions}
           </h2>
           <div className="space-y-2.5">
-            <ActionButton onClick={changeJob} disabled={busy} icon="Briefcase" accent="sky"
-              title={t.changeJob} subtitle={t.changeJobSub} />
-            <ActionButton onClick={goSelfEmployed} disabled={busy || s.selfEmployed} icon="Sparkles" accent="amber"
+            <ActionButton onClick={changeJob} disabled={busy || s.lastJobChangeAge === s.age} icon="Briefcase" accent="sky"
+              title={t.changeJob} subtitle={s.lastJobChangeAge === s.age ? t.jobChangedThisYear : t.changeJobSub} />
+            <ActionButton onClick={goSelfEmployed} disabled={busy || s.selfEmployed || s.lastJobChangeAge === s.age} icon="Sparkles" accent="amber"
               title={t.selfEmployed} subtitle={s.selfEmployed ? t.selfEmployedOn : t.selfEmployedSub} />
             <TradeCard icon="TrendingUp" accent="emerald" title={t.buyStocks}
               priceLabel={t.priceLabel} price={s.stockPrice} owned={s.stockUnits} ownedLabel={t.owned}
