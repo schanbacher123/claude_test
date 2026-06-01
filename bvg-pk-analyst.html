@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PK-Ausweis-Analyst – BVG-Vorsorge simulieren</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #273449; --border: #334155;
+    --txt: #e2e8f0; --muted: #94a3b8; --dim: #64748b;
+    --accent: #38bdf8; --accent2: #7dd3fc;
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171; --violet: #c084fc;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--txt); min-height: 100vh; line-height: 1.5; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+  .home-link { display: inline-block; margin-bottom: 1rem; font-size: 0.85rem; color: var(--dim); text-decoration: none; }
+  .home-link:hover { color: var(--accent); }
+  header.top { text-align: center; padding: 0.5rem 0 1.5rem; }
+  header.top h1 { font-size: clamp(1.5rem, 4vw, 2.25rem); color: var(--accent2); margin-bottom: 0.4rem; }
+  header.top p { color: var(--muted); font-size: 0.95rem; }
+
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .panel h2 { font-size: 1rem; color: var(--accent2); margin-bottom: 0.9rem; }
+
+  /* mode tabs */
+  .tabs { display: flex; gap: 0.4rem; background: var(--bg3); padding: 0.3rem; border-radius: 10px; margin-bottom: 1.1rem; }
+  .tabs button { flex: 1; background: transparent; border: none; color: var(--muted); padding: 0.55rem; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-family: inherit; font-weight: 600; }
+  .tabs button.active { background: var(--accent); color: #08131f; }
+
+  .field { margin-bottom: 0.85rem; }
+  .field > label { display: block; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--dim); font-weight: 600; margin-bottom: 0.3rem; }
+  .field input[type=number], .field input[type=text], .field select {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--txt);
+    border-radius: 8px; padding: 0.55rem 0.65rem; font-size: 0.95rem; font-family: inherit;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .slider-val { float: right; color: var(--accent2); font-weight: 700; text-transform: none; letter-spacing: 0; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin-top: 0.2rem; }
+  .hint { font-size: 0.72rem; color: var(--dim); margin-top: 0.25rem; }
+
+  .upload { border: 1.5px dashed var(--border); border-radius: 10px; padding: 1rem; text-align: center; cursor: pointer; margin-bottom: 1rem; transition: border-color 0.2s, background 0.2s; }
+  .upload:hover { border-color: var(--accent); background: #38bdf80c; }
+  .upload .ic { font-size: 1.8rem; }
+  .upload .t { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+  .upload .s { font-size: 0.72rem; color: var(--dim); margin-top: 0.2rem; }
+  .ocr-status { font-size: 0.8rem; padding: 0.6rem 0.8rem; border-radius: 8px; margin-bottom: 0.9rem; display: none; }
+  .ocr-status.show { display: block; }
+  .ocr-status.work { background: #38bdf81a; color: var(--accent2); }
+  .ocr-status.ok { background: #16a34a1a; color: var(--green); }
+  .ocr-status.err { background: #f871711a; color: var(--red); }
+
+  .btn { width: 100%; background: var(--accent); color: #08131f; border: none; border-radius: 9px; padding: 0.75rem; font-size: 0.95rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn:hover { background: var(--accent2); }
+  .btn.sec { background: var(--bg3); color: var(--muted); margin-top: 0.5rem; }
+  .btn.sec:hover { color: var(--accent); }
+
+  .warn { background: #fbbf241a; color: var(--amber); border-radius: 8px; padding: 0.6rem 0.8rem; font-size: 0.82rem; margin-bottom: 0.9rem; }
+
+  /* results */
+  .results { display: flex; flex-direction: column; gap: 1.25rem; }
+  .placeholder { color: var(--dim); text-align: center; padding: 4rem 1rem; }
+  .placeholder .ic { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
+
+  .headline { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; }
+  .hl { background: var(--bg2); border: 1px solid var(--border); border-radius: 13px; padding: 1.1rem 1.2rem; }
+  .hl .lbl { font-size: 0.74rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.03em; }
+  .hl .big { font-size: 1.75rem; font-weight: 800; color: var(--accent2); margin-top: 0.25rem; line-height: 1.1; }
+  .hl .sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+  .hl.accent { background: linear-gradient(135deg, #0ea5e926, #1e293b); border-color: #0ea5e955; }
+  .hl.partner .big { color: var(--violet); }
+
+  .chartbox { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .chartbox h3 { font-size: 0.95rem; color: var(--accent2); margin-bottom: 0.3rem; }
+  .chartbox .csub { font-size: 0.78rem; color: var(--dim); margin-bottom: 0.9rem; }
+  .chart-wrap { position: relative; height: 320px; }
+  .chart-fallback { font-size: 0.85rem; color: var(--muted); }
+  .chart-fallback table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.8rem; }
+  .chart-fallback td, .chart-fallback th { padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--border); text-align: right; }
+  .chart-fallback th:first-child, .chart-fallback td:first-child { text-align: left; }
+
+  .breakdown { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; }
+  .breakdown h3 { font-size: 0.95rem; color: var(--accent2); margin-bottom: 0.8rem; }
+  .brow { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .brow:last-child { border-bottom: none; }
+  .brow .bk { color: var(--muted); }
+  .brow .bv { color: var(--txt); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  details.exp { background: var(--bg2); border: 1px solid var(--border); border-radius: 11px; overflow: hidden; }
+  details.exp summary { cursor: pointer; padding: 0.85rem 1.1rem; font-weight: 600; color: var(--accent2); list-style: none; font-size: 0.92rem; display: flex; align-items: center; gap: 0.5rem; }
+  details.exp summary::-webkit-details-marker { display: none; }
+  details.exp summary::before { content: '▸'; color: var(--accent); transition: transform 0.2s; }
+  details.exp[open] summary::before { transform: rotate(90deg); }
+  details.exp .ebody { padding: 0 1.1rem 1.1rem; color: var(--muted); font-size: 0.88rem; }
+  details.exp .ebody p { margin-bottom: 0.6rem; }
+  details.exp .ebody b { color: var(--txt); }
+  .explist { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  footer.note { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--dim); }
+  footer.note b { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home-link" href="index.html">← Übersicht</a>
+  <header class="top">
+    <h1>PK-Ausweis-Analyst</h1>
+    <p>Simuliere dein BVG-Vorsorgevermögen, deine Altersrente und die Partnerrente – Stand 2025</p>
+  </header>
+
+  <div class="layout">
+    <!-- ============ INPUT PANEL ============ -->
+    <div class="panel">
+      <div class="tabs">
+        <button id="tabQuick" class="active">Schnellrechner</button>
+        <button id="tabPk">PK-Ausweis</button>
+      </div>
+
+      <!-- Upload (only PK mode) -->
+      <div id="pkUpload" style="display:none">
+        <label class="upload" for="fileInput">
+          <div class="ic">📄</div>
+          <div class="t">PK-Ausweis hochladen (Foto / PDF)</div>
+          <div class="s">Wird im Browser gelesen (OCR) – Werte bitte prüfen</div>
+        </label>
+        <input type="file" id="fileInput" accept="image/*,.pdf" style="display:none">
+        <div class="ocr-status" id="ocrStatus"></div>
+      </div>
+
+      <!-- Common: person -->
+      <div class="row2">
+        <div class="field">
+          <label>Geschlecht</label>
+          <select id="gender">
+            <option value="m">Mann</option>
+            <option value="w">Frau</option>
+            <option value="d">divers</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Aktuelles Alter</label>
+          <input type="number" id="age" min="18" max="70" value="35">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Rücktrittsalter <span class="slider-val" id="retAgeVal">65</span></label>
+        <input type="range" id="retAge" min="58" max="70" step="1" value="65">
+        <div class="hint">Referenzalter BVG = 65 (Frauen Jg. ≤1963 tiefer, Frühpensionierung möglich)</div>
+      </div>
+
+      <!-- Quick-only -->
+      <div id="quickFields">
+        <div class="field">
+          <label>Bruttojahreslohn (CHF)</label>
+          <input type="number" id="salary" min="0" step="1000" value="80000">
+        </div>
+        <div class="field">
+          <label>Beschäftigungsgrad <span class="slider-val" id="pensumVal">100 %</span></label>
+          <input type="range" id="pensum" min="20" max="100" step="5" value="100">
+          <div class="hint">Koordinationsabzug wird auf den Beschäftigungsgrad angepasst</div>
+        </div>
+      </div>
+
+      <!-- PK-only -->
+      <div id="pkFields" style="display:none">
+        <div class="field">
+          <label>Koordinierter / versicherter Lohn (CHF)</label>
+          <input type="number" id="coordSalary" min="0" step="500" value="53540">
+          <div class="hint">Steht auf deinem Ausweis als «versicherter Lohn»</div>
+        </div>
+        <div class="field">
+          <label>Jährliche Altersgutschrift / Sparbeitrag (CHF, optional)</label>
+          <input type="number" id="manualContrib" min="0" step="100" placeholder="leer = aus Alter berechnet">
+          <div class="hint">Summe Arbeitnehmer + Arbeitgeber-Sparbeiträge pro Jahr</div>
+        </div>
+      </div>
+
+      <!-- Common: capital + assumptions -->
+      <div class="field">
+        <label>Aktuelles Altersguthaben (CHF)</label>
+        <input type="number" id="capital" min="0" step="1000" value="120000">
+      </div>
+
+      <div class="field">
+        <label>Erwartete Verzinsung p.a. <span class="slider-val" id="zinsVal">1,25 %</span></label>
+        <input type="range" id="zins" min="0" max="4" step="0.25" value="1.25">
+        <div class="hint">BVG-Mindestzins 2025 = 1,25 %; teilautonome Kassen oft höher</div>
+      </div>
+
+      <div class="field">
+        <label>Umwandlungssatz <span class="slider-val" id="uwsVal">6,80 %</span></label>
+        <input type="range" id="uws" min="4.5" max="6.8" step="0.05" value="6.8">
+        <div class="hint">Gesetzliches BVG-Minimum 6,8 %; viele Kassen umhüllend tiefer (5,0–5,6 %)</div>
+      </div>
+
+      <div class="field">
+        <label>Erwartetes Lohnwachstum p.a. <span class="slider-val" id="growthVal">0,5 %</span></label>
+        <input type="range" id="growth" min="0" max="3" step="0.25" value="0.5">
+      </div>
+
+      <button class="btn" id="calcBtn">Vorsorge simulieren</button>
+    </div>
+
+    <!-- ============ RESULTS ============ -->
+    <div class="results" id="results">
+      <div class="placeholder">
+        <span class="ic">📊</span>
+        Gib deine Daten ein oder lade deinen PK-Ausweis hoch und klicke auf <b>«Vorsorge simulieren»</b>.
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    <p><b>Wichtig:</b> Diese Simulation ist eine vereinfachte Modellrechnung auf Basis der gesetzlichen BVG-Mindestwerte 2025
+    (Koordinationsabzug CHF 26'460, Eintrittsschwelle CHF 22'680, max. koordinierter Lohn CHF 64'260, Altersgutschriften 7/10/15/18 %,
+    Mindestzins 1,25 %, Mindestumwandlungssatz 6,8 %, Partnerrente 60 % der Altersrente). Deine Pensionskasse kann abweichende
+    (oft bessere überobligatorische) Leistungen, einen tieferen umhüllenden Umwandlungssatz und eigene Sparpläne haben.
+    Massgebend ist immer dein effektiver Vorsorgeausweis. Keine Vorsorge- oder Anlageberatung.</p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// ---------- BVG-Parameter 2025 ----------
+const P = {
+  ENTRY: 22680,        // Eintrittsschwelle
+  COORD: 26460,        // Koordinationsabzug
+  MIN_COORD: 3780,     // minimaler koordinierter Lohn
+  MAX_COORD: 64260,    // maximaler koordinierter Lohn
+  MIN_RATE: 1.25,      // Mindestzins
+  MIN_UWS: 6.8,        // Mindestumwandlungssatz
+  PARTNER: 0.60        // Partner-/Ehegattenrente = 60 %
+};
+const $ = s => document.querySelector(s);
+const chf = v => 'CHF ' + Math.round(v).toLocaleString('de-CH');
+const pct = v => v.toLocaleString('de-CH', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' %';
+
+// Altersgutschrift-Satz nach Alter (% des koordinierten Lohns)
+function gutschriftRate(age) {
+  if (age < 25) return 0;
+  if (age <= 34) return 0.07;
+  if (age <= 44) return 0.10;
+  if (age <= 54) return 0.15;
+  return 0.18; // 55–65
+}
+
+// ---------- Modus-Umschaltung ----------
+let mode = 'quick';
+function setMode(m) {
+  mode = m;
+  $('#tabQuick').classList.toggle('active', m === 'quick');
+  $('#tabPk').classList.toggle('active', m === 'pk');
+  $('#quickFields').style.display = m === 'quick' ? 'block' : 'none';
+  $('#pkFields').style.display = m === 'pk' ? 'block' : 'none';
+  $('#pkUpload').style.display = m === 'pk' ? 'block' : 'none';
+}
+$('#tabQuick').onclick = () => setMode('quick');
+$('#tabPk').onclick = () => setMode('pk');
+
+// ---------- Slider-Anzeigen ----------
+const sliders = [
+  ['retAge', '#retAgeVal', v => v],
+  ['pensum', '#pensumVal', v => v + ' %'],
+  ['zins', '#zinsVal', v => pct(parseFloat(v))],
+  ['uws', '#uwsVal', v => pct(parseFloat(v))],
+  ['growth', '#growthVal', v => pct(parseFloat(v))]
+];
+sliders.forEach(([id, sel, fmt]) => {
+  const el = document.getElementById(id);
+  const upd = () => $(sel).textContent = fmt(el.value);
+  el.addEventListener('input', upd); upd();
+});
+
+// ---------- koordinierten Lohn berechnen ----------
+function coordinatedSalary(brutto, pensum) {
+  if (brutto < P.ENTRY) return { coord: 0, insured: false };
+  const abzug = P.COORD * (pensum / 100);
+  let c = brutto - abzug;
+  if (c < P.MIN_COORD) c = P.MIN_COORD;
+  if (c > P.MAX_COORD) c = P.MAX_COORD;
+  return { coord: c, insured: true };
+}
+
+// ---------- Projektion ----------
+function project(opts) {
+  const { startAge, retAge, startCapital, coordStart, growth, zins, manualContrib } = opts;
+  let cap = startCapital;
+  let principal = startCapital; // Summe Einzahlungen inkl. Startguthaben
+  let coord = coordStart;
+  const series = [{ age: startAge, total: cap, contrib: principal, interest: 0 }];
+  let totalGutschrift = 0;
+  for (let age = startAge; age < retAge; age++) {
+    const gutschrift = manualContrib != null ? manualContrib : coord * gutschriftRate(age);
+    const interest = cap * (zins / 100);
+    cap = cap + interest + gutschrift;
+    principal += gutschrift;
+    totalGutschrift += gutschrift;
+    coord = Math.min(coord * (1 + growth / 100), P.MAX_COORD);
+    series.push({ age: age + 1, total: cap, contrib: principal, interest: cap - principal });
+  }
+  return { finalCapital: cap, series, totalGutschrift, interestTotal: cap - startCapital - totalGutschrift };
+}
+
+// ---------- Hauptberechnung ----------
+let chartRef = null;
+function calculate() {
+  const gender = $('#gender').value;
+  const age = parseInt($('#age').value, 10);
+  const retAge = parseInt($('#retAge').value, 10);
+  const capital = parseFloat($('#capital').value) || 0;
+  const zins = parseFloat($('#zins').value);
+  const uws = parseFloat($('#uws').value);
+  const growth = parseFloat($('#growth').value);
+
+  let coordStart, manualContrib = null, insuredWarn = '';
+  if (mode === 'quick') {
+    const brutto = parseFloat($('#salary').value) || 0;
+    const pensum = parseFloat($('#pensum').value);
+    const r = coordinatedSalary(brutto, pensum);
+    coordStart = r.coord;
+    if (!r.insured) insuredWarn = `Bei einem Lohn unter der Eintrittsschwelle von ${chf(P.ENTRY)} besteht keine obligatorische BVG-Pflicht. Die Rechnung zeigt das Minimum.`;
+  } else {
+    coordStart = parseFloat($('#coordSalary').value) || 0;
+    const mc = parseFloat($('#manualContrib').value);
+    if (!isNaN(mc) && mc > 0) manualContrib = mc;
+  }
+
+  if (age >= retAge) {
+    renderError('Das aktuelle Alter liegt bereits beim oder über dem Rücktrittsalter. Bitte anpassen.');
+    return;
+  }
+
+  const proj = project({ startAge: age, retAge, startCapital: capital, coordStart, growth, zins, manualContrib });
+  const yearsToRet = retAge - age;
+  const firstGutschrift = manualContrib != null ? manualContrib : coordStart * gutschriftRate(age);
+
+  const annualPension = proj.finalCapital * (uws / 100);
+  const monthlyPension = annualPension / 12;
+  const annualPartner = annualPension * P.PARTNER;
+  const monthlyPartner = annualPartner / 12;
+
+  render({
+    proj, yearsToRet, retAge, age, coordStart, uws, zins,
+    firstGutschrift, annualPension, monthlyPension, annualPartner, monthlyPartner,
+    manualContrib, insuredWarn
+  });
+}
+
+function renderError(msg) {
+  $('#results').innerHTML = `<div class="warn" style="display:block">${msg}</div>`;
+}
+
+// ---------- Rendering ----------
+function render(r) {
+  const html = `
+    ${r.insuredWarn ? `<div class="warn">${r.insuredWarn}</div>` : ''}
+    <div class="headline">
+      <div class="hl accent">
+        <div class="lbl">Vorsorgevermögen mit ${r.retAge}</div>
+        <div class="big">${chf(r.proj.finalCapital)}</div>
+        <div class="sub">in ${r.yearsToRet} Jahren · davon ${chf(r.proj.interestTotal)} Zins</div>
+      </div>
+      <div class="hl">
+        <div class="lbl">Altersrente</div>
+        <div class="big">${chf(r.monthlyPension)}<span style="font-size:1rem;color:var(--muted)"> /Mt.</span></div>
+        <div class="sub">${chf(r.annualPension)} pro Jahr · UWS ${pct(r.uws)}</div>
+      </div>
+      <div class="hl partner">
+        <div class="lbl">Partner-/Ehegattenrente</div>
+        <div class="big">${chf(r.monthlyPartner)}<span style="font-size:1rem;color:var(--muted)"> /Mt.</span></div>
+        <div class="sub">${chf(r.annualPartner)} pro Jahr · 60 % der Altersrente</div>
+      </div>
+    </div>
+
+    <div class="chartbox">
+      <h3>Wachstum deines Vorsorgevermögens</h3>
+      <div class="csub">Aufgeteilt nach einbezahlten Sparbeiträgen und gutgeschriebenem Zins (Zinseszins)</div>
+      <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+      <div id="chartFallback"></div>
+    </div>
+
+    <div class="breakdown">
+      <h3>So setzt sich die Rechnung zusammen</h3>
+      <div class="brow"><span class="bk">Koordinierter (versicherter) Lohn</span><span class="bv">${chf(r.coordStart)}</span></div>
+      <div class="brow"><span class="bk">Jährliche Altersgutschrift ${r.manualContrib!=null?'(eingegeben)':'(aktueller Satz '+(gutschriftRate(r.age)*100)+' %)'}</span><span class="bv">${chf(r.firstGutschrift)}</span></div>
+      <div class="brow"><span class="bk">Jahre bis zur Pensionierung</span><span class="bv">${r.yearsToRet}</span></div>
+      <div class="brow"><span class="bk">Einbezahlte Sparbeiträge total</span><span class="bv">${chf(r.proj.totalGutschrift)}</span></div>
+      <div class="brow"><span class="bk">Zinsgutschriften total (${pct(r.zins)} p.a.)</span><span class="bv">${chf(r.proj.interestTotal)}</span></div>
+      <div class="brow"><span class="bk">Vorsorgevermögen mit ${r.retAge}</span><span class="bv">${chf(r.proj.finalCapital)}</span></div>
+      <div class="brow"><span class="bk">Altersrente pro Jahr (× UWS ${pct(r.uws)})</span><span class="bv">${chf(r.annualPension)}</span></div>
+      <div class="brow"><span class="bk">Partnerrente pro Jahr (60 %)</span><span class="bv">${chf(r.annualPartner)}</span></div>
+    </div>
+
+    <div class="explist">
+      <details class="exp" open><summary>Wie funktioniert das Schweizer BVG (2. Säule)?</summary>
+        <div class="ebody">
+          <p>Die <b>berufliche Vorsorge (BVG)</b> ist die zweite der drei Säulen der Schweizer Altersvorsorge. Du und dein Arbeitgeber zahlen monatlich in deine Pensionskasse ein. Dieses Geld wird angespart, verzinst und bei der Pensionierung in eine lebenslange Rente (oder Kapital) umgewandelt.</p>
+          <p>Versichert ist nicht dein ganzer Lohn, sondern nur der <b>koordinierte Lohn</b> – der Teil, den die AHV (1. Säule) nicht schon abdeckt.</p>
+        </div>
+      </details>
+
+      <details class="exp"><summary>Koordinierter Lohn – warum nicht der ganze Lohn zählt</summary>
+        <div class="ebody">
+          <p>Vom Bruttolohn wird der <b>Koordinationsabzug</b> (2025: ${chf(P.COORD)}) abgezogen. Übrig bleibt der <b>koordinierte Lohn</b> – die Basis für deine Sparbeiträge.</p>
+          <p>Du musst mindestens ${chf(P.ENTRY)} verdienen (Eintrittsschwelle), um obligatorisch versichert zu sein. Der koordinierte Lohn beträgt minimal ${chf(P.MIN_COORD)} und maximal ${chf(P.MAX_COORD)}. Bei Teilzeit kann der Koordinationsabzug anteilig reduziert werden.</p>
+        </div>
+      </details>
+
+      <details class="exp"><summary>Altersgutschriften – was du jährlich ansparst</summary>
+        <div class="ebody">
+          <p>Jedes Jahr wird ein Prozentsatz deines koordinierten Lohns gutgeschrieben (Arbeitnehmer + Arbeitgeber zusammen). Der Satz steigt mit dem Alter:</p>
+          <p><b>25–34 Jahre:</b> 7 % &nbsp;·&nbsp; <b>35–44:</b> 10 % &nbsp;·&nbsp; <b>45–54:</b> 15 % &nbsp;·&nbsp; <b>55–65:</b> 18 %</p>
+          <p>Dazu kommt jedes Jahr der Zins (BVG-Mindestzins 2025: <b>1,25 %</b>). Über die Jahre wirkt der Zinseszins – im Diagramm der grüne Anteil.</p>
+        </div>
+      </details>
+
+      <details class="exp"><summary>Umwandlungssatz – wie aus Kapital eine Rente wird</summary>
+        <div class="ebody">
+          <p>Bei der Pensionierung wird dein angespartes Vorsorgevermögen mit dem <b>Umwandlungssatz</b> in eine jährliche Rente umgerechnet. Gesetzliches Minimum auf dem obligatorischen Teil: <b>6,8 %</b>.</p>
+          <p>Beispiel: ${chf(100000)} × 6,8 % = ${chf(6800)} Rente pro Jahr. Viele Kassen rechnen auf dem überobligatorischen Teil mit einem tieferen <i>umhüllenden</i> Satz (oft 5,0–5,6 %) – stelle den Regler entsprechend deinem Ausweis ein.</p>
+        </div>
+      </details>
+
+      <details class="exp"><summary>Partner- und Ehegattenrente</summary>
+        <div class="ebody">
+          <p>Stirbt die versicherte Person, erhält der Ehe- oder eingetragene Partner eine <b>Hinterlassenenrente</b>. Das BVG-Minimum beträgt <b>60 % der Altersrente</b> (bzw. der Invalidenrente vor der Pensionierung).</p>
+          <p>Viele Kassen versichern Lebenspartner unter bestimmten Bedingungen (gemeinsamer Haushalt, Begünstigung). Konkubinatspaare sollten dies aktiv anmelden. Für Kinder gibt es zusätzlich Kinder-/Waisenrenten.</p>
+        </div>
+      </details>
+
+      <details class="exp"><summary>Referenzalter &amp; Frühpensionierung</summary>
+        <div class="ebody">
+          <p>Das <b>Referenzalter</b> beträgt für Männer 65 Jahre. Mit der Reform AHV 21 wird das Referenzalter der Frauen schrittweise auf 65 angehoben (Jahrgang 1964 und jünger: 65; Jahrgänge 1961–1963 etwas tiefer).</p>
+          <p>Eine <b>Frühpensionierung</b> (ab meist 58) ist möglich, senkt aber die Rente: weniger Sparjahre und ein tieferer Umwandlungssatz. Ein späterer Rücktritt erhöht die Rente. Stelle den Regler «Rücktrittsalter» entsprechend ein.</p>
+        </div>
+      </details>
+    </div>
+  `;
+  $('#results').innerHTML = html;
+  drawChart(r.proj.series);
+}
+
+function drawChart(series) {
+  const labels = series.map(p => p.age);
+  const contrib = series.map(p => Math.round(p.contrib));
+  const interest = series.map(p => Math.round(p.interest));
+  const canvas = $('#growthChart');
+  if (typeof Chart === 'undefined' || !canvas) {
+    // Fallback-Tabelle, falls Chart.js (CDN) nicht geladen werden konnte
+    if (canvas) canvas.style.display = 'none';
+    const step = Math.max(1, Math.floor(series.length / 8));
+    let rows = '';
+    for (let i = 0; i < series.length; i += step) rows += `<tr><td>${series[i].age}</td><td>${chf(series[i].total)}</td></tr>`;
+    rows += `<tr><td>${series[series.length-1].age}</td><td>${chf(series[series.length-1].total)}</td></tr>`;
+    $('#chartFallback').innerHTML = `<div class="chart-fallback">(Diagramm-Bibliothek nicht verfügbar – Tabelle)<table><tr><th>Alter</th><th>Vermögen</th></tr>${rows}</table></div>`;
+    return;
+  }
+  if (chartRef) chartRef.destroy();
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 320);
+  grad.addColorStop(0, '#38bdf855'); grad.addColorStop(1, '#38bdf80a');
+  chartRef = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Einbezahlte Sparbeiträge', data: contrib, borderColor: '#38bdf8', backgroundColor: grad, fill: 'origin', tension: 0.25, pointRadius: 0, borderWidth: 2 },
+        { label: 'Zins (Zinseszins)', data: interest, borderColor: '#4ade80', backgroundColor: '#4ade8030', fill: '-1', tension: 0.25, pointRadius: 0, borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { stacked: true, grid: { color: '#33415540' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'Alter', color: '#64748b' } },
+        y: { stacked: true, grid: { color: '#33415540' }, ticks: { color: '#94a3b8', callback: v => (v/1000) + 'k' } }
+      },
+      plugins: {
+        legend: { labels: { color: '#e2e8f0', usePointStyle: true, boxWidth: 8 } },
+        tooltip: {
+          callbacks: {
+            label: c => c.dataset.label + ': ' + chf(c.parsed.y),
+            footer: items => 'Total: ' + chf(items.reduce((s, i) => s + i.parsed.y, 0))
+          }
+        }
+      }
+    }
+  });
+}
+
+$('#calcBtn').addEventListener('click', calculate);
+
+// ============ OCR: PK-Ausweis lesen ============
+function setOcr(cls, msg) {
+  const el = $('#ocrStatus');
+  el.className = 'ocr-status show ' + cls;
+  el.innerHTML = msg;
+}
+function parseSwissNumber(str) {
+  if (!str) return null;
+  let s = str.replace(/[’'\s]/g, '').replace(/[^\d.,]/g, '');
+  // tausender vs dezimal: letzte Gruppe mit 1-2 Stellen nach , oder . als Dezimal werten
+  s = s.replace(/,(\d{1,2})$/, '.$1').replace(/,/g, '');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function findAmount(text, labels) {
+  for (const lab of labels) {
+    const re = new RegExp(lab + "[^0-9CHF]{0,30}(?:CHF)?\\s*([0-9][0-9’'.,\\s]{2,})", 'i');
+    const m = text.match(re);
+    if (m) { const v = parseSwissNumber(m[1]); if (v != null && v > 100) return v; }
+  }
+  return null;
+}
+function findPercent(text, labels) {
+  for (const lab of labels) {
+    const re = new RegExp(lab + "[^0-9]{0,25}([0-9](?:[.,][0-9]{1,2})?)\\s*%", 'i');
+    const m = text.match(re);
+    if (m) { const v = parseFloat(m[1].replace(',', '.')); if (v >= 3 && v <= 10) return v; }
+  }
+  return null;
+}
+
+function applyOcr(text) {
+  const norm = text.replace(/ /g, ' ');
+  let filled = [];
+  const coord = findAmount(norm, ['versicherter\\s+Lohn', 'koordinierter\\s+Lohn', 'versicherter\\s+Jahreslohn', 'BVG[- ]?Lohn']);
+  if (coord) { $('#coordSalary').value = Math.round(coord); filled.push('versicherter Lohn'); }
+  const cap = findAmount(norm, ['vorhandenes\\s+Altersguthaben', 'Altersguthaben\\s+per', 'Altersguthaben(?!\\s+im)', 'Sparkapital']);
+  if (cap) { $('#capital').value = Math.round(cap); filled.push('Altersguthaben'); }
+  const uws = findPercent(norm, ['Umwandlungssatz', 'Rentensatz']);
+  if (uws) { const el = $('#uws'); el.value = uws; el.dispatchEvent(new Event('input')); filled.push('Umwandlungssatz'); }
+  const contrib = findAmount(norm, ['Altersgutschrift', 'Sparbeitrag', 'Sparbeitr']);
+  if (contrib && contrib < 50000) { $('#manualContrib').value = Math.round(contrib); filled.push('Altersgutschrift'); }
+
+  if (filled.length) {
+    setOcr('ok', '✓ Erkannt &amp; eingetragen: <b>' + filled.join(', ') + '</b>. Bitte prüfe die Werte und klicke auf «Vorsorge simulieren».');
+  } else {
+    setOcr('err', 'Es konnten keine Werte sicher erkannt werden. Bitte trage die Zahlen von deinem Ausweis manuell ein.');
+  }
+}
+
+let tesseractLoading = null;
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve();
+  if (tesseractLoading) return tesseractLoading;
+  tesseractLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return tesseractLoading;
+}
+let pdfLoading = null;
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (pdfLoading) return pdfLoading;
+  pdfLoading = new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js'; res(); };
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  return pdfLoading;
+}
+
+async function pdfToCanvas(file) {
+  await loadPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  return canvas;
+}
+
+$('#fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    setOcr('work', '⏳ Lese Ausweis … das kann 10–30 Sekunden dauern.');
+    let source = file;
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+      source = await pdfToCanvas(file);
+    }
+    await loadTesseract();
+    const result = await window.Tesseract.recognize(source, 'deu', {
+      logger: m => { if (m.status === 'recognizing text') setOcr('work', '⏳ Texterkennung … ' + Math.round(m.progress * 100) + ' %'); }
+    });
+    applyOcr(result.data.text);
+  } catch (err) {
+    setOcr('err', 'OCR konnte nicht ausgeführt werden (evtl. keine Internetverbindung zum Laden der Bibliothek). Bitte trage die Werte von deinem Ausweis manuell ein.');
+  } finally {
+    e.target.value = '';
+  }
+});
+
+// Initiale Berechnung anzeigen
+setMode('quick');
+calculate();
+</script>
+</body>
+</html>
