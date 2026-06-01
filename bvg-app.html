@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BVG-Stiftungsvergleich – Schweizer Sammel- & Gemeinschaftsstiftungen 2024/2025</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #273449; --border: #334155;
+    --txt: #e2e8f0; --muted: #94a3b8; --dim: #64748b;
+    --accent: #38bdf8; --accent2: #7dd3fc;
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171; --violet: #c084fc;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--txt); min-height: 100vh; line-height: 1.5; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+
+  header.top { text-align: center; padding: 1rem 0 1.5rem; }
+  header.top h1 { font-size: clamp(1.5rem, 4vw, 2.25rem); color: var(--accent2); margin-bottom: 0.4rem; }
+  header.top p { color: var(--muted); font-size: 0.95rem; }
+  .home-link { display: inline-block; margin-bottom: 1rem; font-size: 0.85rem; color: var(--dim); text-decoration: none; }
+  .home-link:hover { color: var(--accent); }
+
+  /* TL;DR box */
+  details.tldr { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; }
+  details.tldr summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 600; color: var(--accent2); list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+  details.tldr summary::-webkit-details-marker { display: none; }
+  details.tldr summary::before { content: '▸'; transition: transform 0.2s; color: var(--accent); }
+  details.tldr[open] summary::before { transform: rotate(90deg); }
+  details.tldr .body { padding: 0 1.25rem 1.25rem; color: var(--muted); font-size: 0.9rem; }
+  details.tldr .body ul { margin: 0.5rem 0 0 1.1rem; }
+  details.tldr .body li { margin-bottom: 0.5rem; }
+
+  /* stats row */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .stat { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+  .stat .v { font-size: 1.4rem; font-weight: 700; color: var(--accent2); }
+  .stat .l { font-size: 0.75rem; color: var(--dim); margin-top: 0.2rem; }
+
+  /* controls */
+  .controls { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; margin-bottom: 1.25rem; display: grid; gap: 0.9rem; }
+  .controls .row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; flex: 1 1 160px; min-width: 140px; }
+  .field label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dim); font-weight: 600; }
+  .field input, .field select { background: var(--bg3); border: 1px solid var(--border); color: var(--txt); border-radius: 8px; padding: 0.5rem 0.6rem; font-size: 0.9rem; font-family: inherit; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field.search { flex: 2 1 240px; }
+
+  .toggles { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+  .chk { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); cursor: pointer; background: var(--bg3); padding: 0.4rem 0.7rem; border-radius: 999px; border: 1px solid var(--border); }
+  .chk input { accent-color: var(--accent); }
+  .viewbtns { margin-left: auto; display: flex; gap: 0.4rem; }
+  .viewbtns button, .resetbtn { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 0.45rem 0.8rem; font-size: 0.82rem; cursor: pointer; font-family: inherit; }
+  .viewbtns button.active { background: var(--accent); color: #08131f; border-color: var(--accent); font-weight: 600; }
+  .resetbtn:hover, .viewbtns button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .countbar { font-size: 0.82rem; color: var(--dim); margin-bottom: 0.9rem; }
+  .countbar b { color: var(--accent2); }
+
+  /* card grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 1rem; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; cursor: pointer; transition: border-color 0.18s, transform 0.12s; display: flex; flex-direction: column; }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card .chead { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.6rem; }
+  .card h3 { font-size: 1.02rem; color: #f1f5f9; line-height: 1.25; }
+  .pill { font-size: 0.66rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 999px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pill.teil { background: #16a34a22; color: var(--green); }
+  .pill.voll { background: #f59e0b22; color: var(--amber); }
+  .pill.hybrid { background: #a855f722; color: var(--violet); }
+  .tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.75rem; }
+  .tag { font-size: 0.68rem; color: var(--dim); background: var(--bg3); border: 1px solid var(--border); padding: 0.12rem 0.5rem; border-radius: 6px; }
+  .tag.eco { color: var(--green); border-color: #16a34a55; }
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; margin-top: auto; }
+  .metric { background: var(--bg3); border-radius: 8px; padding: 0.5rem 0.6rem; }
+  .metric .mv { font-size: 0.98rem; font-weight: 700; color: var(--accent2); }
+  .metric .ml { font-size: 0.66rem; color: var(--dim); margin-top: 0.1rem; }
+  .metric .mv.na { color: var(--dim); font-weight: 600; font-size: 0.85rem; }
+
+  /* table view */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  th, td { padding: 0.6rem 0.7rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th { background: var(--bg3); color: var(--accent2); position: sticky; top: 0; cursor: pointer; user-select: none; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  thead th:hover { color: var(--accent); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--bg2); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .na { color: var(--dim); }
+
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--dim); }
+
+  /* modal */
+  .overlay { position: fixed; inset: 0; background: rgba(2,6,23,0.78); display: none; align-items: flex-start; justify-content: center; padding: 2rem 1rem; z-index: 50; overflow-y: auto; }
+  .overlay.open { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; max-width: 720px; width: 100%; padding: 1.5rem; }
+  .modal .mhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.4rem; }
+  .modal h2 { color: var(--accent2); font-size: 1.4rem; }
+  .modal .close { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; flex-shrink: 0; }
+  .modal .close:hover { border-color: var(--red); color: var(--red); }
+  .modal .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+  .modal .descr { color: var(--txt); font-size: 0.92rem; margin-bottom: 1.2rem; padding: 0.8rem 1rem; background: var(--bg3); border-radius: 10px; border-left: 3px solid var(--accent); }
+  .dgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.7rem; margin-bottom: 1.2rem; }
+  .dcell { background: var(--bg3); border-radius: 9px; padding: 0.7rem 0.8rem; }
+  .dcell .dv { font-size: 1.05rem; font-weight: 700; color: var(--accent2); }
+  .dcell .dv.na { color: var(--dim); font-size: 0.9rem; }
+  .dcell .dl { font-size: 0.7rem; color: var(--dim); margin-top: 0.15rem; }
+  .modal h4 { color: var(--accent2); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 1rem 0 0.4rem; }
+  .modal .special { font-size: 0.9rem; color: var(--muted); }
+
+  footer.note { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--dim); }
+  footer.note b { color: var(--muted); }
+
+  @media (max-width: 540px) {
+    .field.search, .field { flex-basis: 100%; }
+    .viewbtns { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home-link" href="index.html">← Übersicht</a>
+  <header class="top">
+    <h1>BVG-Stiftungsvergleich Schweiz</h1>
+    <p>Sammel- &amp; Gemeinschaftsstiftungen der 2. Säule · Datenstand 2024/2025</p>
+  </header>
+
+  <details class="tldr">
+    <summary>Auf einen Blick – Vollversicherung vs. Teilautonomie</summary>
+    <div class="body">
+      <ul>
+        <li><b>Teilautonome Kassen</b> (Profond, AXA, Asga, PKG, GastroSocial, Vita …) boten 2024 deutlich höhere Verzinsungen (4–8 %) und solide Deckungsgrade (110–123 %).</li>
+        <li><b>Vollversicherer</b> (Swiss Life, Helvetia, Allianz Suisse, Pax, Baloise) garantieren 100 % Kapitaldeckung – zum Preis tiefer Verzinsung (2024/2025 rund 1,25–2,65 %).</li>
+        <li>Der <b>Rentneranteil</b> ist der wichtigste strukturelle Erfolgsfaktor: tiefer Rentneranteil → höhere Verzinsung möglich.</li>
+        <li>Der gesetzliche <b>BVG-Mindestumwandlungssatz</b> von 6,8 % blieb nach dem Nein zur BVG-Reform vom 22.09.2024 unverändert.</li>
+        <li><b>Kernfrage für KMU:</b> «Sicherheit oder Rendite». Garantien → Vollversicherung; langfristig höhere Altersguthaben → finanziell solide teilautonome Kasse.</li>
+      </ul>
+    </div>
+  </details>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <div class="row">
+      <div class="field search">
+        <label for="q">Suche</label>
+        <input type="text" id="q" placeholder="Stiftung suchen …" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="fModell">Vorsorgemodell</label>
+        <select id="fModell"></select>
+      </div>
+      <div class="field">
+        <label for="fTyp">Stiftungstyp</label>
+        <select id="fTyp"></select>
+      </div>
+      <div class="field">
+        <label for="fRegion">Region</label>
+        <select id="fRegion"></select>
+      </div>
+      <div class="field">
+        <label for="fSort">Sortierung</label>
+        <select id="fSort">
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="dg2024-desc">Deckungsgrad 2024 (hoch → tief)</option>
+          <option value="dg2024-asc">Deckungsgrad 2024 (tief → hoch)</option>
+          <option value="dg2025-desc">Deckungsgrad 2025 (hoch → tief)</option>
+          <option value="vz2024-desc">Verzinsung 2024 (hoch → tief)</option>
+          <option value="vz2025-desc">Verzinsung 2025 (hoch → tief)</option>
+          <option value="kosten-asc">Verwaltungskosten (tief → hoch)</option>
+          <option value="techzins-desc">Technischer Zins (hoch → tief)</option>
+          <option value="uws-desc">Umwandlungssatz (hoch → tief)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="fDg">Min. Deckungsgrad 2024: <span id="fDgVal">alle</span></label>
+        <input type="range" id="fDg" min="100" max="124" step="1" value="100">
+      </div>
+      <div class="toggles">
+        <label class="chk"><input type="checkbox" id="fEco"> Nur nachhaltige Kassen</label>
+        <button class="resetbtn" id="reset">Filter zurücksetzen</button>
+      </div>
+      <div class="viewbtns">
+        <button id="vCards" class="active">Karten</button>
+        <button id="vTable">Tabelle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="countbar" id="countbar"></div>
+  <div id="cardsView" class="grid"></div>
+  <div id="tableView" class="tablewrap" style="display:none"></div>
+
+  <footer class="note">
+    <p><b>Hinweise zu den Daten:</b> Zahlen für 2025 sind grösstenteils provisorisch (auditierte Geschäftsberichte 2025 erscheinen meist April–Mai 2026).
+    «n.&nbsp;ö.» = nicht öffentlich ausgewiesen bzw. nicht in den gesichteten Quellen verfügbar.
+    Bei Stiftungen mit individuellen Vorsorgewerken (GEMINI, Transparenta, Noventus, Revor, Tellco) sind Deckungsgrade Durchschnitte/konsolidiert und gelten nicht für jedes Unternehmen.
+    Vollversicherer weisen konstruktionsbedingt einen Deckungsgrad ≥ 100 % auf; technischer Zins, Rentneranteil und Pro-Kopf-Kosten sind dort nicht vergleichbar öffentlich.
+    Umwandlungssatz «Überobligatorium»: bei umhüllenden Kassen ist der umhüllende Wert genannt.</p>
+    <p style="margin-top:0.6rem">Diese Übersicht dient der Information und stellt keine Anlage- oder Vorsorgeberatung dar.</p>
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const DATA = [
+  { name:"AXA Stiftung Berufliche Vorsorge", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:">235'000 Versicherte · >41'000 Unternehmen · >36 Mrd. CHF",
+    dg2024:109.9, dg2024d:"109,9 %", dg2025:113.9, dg2025d:"~114 % (Aug.)",
+    techZins:2.25, techZinsd:"2,25 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:486.44, kostend:"486,44 (TER 0,33 %)", rentner:9.27, rentnerd:"9,27 % (sehr tief)",
+    uws:5.50, uwsd:"5,50 % (2024) → 5,40 % (2026)",
+    vz2024:3.0, vz2024d:"3,0 %", vz2025:5.0, vz2025d:"5,0 %",
+    descr:"Grösste teilautonome Sammelstiftung der Schweiz (seit 2019 teilautonom), Vorsorgelösung «Professional Invest».",
+    special:"Best-in-Class-ESG-Ansatz; individuelle Wahlmöglichkeiten (Begünstigungsordnung Todesfallkapital); Swibeco-Mitarbeitervorteile. UWS-Senkung 2025–2027 beschlossen. Durchschnittsverzinsung 2019–2024: 3,78 %." },
+
+  { name:"Sammelstiftung Vita (Zurich)", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:true,
+    versicherte:">27'000 angeschlossene Unternehmen",
+    dg2024:111.6, dg2024d:"111,6 %", dg2025:115.0, dg2025d:"115,0 % (prov.)",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"Generationentafel (BVG 2020)",
+    kosten:null, kostend:"n. ö.", rentner:17, rentnerd:"17 %",
+    uws:null, uwsd:"umhüllend (n. ö. separat)",
+    vz2024:2.25, vz2024d:"bis 2,25 %", vz2025:2.25, vz2025d:"bis 2,25 % (2026: bis 4,0 %)",
+    descr:"Teilautonome Sammelstiftung (gegr. 2003), grösste unter dem Dach «Vita». Geschäftsführung an Ativa delegiert (ISAE-3000-zertifiziert).",
+    special:"Nachhaltigkeitsfokus (Ziel −80 % CO₂ Immobilien Schweiz bis 2050). Schwesterstiftungen Vita Plus (Vollversicherung) und Vita Invest (variable Renten, 2024 ~7 %)." },
+
+  { name:"Swiss Life Sammelstiftung", modell:"Hybrid", typ:"Lebensversicherer", region:"National", eco:false,
+    versicherte:"Vollversicherung (Business Protect) + teilautonom (2. Säule)",
+    dg2024:102.5, dg2024d:"102,5 % (teilaut.)", dg2025:106.0, dg2025d:"106,0 % (teilaut.)",
+    techZins:2.0, techZinsd:"2,0 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:null, kostend:"n. ö.", rentner:2.2, rentnerd:"2,2 % (sehr tief)",
+    uws:4.49, uwsd:"4,49 % (Vollv.) · 5,20 % umhüllend",
+    vz2024:null, vz2024d:"n. ö.", vz2025:1.75, vz2025d:"1,75 % (teilaut.) · 2,65 % (Vollv.)",
+    descr:"Lebensversicherer-Sammelstiftung; bietet sowohl Vollversicherung (100 % Garantie) als auch teilautonome Lösung. Gegründet 1983.",
+    special:"Performance Sammelstiftung 2. Säule 2025: 5,75 %. Einer der letzten Vollversicherungsanbieter. Durchschnittsalter 41,5 Jahre." },
+
+  { name:"Profond Vorsorgeeinrichtung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"~92'000 Versicherte (2025) · ~16,9 Mrd. CHF · ~3'000 Firmen",
+    dg2024:110.2, dg2024d:"110,2 %", dg2025:110.0, dg2025d:"~110 % (prov.)",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"Generationentafel (BVG 2020)",
+    kosten:108, kostend:"108 (CHF 9/Monat)", rentner:null, rentnerd:"tief (Wachstumskasse)",
+    uws:null, uwsd:"konstant gehalten 2025–2027",
+    vz2024:8.0, vz2024d:"8,0 % (ausserordentlich)", vz2025:2.25, vz2025d:"2,25 %",
+    descr:"Eine der grössten unabhängigen teilautonomen Sammelstiftungen (gegr. 1991). Realwertstrategie mit hohem Aktien-/Immobilienanteil.",
+    special:"16× in Folge Auszeichnung für höchste Verzinsung über 10 Jahre; Innovationspreis 2024. Nie saniert, auch 2022 nicht in Unterdeckung. 5-Jahres-Schnitt ~4,5 %. Rente mit Kapitalschutz (10 Jahre)." },
+
+  { name:"Asga Pensionskasse", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"Ostschweiz", eco:false,
+    versicherte:"Genossenschaft · Sitz St. Gallen · grosse KMU-Partnerin",
+    dg2024:117.44, dg2024d:"117,44 %", dg2025:null, dg2025d:"Ende 2025 offen",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:null, kostend:"n. ö. («günstigste»)", rentner:null, rentnerd:"moderat",
+    uws:5.05, uwsd:"5,20 % (M) / 5,05 % (F) – umhüllend 2025",
+    vz2024:4.5, vz2024d:"4,5 %", vz2025:null, vz2025d:"Ende 2025 offen",
+    descr:"Genossenschaftlich organisierte, unabhängige Gemeinschaftseinrichtung (teilautonom), Sitz St. Gallen.",
+    special:"Beteiligungsmodell (2,5 % + 0,5 % × (DG−116)); >700 Mio. CHF an Mitglieder 2024; 13. Monatsrente bei DG ≥ 116 %. Rang 3 im VZ-Test 2024." },
+
+  { name:"PKG Pensionskasse", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"National", eco:false,
+    versicherte:"Unabhängige Gemeinschaftseinrichtung für KMU (gegr. 1972), Luzern",
+    dg2024:115.60, dg2024d:"115,60 %", dg2025:117.8, dg2025d:"117,8 %",
+    techZins:2.00, techZinsd:"2,00 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:239.30, kostend:"239,30 (TER 0,21 %)", rentner:21.5, rentnerd:"21,50 %",
+    uws:null, uwsd:"n. ö. separat (Senkung 2023 gestoppt)",
+    vz2024:5.0, vz2024d:"5,0 %", vz2025:4.0, vz2025d:"4,0 %",
+    descr:"Unabhängige Gemeinschaftseinrichtung für KMU (gegr. 1972), Sitz Luzern.",
+    special:"Anlagevolumen ~12,6 Mrd. CHF (Jan. 2026); Award beste Servicequalität in der Vergangenheit." },
+
+  { name:"Servisa Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"~79'000 Versicherte · >5'000 KMU (ehem. Swisscanto)",
+    dg2024:null, dg2024d:"n. ö. (monatlich prov.)", dg2025:null, dg2025d:"n. ö.",
+    techZins:null, techZinsd:"n. ö.", grundlage:"n. ö.",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"n. ö.",
+    uws:5.4, uwsd:"5,4 % umhüllend (Ziel 2026)",
+    vz2024:3.0, vz2024d:"3,0 %", vz2025:null, vz2025d:"n. ö.",
+    descr:"Unabhängige teilautonome Sammelstiftung (ehem. Swisscanto Sammelstiftung, 2023 umbenannt), gegr. 1973.",
+    special:"Werte Transparenz, Fairness, Nachhaltigkeit; Supra-Sammelstiftung für Kadervorsorge. Geschäftsführung künftig eigene Gesellschaft." },
+
+  { name:"GEMINI Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"Individuelles Anlagemodell · ~6,9 Mrd. CHF",
+    dg2024:112.84, dg2024d:"112,84 % (Ø)", dg2025:null, dg2025d:"n. ö.",
+    techZins:2.25, techZinsd:"2,25 %", grundlage:"pro Vorsorgewerk (BVG 2020 üblich)",
+    kosten:341.61, kostend:"341,61 (TER 0,49 %)", rentner:21.84, rentnerd:"21,84 %",
+    uws:null, uwsd:"pro Vorsorgewerk",
+    vz2024:3.62, vz2024d:"individuell (Ø ~3,62 %)", vz2025:null, vz2025d:"individuell",
+    descr:"Unabhängige Sammelstiftung (gegr. 1977) – jedes Unternehmen hat eigenes Vorsorgewerk, eigene Bilanz, eigenen Deckungsgrad und eigene Verzinsung.",
+    special:"Höchste durchschnittliche Betriebsgrösse (~107 MA/Firma); ESG-Prüfung, Ethos Engagement Pools; vier Anlagepools (0–50 % Aktien) plus individuelle Strategie ab 10 Mio. CHF. Ab Juli 2026 Eigenbetrieb." },
+
+  { name:"Noventus Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"Risikosparkassenmodell · NoventusCollect (+Plus)",
+    dg2024:115.0, dg2024d:"115,0 % (Typ K)", dg2025:120.1, dg2025d:"120,1 % (Sep.)",
+    techZins:null, techZinsd:"marktgekoppelt", grundlage:"BVG 2020",
+    kosten:128, kostend:"~128", rentner:22, rentnerd:"~22 %",
+    uws:5.40, uwsd:"5,40 % → 5,25 % umhüllend",
+    vz2024:5.0, vz2024d:"5,0 % (Plus 7,0 %)", vz2025:6.0, vz2025d:"6,0 % (Plus 7,0 %)",
+    descr:"Sammelstiftung mit Risikosparkassenmodell (individuelle Deckungsgrade pro Anschluss); technischer Zins an Marktzins gekoppelt.",
+    special:"ESG-Kriterien; dynamische Kopplung techn. Zins an Markt; Award günstigstes Angebot. NoventusCollect Plus 2025: DG ~125 %." },
+
+  { name:"Baloise Perspectiva", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"Linien Relax & Choice · Stiftungsvermögen 2025 >2 Mrd. CHF",
+    dg2024:105, dg2024d:"105 %", dg2025:109, dg2025d:"109 %",
+    techZins:1.50, techZinsd:"~1,50 % (hist.)", grundlage:"aktualisiert (früher VZ 2015)",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"tief",
+    uws:null, uwsd:"umhüllend (n. ö.)",
+    vz2024:null, vz2024d:"n. ö.", vz2025:3.0, vz2025d:"3,0 % (Perf. 6,6 %)",
+    descr:"Teilautonome Sammelstiftung der Baloise (umhüllend); Risiken Tod/Invalidität bei Baloise Leben rückgedeckt.",
+    special:"Baloise bietet daneben separate Vollversicherung. Hinweis: Helvetia und Baloise fusionieren zu Helvetia Baloise." },
+
+  { name:"Tellco pkPRO", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"~10'307 Unternehmen · ~4,58 Mrd. CHF · Sitz Schwyz",
+    dg2024:null, dg2024d:"pro Vorsorgewerk", dg2025:null, dg2025d:"pro Vorsorgewerk",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"Gutachten per 31.12.2025",
+    kosten:350.04, kostend:"350,04 (TER 0,89 %)", rentner:null, rentnerd:"moderat",
+    uws:5.8, uwsd:"~5,8 % (umhüllend)",
+    vz2024:2.25, vz2024d:"2,25 %", vz2025:null, vz2025d:"n. ö.",
+    descr:"Teilautonome Sammelstiftung (gegr. 2002 als PK Pro), KMU-Fokus. Konservative Anlage (Aktienanteil 18–28 %).",
+    special:"Klima-Allianz «Good Practice» 2024; neues Vorsorgewerk PULSE (45 % Aktien); Mystery-Shopping-Sieger. Höchste Vermögensverwaltungskosten im Vergleich 2024; 5-Jahres-Verzinsung 1,45 %." },
+
+  { name:"Transparenta Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"~180 separate Vorsorgewerke · ~6'600 Versicherte · Aesch",
+    dg2024:112.5, dg2024d:"112,5 % (konsolidiert)", dg2025:null, dg2025d:"n. ö. (YTD ~6,8 %)",
+    techZins:1.7, techZinsd:"~1,7 % (konsolidiert)", grundlage:"BVG 2020 / Periodentafel",
+    kosten:null, kostend:"n. ö.", rentner:38, rentnerd:"~38 %",
+    uws:5.45, uwsd:"5,45 % (2025, Split) · ~5,5 % umhüllend",
+    vz2024:2.15, vz2024d:"2,15 % (Ø)", vz2025:null, vz2025d:"n. ö.",
+    descr:"Teilautonome Sammelstiftung mit ~180 separaten Vorsorgewerken; individuelle Deckungsgrade pro Vorsorgewerk.",
+    special:"Wahl zwischen zwei UWS-Modellen (Split / umhüllend) pro Vorsorgewerk. Netto-Performance 2024: 10,14 %." },
+
+  { name:"Revor Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:false,
+    versicherte:"~8'050 Aktive · 2'192 Rentner · Bern",
+    dg2024:111.8, dg2024d:"111,8 % (konsolidiert)", dg2025:null, dg2025d:"n. ö. (Perf. ~6,4 %)",
+    techZins:1.75, techZinsd:"2,00 % → 1,75 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:360, kostend:"~360 (impliziert)", rentner:null, rentnerd:"~3,67 Aktive je Rentner",
+    uws:null, uwsd:"pro Vorsorgewerk",
+    vz2024:4.0, vz2024d:"4,0 % (INVEST, umhüllend)", vz2025:4.5, vz2025d:"4,5 % (prov.)",
+    descr:"Teilautonome Sammelstiftung (Bern); Produktlinien REVOR INVEST und REVOR KONTO.",
+    special:"Award beste Anlagerendite 3 Jahre 2019–2021 (9,92 %); Kostentransparenzquote 100 %; TER 0,25 %." },
+
+  { name:"Copré (La Collective de Prévoyance)", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"Westschweiz", eco:false,
+    versicherte:">21'465 Aktive · waadtländisch, schweizweit tätig",
+    dg2024:109.09, dg2024d:"109,09 %", dg2025:109.59, dg2025d:"109,59 %",
+    techZins:null, techZinsd:"n. ö.", grundlage:"n. ö.",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"moderat",
+    uws:5.6, uwsd:"5,6 % (umhüllend, fix bis 2028)",
+    vz2024:5.0, vz2024d:"5,0 %", vz2025:5.0, vz2025d:"5,0 %",
+    descr:"Unabhängige teilautonome Gemeinschaftsstiftung (gegr. 1974), waadtländisch, schweizweit tätig.",
+    special:"Sonderaward 20-Jahr-Jubiläum PK-Rating (Anlagerendite 4,59 %). Performance 2024: 6,65 %; 2025: 1,66 %." },
+
+  { name:"GastroSocial Pensionskasse", modell:"Teilautonom", typ:"Verbands-/Branchenkasse", region:"National", eco:false,
+    versicherte:">22'000 Betriebe · ~190'000 Versicherte (Gastronomie/Hotellerie)",
+    dg2024:118.1, dg2024d:"118,1 %", dg2025:120.1, dg2025d:"120,1 % (Jan. 2026: 122,5 %)",
+    techZins:2.25, techZinsd:"2,25 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"moderat–hoch",
+    uws:6.5, uwsd:"6,5 % (Überobligatorium, gesplittet)",
+    vz2024:5.0, vz2024d:"5,0 %", vz2025:5.5, vz2025d:"5,5 %",
+    descr:"Verbands-/Branchenkasse für Gastronomie/Hotellerie (gegr. 1974), grösste der Branche; auch Ausgleichskasse.",
+    special:"ISO 9001/27001/27701 zertifiziert; vorzeitige Pensionierung ab 60 ohne UWS-Kürzung im Obligatorium. Von 2016–2025 jedes Jahr über Mindestzins." },
+
+  { name:"Spida Personalvorsorgestiftung", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"National", eco:false,
+    versicherte:"Ausbaubranche (Spenglerei, Sanitär, Heizung) + KMU (gegr. 1978)",
+    dg2024:null, dg2024d:"ausreichende Sicherheit (Art. 52e)", dg2025:null, dg2025d:"n. ö.",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:83, kostend:"83 (tiefster Wert)", rentner:null, rentnerd:"moderat",
+    uws:6.0, uwsd:"6,0 % (umhüllend)",
+    vz2024:1.25, vz2024d:"1,25 %", vz2025:1.25, vz2025d:"1,25 %",
+    descr:"Gemeinschaftsstiftung (gegr. 1978) für Ausbaubranche und übrige KMU; Verwaltung durch Spida Sozialversicherungen.",
+    special:"Tiefste Verwaltungskosten der Branche (9× in Folge); Sonderverzinsung zur Milderung der UWS-Senkung. Netto-Anlagerendite 2023: 5,0 %." },
+
+  { name:"La CIEPP", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"Westschweiz", eco:false,
+    versicherte:">10'000 Unternehmen · Bilanz >8,7 Mrd. · grösste FER-Stiftung der Romandie",
+    dg2024:119, dg2024d:"~119 %", dg2025:null, dg2025d:"n. ö.",
+    techZins:2.5, techZinsd:"2,5 % (höchster)", grundlage:"LPP 2020 (P 2020)",
+    kosten:null, kostend:"n. ö. (sehr tief)", rentner:null, rentnerd:"tief–moderat",
+    uws:6.0, uwsd:"6,0 % (umhüllend, kein Split)",
+    vz2024:3.0, vz2024d:"3,0 %", vz2025:3.25, vz2025d:"3,25 %",
+    descr:"Unabhängige, gemeinnützige private Gemeinschaftsstiftung der Fédération des Entreprises Romandes (FER). Nie saniert in 60+ Jahren.",
+    special:"Rang 1 im VZ-Test 2024 (höchster Deckungsgrad + techn. Zins 2,5 %); Performance 2024: 8,87 %; einheitlicher UWS (kein Splitting); 13. Rente bei guter Lage." },
+
+  { name:"Fondation Patrimonia", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"Westschweiz", eco:false,
+    versicherte:"~25'655 Aktive · ~2'646 Rentner · ~3,48 Mrd. CHF",
+    dg2024:105.2, dg2024d:"105,2 %", dg2025:null, dg2025d:"n. ö.",
+    techZins:2.00, techZinsd:"2,00 %", grundlage:"LPP 2020 Periodentafeln",
+    kosten:163, kostend:"~163 (impliziert, TER 0,33 %)", rentner:9, rentnerd:"1 Rentner auf 10 Aktive",
+    uws:6.0, uwsd:"6,0 % (umhüllend, kein Split)",
+    vz2024:3.25, vz2024d:"3,25 %", vz2025:null, vz2025d:"n. ö.",
+    descr:"Teilautonome Gemeinschaftsstiftung (Genf/Lausanne) mit exzellentem Aktive/Rentner-Verhältnis.",
+    special:"Günstigstes Angebot bei teilautonomen Kassen (Mystery Shopping); Transparenzquote 100 %." },
+
+  { name:"FIP (Fonds Interprofessionnel de Prévoyance)", modell:"Teilautonom", typ:"Gemeinschaftsstiftung", region:"Westschweiz", eco:false,
+    versicherte:"~32'891 Aktive · 4'518 Rentner · ~4,29 Mrd. CHF · Paudex/Lausanne",
+    dg2024:111.4, dg2024d:"111,4 %", dg2025:null, dg2025d:"n. ö.",
+    techZins:2.00, techZinsd:"2,00 %", grundlage:"LPP 2020",
+    kosten:235, kostend:"235 (TER 0,63 %)", rentner:12, rentnerd:"7,3 Aktive je Rentner",
+    uws:6.0, uwsd:"6,0 % umhüllend (Ziel 2031)",
+    vz2024:2.50, vz2024d:"2,50 %", vz2025:4.0, vz2025d:"4,0 %",
+    descr:"Gemeinschaftsstiftung (Verwaltung Centre Patronal, Paudex/Lausanne).",
+    special:"Sehr tiefe Verwaltungskosten (Marktschnitt CHF 330); UWS bewusst über Marktniveau gehalten (Senkung 6,8 % → 6,0 % bis 2031). Performance 2024: 8,53 %." },
+
+  { name:"Allianz Suisse Sammelstiftung", modell:"Vollversicherung", typ:"Lebensversicherer", region:"National", eco:false,
+    versicherte:"Vollversicherung (einer der verbleibenden Vollversicherer)",
+    dg2024:100, dg2024d:"≥ 100 % (Garantie)", dg2025:100, dg2025d:"≥ 100 % (Garantie)",
+    techZins:null, techZinsd:"n. ö.", grundlage:"n. ö.",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"n. ö.",
+    uws:4.33, uwsd:"4,33 % (2024) → 4,13 % (2026)",
+    vz2024:2.0, vz2024d:"~2,0 % (Garantie + Überschuss)", vz2025:2.0, vz2025d:"~2,0 %",
+    descr:"Lebensversicherer-Sammelstiftung; Vollversicherung mit 100 % Kapital- und Zinsgarantie.",
+    special:"Mehrfach Award beste Anlagerendite über 10 Jahre bei Vollversicherungen (3,39 %). Senkte UWS für Neurentner." },
+
+  { name:"Pax Sammelstiftung BVG", modell:"Hybrid", typ:"Lebensversicherer", region:"National", eco:false,
+    versicherte:"Vollversicherung + teilautonom (Pax DuoStar) · genossenschaftlich",
+    dg2024:100, dg2024d:"≥ 100 % (Vollv.)", dg2025:100, dg2025d:"≥ 100 % (Vollv.)",
+    techZins:null, techZinsd:"n. ö.", grundlage:"n. ö.",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"n. ö.",
+    uws:4.41, uwsd:"4,41 %",
+    vz2024:2.0, vz2024d:"~2,0 % (Garantie + Überschuss)", vz2025:2.0, vz2025d:"~2,0 %",
+    descr:"Lebensversicherer-Sammelstiftung (Pax Holding); Vollversicherung plus teilautonome Modelle (Pax DuoStar).",
+    special:"Bestes Resultat Vollversicherer Anlagerendite 5 Jahre (0,83 %); steigerte BVG-Prämien deutlich." },
+
+  { name:"Helvetia Sammelstiftung", modell:"Hybrid", typ:"Lebensversicherer", region:"National", eco:false,
+    versicherte:"Vollversicherung + teilautonom (BVG Invest) · Fusion zu Helvetia Baloise",
+    dg2024:100, dg2024d:"≥ 100 % (Vollv.)", dg2025:100, dg2025d:"≥ 100 % (Vollv.)",
+    techZins:null, techZinsd:"n. ö.", grundlage:"n. ö.",
+    kosten:null, kostend:"n. ö.", rentner:null, rentnerd:"n. ö.",
+    uws:4.30, uwsd:"4,30 %",
+    vz2024:1.9, vz2024d:"1,9 % (Netto-Anlagerendite)", vz2025:2.2, vz2025d:"2,2 %",
+    descr:"Lebensversicherer-Sammelstiftung; Vollversicherung UND teilautonome Lösung. Fusion mit Baloise zu Helvetia Baloise im Gang.",
+    special:"Ausschüttungsquote 2025 90,5 % (knapp über Legal-Quote-Minimum); sehr zurückhaltend bei Neugeschäft Vollversicherung; Quersubventionierung Aktive→Rentner >160 Mio. CHF/Jahr." },
+
+  { name:"Stiftung Abendrot", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:true,
+    versicherte:"~16'600 Versicherte · ~1'250 Betriebe · >3 Mrd. CHF · Basel",
+    dg2024:114.1, dg2024d:"114,1 %", dg2025:null, dg2025d:"n. ö.",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"BVG 2020 / Periodentafel (PT 2020)",
+    kosten:259.89, kostend:"259,89 (TER 0,60 %)", rentner:26.66, rentnerd:"26,66 %",
+    uws:5.6, uwsd:"5,6 % (umhüllend)",
+    vz2024:4.5, vz2024d:"4,5 %", vz2025:null, vz2025d:"n. ö.",
+    descr:"Unabhängige, nachhaltige teilautonome Pensionskasse (gegr. 1984), Sitz Basel.",
+    special:"Nachhaltigste PK der Schweiz (Anspruch); Klima-Allianz «Visionär»; UN PRI; Impact Management Project; hoher Anteil direkt gehaltener Liegenschaften." },
+
+  { name:"Nest Sammelstiftung", modell:"Teilautonom", typ:"Sammelstiftung", region:"National", eco:true,
+    versicherte:"~4'400 Betriebe · >34'000 Versicherte",
+    dg2024:110.5, dg2024d:"110,5 %", dg2025:null, dg2025d:"n. ö.",
+    techZins:1.75, techZinsd:"1,75 %", grundlage:"VZ 2020 Generationentafel",
+    kosten:278.24, kostend:"278,24 (TER 0,47 %)", rentner:24.10, rentnerd:"24,10 %",
+    uws:5.6, uwsd:"5,6 % → 5,3 % (2026)",
+    vz2024:4.5, vz2024d:"4,5 %", vz2025:3.0, vz2025d:"3,0 %",
+    descr:"Erste ökologisch-ethische Pensionskasse der Schweiz (gegr. 1983).",
+    special:"Ökologisch-ethische Pionierin; gutes Aktive/Rentner-Verhältnis; UWS-Senkung 2026 wegen Langlebigkeit/Tiefzins." },
+
+  { name:"Stiftung Auffangeinrichtung BVG", modell:"Teilautonom", typ:"Gesetzliche Auffangeinrichtung", region:"National", eco:false,
+    versicherte:"Pflichtanschlüsse + ~1,7 Mio. Freizügigkeitskonten · soziale Auffangfunktion",
+    dg2024:123.4, dg2024d:"~123,4 % (Bereich BVG)", dg2025:null, dg2025d:"n. ö.",
+    techZins:2.00, techZinsd:"2,00 %", grundlage:"BVG 2020 Generationentafel",
+    kosten:null, kostend:"n. ö. (TER 0,10 %)", rentner:43.92, rentnerd:"43,92 % (hoch)",
+    uws:4.2, uwsd:"4,2 % (freiw. Weiterversicherung)",
+    vz2024:4.25, vz2024d:"4,25 %", vz2025:4.25, vz2025d:"4,25 %",
+    descr:"Gesetzliche Auffangeinrichtung (Institution supplétive); nimmt Pflichtanschlüsse und freiwillige Versicherungen auf.",
+    special:"Soziale Auffangfunktion (keine Risikoselektion); Einmalzahlung 10 % der Rente an gewisse Rentner; >230 Mitarbeitende. Standard-Obligatorium UWS 6,8 %." }
+];
+
+const $ = s => document.querySelector(s);
+const fmtNum = v => v == null ? null : v.toLocaleString('de-CH');
+
+// populate dropdowns
+function uniqueSorted(key) { return [...new Set(DATA.map(d => d[key]))].sort((a,b)=>a.localeCompare(b,'de')); }
+function fillSelect(el, vals, allLabel) {
+  el.innerHTML = '<option value="">'+allLabel+'</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+fillSelect($('#fModell'), uniqueSorted('modell'), 'Alle Modelle');
+fillSelect($('#fTyp'), uniqueSorted('typ'), 'Alle Typen');
+fillSelect($('#fRegion'), uniqueSorted('region'), 'Alle Regionen');
+
+// stats
+function renderStats(list) {
+  const dgVals = DATA.map(d=>d.dg2024).filter(v=>v!=null);
+  const vzVals = DATA.map(d=>d.vz2024).filter(v=>v!=null);
+  const teil = DATA.filter(d=>d.modell==='Teilautonom').length;
+  const stats = [
+    { v: DATA.length, l: 'Stiftungen erfasst' },
+    { v: teil, l: 'davon teilautonom' },
+    { v: (dgVals.reduce((a,b)=>a+b,0)/dgVals.length).toFixed(1).replace('.',',')+' %', l: 'Ø Deckungsgrad 2024' },
+    { v: (vzVals.reduce((a,b)=>a+b,0)/vzVals.length).toFixed(1).replace('.',',')+' %', l: 'Ø Verzinsung 2024' }
+  ];
+  $('#stats').innerHTML = stats.map(s=>`<div class="stat"><div class="v">${s.v}</div><div class="l">${s.l}</div></div>`).join('');
+}
+renderStats();
+
+let viewMode = 'cards';
+
+function getFilters() {
+  return {
+    q: $('#q').value.trim().toLowerCase(),
+    modell: $('#fModell').value,
+    typ: $('#fTyp').value,
+    region: $('#fRegion').value,
+    minDg: parseInt($('#fDg').value, 10),
+    eco: $('#fEco').checked,
+    sort: $('#fSort').value
+  };
+}
+
+function applyFilters() {
+  const f = getFilters();
+  let list = DATA.filter(d => {
+    if (f.q && !d.name.toLowerCase().includes(f.q)) return false;
+    if (f.modell && d.modell !== f.modell) return false;
+    if (f.typ && d.typ !== f.typ) return false;
+    if (f.region && d.region !== f.region) return false;
+    if (f.eco && !d.eco) return false;
+    if (f.minDg > 100 && (d.dg2024 == null || d.dg2024 < f.minDg)) return false;
+    return true;
+  });
+
+  const [key, dir] = f.sort.split('-');
+  const cmp = (a, b) => {
+    if (key === 'name') return a.name.localeCompare(b.name, 'de');
+    const av = a[key], bv = b[key];
+    // nulls always last
+    if (av == null && bv == null) return a.name.localeCompare(b.name, 'de');
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return dir === 'asc' ? av - bv : bv - av;
+  };
+  list.sort(cmp);
+  return list;
+}
+
+function metricCell(label, val, na) {
+  const cls = na ? 'mv na' : 'mv';
+  return `<div class="metric"><div class="${cls}">${val}</div><div class="ml">${label}</div></div>`;
+}
+
+function pillFor(d) {
+  const map = { 'Teilautonom':'teil', 'Vollversicherung':'voll', 'Hybrid':'hybrid' };
+  return `<span class="pill ${map[d.modell]}">${d.modell}</span>`;
+}
+
+function render() {
+  const list = applyFilters();
+  $('#countbar').innerHTML = `<b>${list.length}</b> von ${DATA.length} Stiftungen angezeigt`;
+
+  if (viewMode === 'cards') {
+    $('#cardsView').style.display = 'grid';
+    $('#tableView').style.display = 'none';
+    if (!list.length) { $('#cardsView').innerHTML = '<div class="empty">Keine Stiftung entspricht den Filtern.</div>'; return; }
+    $('#cardsView').innerHTML = list.map((d, i) => {
+      const idx = DATA.indexOf(d);
+      const tags = [
+        `<span class="tag">${d.typ}</span>`,
+        `<span class="tag">${d.region}</span>`,
+        d.eco ? `<span class="tag eco">🌱 nachhaltig</span>` : ''
+      ].join('');
+      return `<div class="card" data-i="${idx}">
+        <div class="chead"><h3>${d.name}</h3>${pillFor(d)}</div>
+        <div class="tags">${tags}</div>
+        <div class="metrics">
+          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null)}
+          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null)}
+          ${metricCell('Techn. Zins', d.techZinsd, d.techZins==null)}
+          ${metricCell('Verw.-Kosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null)}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    $('#cardsView').style.display = 'none';
+    $('#tableView').style.display = 'block';
+    const cols = [
+      ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024'],['dg2025','DG 2025'],
+      ['techzins','Techn. Zins'],['kosten','Kosten/Kopf'],['uws','UWS Überobl.'],
+      ['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
+    ];
+    const f = getFilters();
+    const [sk] = f.sort.split('-');
+    const head = cols.map(c => {
+      const active = (c[0]===sk || (c[0]==='techzins'&&sk==='techzins')) ? ' style="color:var(--accent)"' : '';
+      return `<th data-col="${c[0]}"${active}>${c[1]}</th>`;
+    }).join('');
+    const rows = list.map(d => {
+      const idx = DATA.indexOf(d);
+      return `<tr data-i="${idx}">
+        <td>${d.name}</td>
+        <td>${pillFor(d)}</td>
+        <td class="num${d.dg2024==null?' na':''}">${d.dg2024d}</td>
+        <td class="num${d.dg2025==null?' na':''}">${d.dg2025d}</td>
+        <td class="num${d.techZins==null?' na':''}">${d.techZinsd}</td>
+        <td class="num${d.kosten==null?' na':''}">${d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten)}</td>
+        <td class="num${d.uws==null?' na':''}">${d.uwsd}</td>
+        <td class="num${d.vz2024==null?' na':''}">${d.vz2024d}</td>
+        <td class="num${d.vz2025==null?' na':''}">${d.vz2025d}</td>
+      </tr>`;
+    }).join('');
+    $('#tableView').innerHTML = list.length
+      ? `<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`
+      : '<div class="empty">Keine Stiftung entspricht den Filtern.</div>';
+  }
+}
+
+// modal
+function openModal(i) {
+  const d = DATA[i];
+  const cells = [
+    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null],
+    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null],
+    ['Technischer Zins', d.techZinsd, d.techZins==null],
+    ['Rentneranteil', d.rentnerd, false],
+    ['Verzinsung 2024', d.vz2024d, d.vz2024==null],
+    ['Verzinsung 2025', d.vz2025d, d.vz2025==null],
+    ['UWS Überobligatorium (65)', d.uwsd, d.uws==null],
+    ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
+    ['Technische Grundlage', d.grundlage, false]
+  ];
+  $('#modal').innerHTML = `
+    <div class="mhead">
+      <div><h2>${d.name}</h2></div>
+      <button class="close" id="closeBtn" aria-label="Schliessen">✕</button>
+    </div>
+    <div class="sub">${pillFor(d)} &nbsp; ${d.typ} · ${d.region}${d.eco?' · 🌱 nachhaltig':''}</div>
+    <div class="descr">${d.descr}</div>
+    <div style="font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem">${d.versicherte}</div>
+    <div class="dgrid">
+      ${cells.map(c=>`<div class="dcell"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
+    </div>
+    <h4>Besonderheiten</h4>
+    <div class="special">${d.special}</div>`;
+  $('#overlay').classList.add('open');
+  $('#closeBtn').onclick = closeModal;
+}
+function closeModal() { $('#overlay').classList.remove('open'); }
+$('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// event delegation for opening modal
+document.addEventListener('click', e => {
+  const card = e.target.closest('.card');
+  if (card) { openModal(+card.dataset.i); return; }
+  const row = e.target.closest('tr[data-i]');
+  if (row) { openModal(+row.dataset.i); return; }
+  const th = e.target.closest('th[data-col]');
+  if (th) {
+    const col = th.dataset.col;
+    const map = { name:'name-asc', modell:'name-asc', dg2024:'dg2024-desc', dg2025:'dg2025-desc',
+      techzins:'techzins-desc', kosten:'kosten-asc', uws:'uws-desc', vz2024:'vz2024-desc', vz2025:'vz2025-desc' };
+    if (map[col]) { $('#fSort').value = map[col]; render(); }
+  }
+});
+
+// control listeners
+['#q','#fModell','#fTyp','#fRegion','#fSort','#fEco'].forEach(s => {
+  $(s).addEventListener('input', render);
+  $(s).addEventListener('change', render);
+});
+$('#fDg').addEventListener('input', () => {
+  const v = parseInt($('#fDg').value,10);
+  $('#fDgVal').textContent = v <= 100 ? 'alle' : '≥ '+v+' %';
+  render();
+});
+$('#reset').addEventListener('click', () => {
+  $('#q').value=''; $('#fModell').value=''; $('#fTyp').value=''; $('#fRegion').value='';
+  $('#fSort').value='name-asc'; $('#fEco').checked=false; $('#fDg').value=100; $('#fDgVal').textContent='alle';
+  render();
+});
+$('#vCards').addEventListener('click', () => { viewMode='cards'; $('#vCards').classList.add('active'); $('#vTable').classList.remove('active'); render(); });
+$('#vTable').addEventListener('click', () => { viewMode='table'; $('#vTable').classList.add('active'); $('#vCards').classList.remove('active'); render(); });
+
+render();
+</script>
+</body>
+</html>
