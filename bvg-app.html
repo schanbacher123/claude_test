@@ -149,6 +149,26 @@
   .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #06281a; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; z-index: 60; opacity: 0; transition: opacity 0.2s; }
   .toast.show { opacity: 1; }
 
+  /* Geldfluss-Diagramm + Anlagestrategie-Kachel im Modal */
+  .modal h4 { color: var(--accent2); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; margin: 1.3rem 0 0.5rem; }
+  .sankey { background: var(--bg3); border-radius: 10px; padding: 0.5rem 0.3rem; }
+  .sankey svg { display: block; }
+  .flowdis { font-size: 0.72rem; color: var(--dim); margin-top: 0.4rem; }
+  .flownet { font-size: 0.84rem; margin-top: 0.5rem; }
+  .flownet b.pos { color: var(--green); } .flownet b.neg { color: var(--amber); }
+  .assetrow { display: flex; gap: 1.4rem; align-items: center; flex-wrap: wrap; background: var(--bg3); border-radius: 10px; padding: 1rem 1.2rem; }
+  .donutwrap { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+  .donut { width: 132px; height: 132px; border-radius: 50%; }
+  .donut-hole { position: absolute; inset: 32px; background: var(--bg3); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .donut-hole .pf { font-size: 1.05rem; font-weight: 800; color: var(--accent2); }
+  .donut-hole .pf.pos { color: var(--green); } .donut-hole .pf.na { color: var(--dim); font-size: 0.85rem; }
+  .donut-hole .pfl { font-size: 0.6rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.03em; }
+  .legend { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.86rem; min-width: 200px; flex: 1; }
+  .legend .lg { display: flex; align-items: center; gap: 0.55rem; color: var(--muted); }
+  .legend .lg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .legend .lg b { color: var(--txt); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .assetsrc { font-size: 0.72rem; color: var(--dim); margin-top: 0.5rem; }
+
   @media print {
     body { background: #fff; color: #000; }
     .controls, .compare-bar, .home-link, details.tldr, .viewbtns, .cmp-check, footer.note .pad, .stats, #shareBtn, #csvBtn, #printBtn, .resetbtn { display: none !important; }
@@ -595,6 +615,32 @@ DATA.forEach(d => Object.assign(d, MORE[d.name] || { anlage:"n. ö.", perf:"n. �
 // Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
 const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
 
+// Asset Allocation (a=Aktien, i=Immobilien, o=Obligationen, c=Cash & Übrige; Summe 100) + Netto-Performance (jüngstes Jahr)
+// src: "Kasse" = an Strategie der Kasse angelehnt; "Vollversicherung" = defensiv (Garantiemodell);
+//      "Branchenrichtwert" = Swisscanto-Durchschnitt 2024 (kassenspezifische Werte im Geschäftsbericht)
+const BENCHMARK_ASSETS = { a:33, i:25, o:29, c:13, src:"Branchenrichtwert", perf:null };
+const ASSETS = {
+  "Profond Vorsorgeeinrichtung": { a:50, i:28, o:17, c:5, src:"Kasse", perf:null },
+  "Tellco pkPRO": { a:23, i:27, o:42, c:8, src:"Kasse", perf:null },
+  "AXA Stiftung Berufliche Vorsorge": { a:35, i:24, o:30, c:11, src:"Kasse", perf:null },
+  "Stiftung Abendrot": { a:30, i:38, o:25, c:7, src:"Kasse", perf:1.8 },
+  "Nest Sammelstiftung": { a:38, i:26, o:28, c:8, src:"Kasse", perf:null },
+  "La CIEPP": { a:40, i:24, o:30, c:6, src:"Kasse", perf:8.87 },
+  "Fondation Patrimonia": { a:35, i:25, o:32, c:8, src:"Branchenrichtwert", perf:null },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { a:38, i:24, o:32, c:6, src:"Kasse", perf:8.53 },
+  "Transparenta Sammelstiftung": { a:42, i:22, o:30, c:6, src:"Kasse", perf:10.14 },
+  "Copré (La Collective de Prévoyance)": { a:38, i:25, o:31, c:6, src:"Kasse", perf:6.65 },
+  "Revor Sammelstiftung": { a:36, i:25, o:32, c:7, src:"Branchenrichtwert", perf:null },
+  "GastroSocial Pensionskasse": { a:35, i:30, o:28, c:7, src:"Kasse", perf:null },
+  "GEMINI Sammelstiftung": { a:34, i:24, o:30, c:12, src:"Branchenrichtwert", perf:null },
+  "Allianz Suisse Sammelstiftung": { a:8, i:18, o:64, c:10, src:"Vollversicherung", perf:null },
+  "Pax Sammelstiftung BVG": { a:8, i:18, o:64, c:10, src:"Vollversicherung", perf:null },
+  "Helvetia Sammelstiftung": { a:10, i:20, o:60, c:10, src:"Vollversicherung", perf:1.9 },
+  "Swiss Life Sammelstiftung": { a:30, i:24, o:38, c:8, src:"Branchenrichtwert", perf:5.75 },
+  "Baloise Perspectiva": { a:35, i:24, o:33, c:8, src:"Branchenrichtwert", perf:6.6 }
+};
+DATA.forEach(d => d.assets = ASSETS[d.name] || BENCHMARK_ASSETS);
+
 const $ = s => document.querySelector(s);
 const fmtNum = v => v == null ? null : v.toLocaleString('de-CH');
 const pct = v => v.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
@@ -745,6 +791,84 @@ function render() {
   }
 }
 
+// ---------- Geldfluss-Modell (illustrativ, aus Strukturkennzahlen) ----------
+function computeFlows(d) {
+  const rentner = (d.rentner != null ? d.rentner : 15) / 100;   // Rentneranteil als Bruchteil
+  const active = Math.max(0.4, 1 - rentner);
+  const vz = d.vz2024 != null ? d.vz2024 : (d.assets.perf != null ? d.assets.perf : 3);
+  const kosten = d.kosten != null ? d.kosten : 260;
+  const af = active / 0.85;
+  return {
+    in: [
+      ['Arbeitgeberbeiträge', 3.4 * af, '#38bdf8'],
+      ['Arbeitnehmerbeiträge', 2.8 * af, '#7dd3fc'],
+      ['Einkäufe', 1.2 * af, '#818cf8'],
+      ['Kapitalerträge', Math.max(0.4, vz + 0.8), '#4ade80']
+    ],
+    out: [
+      ['Rentenauszahlungen', 1.5 + rentner * 14, '#fbbf24'],
+      ['Kapitalbezüge (Pensionierung)', 1.0 + active * 2.0, '#fb923c'],
+      ['Freizügigkeitsaustritte', 2.2, '#c084fc'],
+      ['Verwaltungskosten', Math.max(0.3, kosten / 300), '#f87171']
+    ]
+  };
+}
+function buildSankey(f) {
+  const VBW = 700, H = 280, TOP = 22, NODE = 14, lx = 150, cl = 300, cr = 320, rx = 470;
+  const inSum = f.in.reduce((s, x) => s + x[1], 0), outSum = f.out.reduce((s, x) => s + x[1], 0);
+  const scale = H / Math.max(inSum, outSum);
+  const p = (v, sum) => Math.round(v / sum * 100) + '%';
+  let s = '';
+  s += `<rect x="${cl}" y="${TOP}" width="${cr - cl}" height="${Math.max(inSum, outSum) * scale}" rx="3" fill="#334155"/>`;
+  s += `<text x="${(cl + cr) / 2}" y="${TOP - 7}" text-anchor="middle" font-size="10" fill="#7dd3fc">Vorsorgewerk</text>`;
+  let cy = TOP;
+  f.in.forEach(([label, val, col]) => {
+    const h = val * scale, my = cy + h / 2;
+    s += `<rect x="${lx}" y="${cy}" width="${NODE}" height="${h}" rx="2" fill="${col}"/>`;
+    s += `<path d="M ${lx + NODE} ${cy} L ${cl} ${cy} L ${cl} ${cy + h} L ${lx + NODE} ${cy + h} Z" fill="${col}" opacity="0.3"/>`;
+    s += `<text x="${lx - 6}" y="${my - 1}" text-anchor="end" font-size="10" fill="#e2e8f0">${label}</text>`;
+    s += `<text x="${lx - 6}" y="${my + 11}" text-anchor="end" font-size="9" fill="#64748b">${p(val, inSum)}</text>`;
+    cy += h;
+  });
+  cy = TOP;
+  f.out.forEach(([label, val, col]) => {
+    const h = val * scale, my = cy + h / 2;
+    s += `<rect x="${rx}" y="${cy}" width="${NODE}" height="${h}" rx="2" fill="${col}"/>`;
+    s += `<path d="M ${cr} ${cy} L ${rx} ${cy} L ${rx} ${cy + h} L ${cr} ${cy + h} Z" fill="${col}" opacity="0.3"/>`;
+    s += `<text x="${rx + NODE + 6}" y="${my - 1}" font-size="10" fill="#e2e8f0">${label}</text>`;
+    s += `<text x="${rx + NODE + 6}" y="${my + 11}" font-size="9" fill="#64748b">${p(val, outSum)}</text>`;
+    cy += h;
+  });
+  const net = (inSum - outSum) / inSum * 100;
+  const netHtml = net >= 0
+    ? `<span class="flownet">Netto: <b class="pos">Reserveaufbau</b> – Zuflüsse übersteigen Abflüsse (≈ ${Math.round(net)} % des Zuflusses).</span>`
+    : `<span class="flownet">Netto: <b class="neg">Kapitalabbau</b> – Abflüsse übersteigen Zuflüsse (≈ ${Math.round(-net)} % über Zufluss).</span>`;
+  return `<div class="sankey"><svg viewBox="0 0 ${VBW} ${H + TOP + 10}" width="100%" role="img" aria-label="Geldflüsse">${s}</svg></div>
+    ${netHtml}
+    <div class="flowdis">Schematische, illustrative Darstellung der Geldflüsse – modelliert aus Strukturkennzahlen (Rentneranteil, Verzinsung, Kosten). Bandbreiten zeigen Anteile, keine effektiven CHF-Beträge.</div>`;
+}
+// ---------- Anlagestrategie-Kachel (Donut + Performance) ----------
+function buildAssetTile(d) {
+  const a = d.assets;
+  const segs = [['Aktien', a.a, '#38bdf8'], ['Immobilien', a.i, '#4ade80'], ['Obligationen', a.o, '#fbbf24'], ['Cash & Übrige', a.c, '#94a3b8']];
+  let acc = 0;
+  const stops = segs.map(([, v, c]) => { const seg = `${c} ${acc}% ${acc + v}%`; acc += v; return seg; }).join(', ');
+  const legend = segs.map(([l, v, c]) => `<div class="lg"><i style="background:${c}"></i>${l}<b>${v} %</b></div>`).join('');
+  const perf = a.perf;
+  const pf = perf == null ? `<div class="pf na">n. ö.</div>` : `<div class="pf${perf > 0 ? ' pos' : ''}">${perf > 0 ? '+' : ''}${pct(perf)}</div>`;
+  const srcTxt = a.src === 'Branchenrichtwert'
+    ? 'Asset Allocation: Branchenrichtwert (Swisscanto-Ø 2024) – kassenspezifische Werte siehe Geschäftsbericht.'
+    : a.src === 'Vollversicherung'
+      ? 'Asset Allocation: defensives Vollversicherungs-Profil (Garantiemodell, hoher Obligationenanteil).'
+      : 'Asset Allocation: an der Strategie der Kasse angelehnt (Richtwerte).';
+  return `<div class="assetrow">
+      <div class="donutwrap"><div class="donut" style="background:conic-gradient(${stops})"></div>
+        <div class="donut-hole">${pf}<div class="pfl">Performance ${perf != null ? 'letztes Jahr' : ''}</div></div></div>
+      <div class="legend">${legend}</div>
+    </div>
+    <div class="assetsrc">${srcTxt}</div>`;
+}
+
 // modal
 function openModal(i) {
   const d = DATA[i];
@@ -779,8 +903,13 @@ function openModal(i) {
     <div style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
       <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
+    <h4>Geldflüsse – Zu- und Abflüsse</h4>
+    ${buildSankey(computeFlows(d))}
+    <h4>Anlagestrategie &amp; Performance</h4>
+    ${buildAssetTile(d)}
     <h4>Besonderheiten</h4>
-    <div class="special">${d.special}</div>`;
+    <div class="special">${d.special}</div>
+    <div class="assetsrc">${COURTAGE_NOTE}</div>`;
   $('#overlay').classList.add('open');
   $('#closeBtn').onclick = closeModal;
 }
