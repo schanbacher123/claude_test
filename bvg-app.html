@@ -115,6 +115,52 @@
     .field.search, .field { flex-basis: 100%; }
     .viewbtns { margin-left: 0; }
   }
+
+  /* Vergleichs-Auswahl */
+  .cmp-check { position: absolute; top: 0.7rem; right: 0.7rem; display: flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--dim); background: var(--bg3); padding: 0.2rem 0.45rem; border-radius: 6px; border: 1px solid var(--border); z-index: 2; }
+  .cmp-check input { accent-color: var(--accent); cursor: pointer; }
+  .card { position: relative; }
+  .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  td.cmpcol { text-align: center; } td.cmpcol input, th.cmpcol input { accent-color: var(--accent); cursor: pointer; }
+
+  .compare-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 1rem; z-index: 40;
+    background: var(--bg2); border: 1px solid var(--accent); border-radius: 12px; padding: 0.6rem 0.8rem;
+    display: none; align-items: center; gap: 0.8rem; max-width: 95vw; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+  .compare-bar.show { display: flex; }
+  .cb-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; max-width: 60vw; }
+  .cb-chips .chip { font-size: 0.74rem; background: var(--bg3); border: 1px solid var(--border); border-radius: 999px; padding: 0.2rem 0.6rem; display: inline-flex; align-items: center; gap: 0.35rem; }
+  .cb-chips .chip b { color: var(--accent2); font-weight: 600; }
+  .cb-chips .chip span { cursor: pointer; color: var(--dim); }
+  .cb-chips .chip span:hover { color: var(--red); }
+  .cb-actions { display: flex; gap: 0.4rem; }
+  .cb-actions button { border: none; border-radius: 8px; padding: 0.5rem 0.9rem; font-size: 0.85rem; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--accent); color: #08131f; }
+  .cb-actions button.ghost { background: var(--bg3); color: var(--muted); }
+  .cb-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .modal.cmp { max-width: 1000px; }
+  .cmptable { overflow-x: auto; }
+  .cmptable table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+  .cmptable th, .cmptable td { padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  .cmptable thead th { color: var(--accent2); font-size: 0.82rem; position: sticky; top: 0; background: var(--bg2); }
+  .cmptable tbody th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .cmptable tbody tr:nth-child(even) { background: #0000000f; }
+  .cmptable .best { color: var(--green); font-weight: 700; }
+
+  .toast { position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%); background: var(--green); color: #06281a; padding: 0.6rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; z-index: 60; opacity: 0; transition: opacity 0.2s; }
+  .toast.show { opacity: 1; }
+
+  @media print {
+    body { background: #fff; color: #000; }
+    .controls, .compare-bar, .home-link, details.tldr, .viewbtns, .cmp-check, footer.note .pad, .stats, #shareBtn, #csvBtn, #printBtn, .resetbtn { display: none !important; }
+    .wrap { max-width: none; }
+    .card, .panel, .stat { break-inside: avoid; border-color: #ccc !important; }
+    a { color: #000; }
+    .card { color: #000; background: #fff; border: 1px solid #ccc; }
+    .card h3, .hl .big { color: #000; }
+    table, th, td { color: #000 !important; border-color: #999 !important; }
+    .overlay.open { position: static; background: #fff; display: block; padding: 0; }
+    .overlay.open .modal { box-shadow: none; border: none; background: #fff; color: #000; max-width: none; }
+  }
 </style>
 </head>
 <body>
@@ -187,6 +233,9 @@
       <div class="toggles">
         <label class="chk"><input type="checkbox" id="fEco"> Nur nachhaltige Kassen</label>
         <button class="resetbtn" id="reset">Filter zurücksetzen</button>
+        <button class="resetbtn" id="csvBtn">⬇ CSV</button>
+        <button class="resetbtn" id="printBtn">🖨 PDF</button>
+        <button class="resetbtn" id="shareBtn">🔗 Filter-Link</button>
       </div>
       <div class="viewbtns">
         <button id="vCards" class="active">Karten</button>
@@ -198,6 +247,15 @@
   <div class="countbar" id="countbar"></div>
   <div id="cardsView" class="grid"></div>
   <div id="tableView" class="tablewrap" style="display:none"></div>
+
+  <!-- Direktvergleich-Leiste -->
+  <div class="compare-bar" id="compareBar">
+    <div class="cb-chips" id="cbChips"></div>
+    <div class="cb-actions">
+      <button id="cbCompare">Vergleichen</button>
+      <button id="cbClear" class="ghost">Leeren</button>
+    </div>
+  </div>
 
   <footer class="note">
     <p><b>Hinweise zu den Daten:</b> Zahlen für 2025 sind grösstenteils provisorisch (auditierte Geschäftsberichte 2025 erscheinen meist April–Mai 2026).
@@ -211,6 +269,10 @@
 
 <div class="overlay" id="overlay">
   <div class="modal" id="modal"></div>
+</div>
+
+<div class="overlay" id="cmpOverlay">
+  <div class="modal cmp" id="cmpModal"></div>
 </div>
 
 <script>
@@ -501,6 +563,38 @@ const UWS_SPLIT = {
 const BVG_MINZINS = 1.25;
 DATA.forEach(d => Object.assign(d, UWS_SPLIT[d.name] || { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum)", uwsUeber:d.uws, uwsUeberD:d.uwsd }));
 
+// Zusätzliche Broker-Kennzahlen: Anlagestrategie, Performance/Rendite, Wertschwankungsreserve
+const MORE = {
+  "AXA Stiftung Berufliche Vorsorge": { anlage:"Best-in-Class-ESG", perf:"Verzinsung Ø 2019–2024: 3,78 %", wsr:"n. ö." },
+  "Sammelstiftung Vita (Zurich)": { anlage:"Nachhaltig (Ziel −80 % CO₂ Immobilien bis 2050)", perf:"n. ö.", wsr:"im Aufbau (Verzinsung bis 4,0 % nach Vollaufbau)" },
+  "Swiss Life Sammelstiftung": { anlage:"Lebensversicherer; Vollv. + teilautonom", perf:"Performance 2. Säule 2025: 5,75 %", wsr:"n. ö." },
+  "Profond Vorsorgeeinrichtung": { anlage:"Realwertstrategie, hoher Aktien-/Immobilienanteil", perf:"Anlagerendite 2020–2024: 4,04 % p.a.; nie saniert", wsr:"n. ö." },
+  "Asga Pensionskasse": { anlage:"n. ö.", perf:">700 Mio. CHF an Mitglieder 2024 (Beteiligungsmodell)", wsr:"DG 117,4 % (2024)" },
+  "PKG Pensionskasse": { anlage:"Anlagevolumen ~12,6 Mrd. CHF", perf:"n. ö.", wsr:"n. ö." },
+  "Servisa Sammelstiftung": { anlage:"n. ö.", perf:"n. ö.", wsr:"n. ö." },
+  "GEMINI Sammelstiftung": { anlage:"4 Anlagepools (0–50 % Aktien) + individuelle Strategie ab 10 Mio.", perf:"individuell pro Vorsorgewerk", wsr:"n. ö." },
+  "Noventus Sammelstiftung": { anlage:"ESG; techn. Zins marktgekoppelt", perf:"n. ö.", wsr:"DG Typ K 120,1 % (2025)" },
+  "Baloise Perspectiva": { anlage:"Relax (gemeinschaftlich) / Choice (individuell ab 50 P.)", perf:"Performance 2025: 6,6 %", wsr:"DG 109 % (2025)" },
+  "Tellco pkPRO": { anlage:"Konservativ, Aktienquote 18–28 % (PULSE 45 %)", perf:"5-Jahres-Verzinsung 1,45 %", wsr:"pro Vorsorgewerk" },
+  "Transparenta Sammelstiftung": { anlage:"~180 Vorsorgewerke, individuell", perf:"Netto-Performance 2024: 10,14 %", wsr:"DG 112,5 % (2024)" },
+  "Revor Sammelstiftung": { anlage:"REVOR INVEST / KONTO", perf:"Anlagerendite 2019–2021: 9,92 % (3J Award)", wsr:"DG 111,8 % (2024)" },
+  "Copré (La Collective de Prévoyance)": { anlage:"n. ö.", perf:"Performance 2024: 6,65 % / 2025: 1,66 %", wsr:"DG 109,6 % (2025)" },
+  "GastroSocial Pensionskasse": { anlage:"n. ö.", perf:"seit 2016 jährlich über Mindestzins", wsr:"DG 122,5 % (Jan. 2026)" },
+  "Spida Personalvorsorgestiftung": { anlage:"n. ö.", perf:"Netto-Anlagerendite 2023: 5,0 %", wsr:"ausreichende Sicherheit (Art. 52e)" },
+  "La CIEPP": { anlage:"LPP 2020, Longevitätsrückstellung", perf:"Performance 2024: 8,87 %; Ø seit 1985: 3,82 %", wsr:"DG ~119 % (2024); nie saniert" },
+  "Fondation Patrimonia": { anlage:"LPP 2020; Transparenzquote 100 %", perf:"n. ö.", wsr:"DG 105,2 % (2024)" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { anlage:"LPP 2020", perf:"Performance 2024: 8,53 %; 5J-Verzinsung 2,8 %", wsr:"11,4 % (Ziel 25 %)" },
+  "Allianz Suisse Sammelstiftung": { anlage:"Vollversicherung (Garantie)", perf:"Anlagerendite 10J: 3,39 % (Vollv. Award)", wsr:"≥ 100 % (Garantie)" },
+  "Pax Sammelstiftung BVG": { anlage:"Vollv. + teilautonom (DuoStar)", perf:"Anlagerendite 5J: 0,83 %, 3J: −2,15 %", wsr:"≥ 100 % (Garantie)" },
+  "Helvetia Sammelstiftung": { anlage:"Vollv. + teilautonom (BVG Invest)", perf:"Netto-Anlagerendite 2024: 1,9 % / 2025: 2,2 %", wsr:"≥ 100 % (Garantie)" },
+  "Stiftung Abendrot": { anlage:"Nachhaltig; hoher Anteil direkter Liegenschaften", perf:"Performance per Mai 2025: 1,8 %", wsr:"DG 114,1 % (2024)" },
+  "Nest Sammelstiftung": { anlage:"Ökologisch-ethisch (Pionierin)", perf:"n. ö.", wsr:"DG 110,5 % (2024)" },
+  "Stiftung Auffangeinrichtung BVG": { anlage:"TER 0,10 % (tiefste); soziale Auffangfunktion", perf:"Zusatzzins 3,0 % (2024/2025)", wsr:"DG Bereich BVG ~123,4 % (2024)" }
+};
+DATA.forEach(d => Object.assign(d, MORE[d.name] || { anlage:"n. ö.", perf:"n. ö.", wsr:"n. ö." }));
+// Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
+const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
+
 const $ = s => document.querySelector(s);
 const fmtNum = v => v == null ? null : v.toLocaleString('de-CH');
 const pct = v => v.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
@@ -531,6 +625,8 @@ function renderStats(list) {
 renderStats();
 
 let viewMode = 'cards';
+const compareSet = new Set();
+const MAX_CMP = 4;
 
 function getFilters() {
   return {
@@ -598,7 +694,9 @@ function render() {
         `<span class="tag">UWS: ${d.uwsModell}</span>`,
         d.eco ? `<span class="tag eco">🌱 nachhaltig</span>` : ''
       ].join('');
-      return `<div class="card" data-i="${idx}">
+      const sel = compareSet.has(d.name);
+      return `<div class="card${sel?' selected':''}" data-i="${idx}">
+        <label class="cmp-check" title="Zum Vergleich hinzufügen"><input type="checkbox" class="cmpbox" data-name="${d.name}"${sel?' checked':''}> Vergleich</label>
         <div class="chead"><h3>${d.name}</h3>${pillFor(d)}</div>
         <div class="tags">${tags}</div>
         <div class="metrics">
@@ -619,13 +717,15 @@ function render() {
     ];
     const f = getFilters();
     const [sk] = f.sort.split('-');
-    const head = cols.map(c => {
+    const head = '<th class="cmpcol">⇄</th>' + cols.map(c => {
       const active = (c[0]===sk || (c[0]==='techzins'&&sk==='techzins')) ? ' style="color:var(--accent)"' : '';
       return `<th data-col="${c[0]}"${active}>${c[1]}</th>`;
     }).join('');
     const rows = list.map(d => {
       const idx = DATA.indexOf(d);
+      const sel = compareSet.has(d.name);
       return `<tr data-i="${idx}">
+        <td class="cmpcol"><input type="checkbox" class="cmpbox" data-name="${d.name}"${sel?' checked':''}></td>
         <td>${d.name}</td>
         <td>${pillFor(d)}</td>
         <td class="num${d.dg2024==null?' na':''}">${d.dg2024d}</td>
@@ -660,6 +760,9 @@ function openModal(i) {
     ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null],
     ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
+    ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
+    ['Performance / Rendite', d.perf, d.perf==='n. ö.'],
+    ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.'],
     ['Technische Grundlage', d.grundlage, false]
   ];
   $('#modal').innerHTML = `
@@ -687,6 +790,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 
 // event delegation for opening modal
 document.addEventListener('click', e => {
+  // Vergleichs-Checkbox: nicht das Detail-Modal öffnen
+  const box = e.target.closest('.cmpbox');
+  if (box) { toggleCompare(box.dataset.name, box.checked); e.stopPropagation(); return; }
+  if (e.target.closest('.cmp-check')) { e.stopPropagation(); return; }
   const card = e.target.closest('.card');
   if (card) { openModal(+card.dataset.i); return; }
   const row = e.target.closest('tr[data-i]');
@@ -700,6 +807,144 @@ document.addEventListener('click', e => {
     if (map[col]) { $('#fSort').value = map[col]; render(); }
   }
 });
+
+// ---------- Direktvergleich ----------
+function toggleCompare(name, on) {
+  if (on) {
+    if (compareSet.size >= MAX_CMP && !compareSet.has(name)) {
+      toast(`Maximal ${MAX_CMP} Kassen vergleichbar`); renderCompareBar(); render(); return;
+    }
+    compareSet.add(name);
+  } else compareSet.delete(name);
+  renderCompareBar();
+  // Karten-Markierung aktualisieren ohne Scrollverlust
+  document.querySelectorAll('.card').forEach(c => {
+    const nm = c.querySelector('.cmpbox')?.dataset.name;
+    if (nm) c.classList.toggle('selected', compareSet.has(nm));
+  });
+}
+function renderCompareBar() {
+  const bar = $('#compareBar');
+  if (!compareSet.size) { bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  $('#cbChips').innerHTML = [...compareSet].map(n =>
+    `<span class="chip"><b>${n.length>22?n.slice(0,22)+'…':n}</b><span data-rm="${n}" title="Entfernen">✕</span></span>`).join('');
+  $('#cbCompare').disabled = compareSet.size < 2;
+  $('#cbCompare').textContent = `Vergleichen (${compareSet.size})`;
+}
+$('#cbChips').addEventListener('click', e => {
+  const rm = e.target.dataset.rm; if (rm) { compareSet.delete(rm); renderCompareBar(); render(); }
+});
+$('#cbClear').addEventListener('click', () => { compareSet.clear(); renderCompareBar(); render(); });
+$('#cbCompare').addEventListener('click', openCompare);
+
+function openCompare() {
+  const items = DATA.filter(d => compareSet.has(d.name));
+  if (items.length < 2) return;
+  const rows = [
+    ['Vorsorgemodell', d => d.modell],
+    ['Stiftungstyp', d => d.typ],
+    ['Region', d => d.region],
+    ['Deckungsgrad 2024', d => d.dg2024d, d => d.dg2024, 'max'],
+    ['Deckungsgrad 2025', d => d.dg2025d, d => d.dg2025, 'max'],
+    ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max'],
+    ['Verzinsung 2024', d => d.vz2024d, d => d.vz2024, 'max'],
+    ['Verzinsung 2025', d => d.vz2025d, d => d.vz2025, 'max'],
+    ['UWS-Modell', d => d.uwsModell],
+    ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max'],
+    ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max'],
+    ['Verwaltungskosten/Kopf', d => d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d => d.kosten, 'min'],
+    ['Rentneranteil', d => d.rentnerd],
+    ['Anlagestrategie', d => d.anlage],
+    ['Performance / Rendite', d => d.perf],
+    ['Wertschwankungsreserve', d => d.wsr]
+  ];
+  const head = '<th>Kennzahl</th>' + items.map(d => `<th>${d.name}</th>`).join('');
+  const body = rows.map(r => {
+    const [label, disp, valFn, dir] = r;
+    let best = null;
+    if (valFn) {
+      const vals = items.map(valFn).filter(v => v != null);
+      if (vals.length) best = dir === 'min' ? Math.min(...vals) : Math.max(...vals);
+    }
+    const tds = items.map(d => {
+      const v = valFn ? valFn(d) : null;
+      const isBest = best != null && v != null && v === best && items.filter(x => valFn(x) === best).length < items.length;
+      return `<td class="${isBest?'best':''}">${disp(d)}</td>`;
+    }).join('');
+    return `<tr><th>${label}</th>${tds}</tr>`;
+  }).join('');
+  $('#cmpModal').innerHTML = `
+    <div class="mhead"><div><h2>Direktvergleich (${items.length})</h2></div>
+      <button class="close" id="cmpClose" aria-label="Schliessen">✕</button></div>
+    <div class="sub">Grün = bester Wert je Zeile. Werte gem. Datenstand 2024/2025.</div>
+    <div class="cmptable"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem">
+      <button class="resetbtn" id="cmpPrint">🖨 Vergleich drucken / PDF</button>
+    </div>`;
+  $('#cmpOverlay').classList.add('open');
+  $('#cmpClose').onclick = () => $('#cmpOverlay').classList.remove('open');
+  $('#cmpPrint').onclick = () => window.print();
+}
+$('#cmpOverlay').addEventListener('click', e => { if (e.target.id === 'cmpOverlay') $('#cmpOverlay').classList.remove('open'); });
+
+// ---------- Export & Teilen ----------
+function toast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function csvField(v) { v = (v==null?'':String(v)).replace(/"/g,'""'); return `"${v}"`; }
+$('#csvBtn').addEventListener('click', () => {
+  const list = applyFilters();
+  const cols = [
+    ['Stiftung', d=>d.name], ['Vorsorgemodell', d=>d.modell], ['Typ', d=>d.typ], ['Region', d=>d.region],
+    ['Deckungsgrad 2024', d=>d.dg2024d], ['Deckungsgrad 2025', d=>d.dg2025d], ['Technischer Zins', d=>d.techZinsd],
+    ['Verzinsung 2024', d=>d.vz2024d], ['Verzinsung 2025', d=>d.vz2025d], ['UWS-Modell', d=>d.uwsModell],
+    ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
+    ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['Rentneranteil', d=>d.rentnerd],
+    ['Anlagestrategie', d=>d.anlage], ['Performance/Rendite', d=>d.perf], ['Wertschwankungsreserve', d=>d.wsr]
+  ];
+  const lines = [cols.map(c=>csvField(c[0])).join(';')];
+  list.forEach(d => lines.push(cols.map(c=>csvField(c[1](d))).join(';')));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'bvg-stiftungsvergleich.csv'; a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`${list.length} Stiftungen als CSV exportiert`);
+});
+$('#printBtn').addEventListener('click', () => window.print());
+$('#shareBtn').addEventListener('click', async () => {
+  const f = getFilters();
+  const p = new URLSearchParams();
+  if (f.q) p.set('q', f.q);
+  if (f.modell) p.set('modell', f.modell);
+  if (f.typ) p.set('typ', f.typ);
+  if (f.region) p.set('region', f.region);
+  if (f.uwsModell) p.set('uws', f.uwsModell);
+  if (f.eco) p.set('eco', '1');
+  if (f.minDg > 100) p.set('dg', f.minDg);
+  if (f.sort !== 'name-asc') p.set('sort', f.sort);
+  if (compareSet.size) p.set('cmp', [...compareSet].join('~'));
+  const url = location.origin + location.pathname + (p.toString() ? '?' + p.toString() : '');
+  try { await navigator.clipboard.writeText(url); toast('Filter-Link in Zwischenablage kopiert'); }
+  catch { prompt('Filter-Link kopieren:', url); }
+});
+
+function restoreFromUrl() {
+  const p = new URLSearchParams(location.search);
+  if (![...p.keys()].length) return;
+  if (p.get('q')) $('#q').value = p.get('q');
+  if (p.get('modell')) $('#fModell').value = p.get('modell');
+  if (p.get('typ')) $('#fTyp').value = p.get('typ');
+  if (p.get('region')) $('#fRegion').value = p.get('region');
+  if (p.get('uws')) $('#fUwsModell').value = p.get('uws');
+  if (p.get('eco')) $('#fEco').checked = true;
+  if (p.get('dg')) { $('#fDg').value = p.get('dg'); $('#fDgVal').textContent = '≥ ' + p.get('dg') + ' %'; }
+  if (p.get('sort')) $('#fSort').value = p.get('sort');
+  if (p.get('cmp')) p.get('cmp').split('~').forEach(n => { if (DATA.some(d=>d.name===n)) compareSet.add(n); });
+}
 
 // control listeners
 ['#q','#fModell','#fTyp','#fRegion','#fUwsModell','#fSort','#fEco'].forEach(s => {
@@ -719,7 +964,9 @@ $('#reset').addEventListener('click', () => {
 $('#vCards').addEventListener('click', () => { viewMode='cards'; $('#vCards').classList.add('active'); $('#vTable').classList.remove('active'); render(); });
 $('#vTable').addEventListener('click', () => { viewMode='table'; $('#vTable').classList.add('active'); $('#vCards').classList.remove('active'); render(); });
 
+restoreFromUrl();
 render();
+renderCompareBar();
 </script>
 </body>
 </html>
