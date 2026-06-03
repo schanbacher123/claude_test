@@ -133,6 +133,7 @@
         <li><b>Vollversicherer</b> (Swiss Life, Helvetia, Allianz Suisse, Pax, Baloise) garantieren 100 % Kapitaldeckung – zum Preis tiefer Verzinsung (2024/2025 rund 1,25–2,65 %).</li>
         <li>Der <b>Rentneranteil</b> ist der wichtigste strukturelle Erfolgsfaktor: tiefer Rentneranteil → höhere Verzinsung möglich.</li>
         <li>Der gesetzliche <b>BVG-Mindestumwandlungssatz</b> von 6,8 % blieb nach dem Nein zur BVG-Reform vom 22.09.2024 unverändert.</li>
+        <li><b>Obligatorium vs. Überobligatorium:</b> Auf dem Obligatorium gelten Mindestzins 1,25 % und UWS 6,8 %; im Überobligatorium setzt die Kasse Zins und (meist tieferen, umhüllenden) UWS selbst fest – filter- und sortierbar nach UWS-Modell.</li>
         <li><b>Kernfrage für KMU:</b> «Sicherheit oder Rendite». Garantien → Vollversicherung; langfristig höhere Altersguthaben → finanziell solide teilautonome Kasse.</li>
       </ul>
     </div>
@@ -159,6 +160,10 @@
         <select id="fRegion"></select>
       </div>
       <div class="field">
+        <label for="fUwsModell">UWS-Modell</label>
+        <select id="fUwsModell"></select>
+      </div>
+      <div class="field">
         <label for="fSort">Sortierung</label>
         <select id="fSort">
           <option value="name-asc">Name (A–Z)</option>
@@ -169,7 +174,8 @@
           <option value="vz2025-desc">Verzinsung 2025 (hoch → tief)</option>
           <option value="kosten-asc">Verwaltungskosten (tief → hoch)</option>
           <option value="techzins-desc">Technischer Zins (hoch → tief)</option>
-          <option value="uws-desc">Umwandlungssatz (hoch → tief)</option>
+          <option value="uwsObl-desc">UWS Obligatorium (hoch → tief)</option>
+          <option value="uwsUeber-desc">UWS Überobligatorium (hoch → tief)</option>
         </select>
       </div>
     </div>
@@ -460,8 +466,44 @@ const DATA = [
     special:"Soziale Auffangfunktion (keine Risikoselektion); Einmalzahlung 10 % der Rente an gewisse Rentner; >230 Mitarbeitende. Standard-Obligatorium UWS 6,8 %." }
 ];
 
+// Aufteilung Umwandlungssatz Obligatorium / Überobligatorium (Stand 2025)
+// uwsModell: Gesplittet = getrennte Sätze; Umhüllend = ein Satz aufs ganze Guthaben
+//   (BVG-Obligatorium via Schattenrechnung mit 6,8 % garantiert); Pro Vorsorgewerk = individuell
+const UWS_SPLIT = {
+  "AXA Stiftung Berufliche Vorsorge": { uwsModell:"Gesplittet", uwsObl:6.55, uwsOblD:"6,55 % (2025) → 6,30 % (2026)", uwsUeber:5.45, uwsUeberD:"5,45 % (2025) → 5,40 %" },
+  "Sammelstiftung Vita (Zurich)": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:null, uwsUeberD:"umhüllend, n. ö." },
+  "Swiss Life Sammelstiftung": { uwsModell:"Gesplittet / umhüllend", uwsObl:5.65, uwsOblD:"5,65 % (Vollv. 2025) · 5,20 % umhüllend (teilaut.)", uwsUeber:4.49, uwsUeberD:"4,49 % (Vollversicherung)" },
+  "Profond Vorsorgeeinrichtung": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:null, uwsUeberD:"umhüllend, konstant 2025–2027" },
+  "Asga Pensionskasse": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.05, uwsUeberD:"5,20 % (M) / 5,05 % (F) umhüllend 2025" },
+  "PKG Pensionskasse": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:null, uwsUeberD:"umhüllend, n. ö. separat" },
+  "Servisa Sammelstiftung": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.4, uwsUeberD:"5,4 % umhüllend (Ziel 2026)" },
+  "GEMINI Sammelstiftung": { uwsModell:"Pro Vorsorgewerk", uwsObl:null, uwsOblD:"pro Vorsorgewerk", uwsUeber:null, uwsUeberD:"pro Vorsorgewerk" },
+  "Noventus Sammelstiftung": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % auf BVG-Minimalleistungen", uwsUeber:5.30, uwsUeberD:"5,40 % → 5,25 % umhüllend" },
+  "Baloise Perspectiva": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:null, uwsUeberD:"umhüllend, n. ö." },
+  "Tellco pkPRO": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.8, uwsUeberD:"~5,8 % umhüllend" },
+  "Transparenta Sammelstiftung": { uwsModell:"Gesplittet (wählbar)", uwsObl:6.60, uwsOblD:"6,60 % (2025, Split-Modell)", uwsUeber:5.45, uwsUeberD:"5,45 % (2025) · ~5,5 % umhüllend" },
+  "Revor Sammelstiftung": { uwsModell:"Pro Vorsorgewerk", uwsObl:null, uwsOblD:"pro Vorsorgewerk", uwsUeber:null, uwsUeberD:"pro Vorsorgewerk" },
+  "Copré (La Collective de Prévoyance)": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.6, uwsUeberD:"5,6 % umhüllend (fix bis 2028)" },
+  "GastroSocial Pensionskasse": { uwsModell:"Gesplittet", uwsObl:6.8, uwsOblD:"6,80 %", uwsUeber:6.5, uwsUeberD:"6,5 %" },
+  "Spida Personalvorsorgestiftung": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:6.0, uwsUeberD:"6,0 % umhüllend" },
+  "La CIEPP": { uwsModell:"Umhüllend", uwsObl:6.0, uwsOblD:"6,0 % einheitlich (kein Split)", uwsUeber:6.0, uwsUeberD:"6,0 % einheitlich (kein Split)" },
+  "Fondation Patrimonia": { uwsModell:"Umhüllend", uwsObl:6.0, uwsOblD:"6,0 % einheitlich (kein Split)", uwsUeber:6.0, uwsUeberD:"6,0 % einheitlich (kein Split)" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % → 6,0 % (Ziel 2031)", uwsUeber:6.0, uwsUeberD:"6,0 % umhüllend (Ziel 2031)" },
+  "Allianz Suisse Sammelstiftung": { uwsModell:"Gesplittet", uwsObl:6.00, uwsOblD:"6,00 % (2025)", uwsUeber:4.23, uwsUeberD:"4,23 % (2025) → 4,13 % (2026)" },
+  "Pax Sammelstiftung BVG": { uwsModell:"Gesplittet", uwsObl:6.00, uwsOblD:"6,00 % (2025)", uwsUeber:4.41, uwsUeberD:"4,41 %" },
+  "Helvetia Sammelstiftung": { uwsModell:"Gesplittet", uwsObl:6.00, uwsOblD:"6,00 %", uwsUeber:4.30, uwsUeberD:"4,30 %" },
+  "Stiftung Abendrot": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.6, uwsUeberD:"5,6 % umhüllend" },
+  "Nest Sammelstiftung": { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum garantiert)", uwsUeber:5.6, uwsUeberD:"5,6 % → 5,3 % (2026) umhüllend" },
+  "Stiftung Auffangeinrichtung BVG": { uwsModell:"Gesplittet", uwsObl:6.8, uwsOblD:"6,80 % (Standard-Obligatorium)", uwsUeber:4.2, uwsUeberD:"4,2 % (freiw. Weiterversicherung)" }
+};
+// Verzinsung: Obligatorium ist immer mind. der BVG-Mindestzins (2025: 1,25 %); die ausgewiesene
+// (gutgeschriebene) Verzinsung gilt bei teilautonomen Kassen i. d. R. umhüllend aufs ganze Guthaben.
+const BVG_MINZINS = 1.25;
+DATA.forEach(d => Object.assign(d, UWS_SPLIT[d.name] || { uwsModell:"Umhüllend", uwsObl:6.8, uwsOblD:"6,80 % (BVG-Minimum)", uwsUeber:d.uws, uwsUeberD:d.uwsd }));
+
 const $ = s => document.querySelector(s);
 const fmtNum = v => v == null ? null : v.toLocaleString('de-CH');
+const pct = v => v.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
 
 // populate dropdowns
 function uniqueSorted(key) { return [...new Set(DATA.map(d => d[key]))].sort((a,b)=>a.localeCompare(b,'de')); }
@@ -471,6 +513,7 @@ function fillSelect(el, vals, allLabel) {
 fillSelect($('#fModell'), uniqueSorted('modell'), 'Alle Modelle');
 fillSelect($('#fTyp'), uniqueSorted('typ'), 'Alle Typen');
 fillSelect($('#fRegion'), uniqueSorted('region'), 'Alle Regionen');
+fillSelect($('#fUwsModell'), uniqueSorted('uwsModell'), 'Alle UWS-Modelle');
 
 // stats
 function renderStats(list) {
@@ -495,6 +538,7 @@ function getFilters() {
     modell: $('#fModell').value,
     typ: $('#fTyp').value,
     region: $('#fRegion').value,
+    uwsModell: $('#fUwsModell').value,
     minDg: parseInt($('#fDg').value, 10),
     eco: $('#fEco').checked,
     sort: $('#fSort').value
@@ -508,6 +552,7 @@ function applyFilters() {
     if (f.modell && d.modell !== f.modell) return false;
     if (f.typ && d.typ !== f.typ) return false;
     if (f.region && d.region !== f.region) return false;
+    if (f.uwsModell && d.uwsModell !== f.uwsModell) return false;
     if (f.eco && !d.eco) return false;
     if (f.minDg > 100 && (d.dg2024 == null || d.dg2024 < f.minDg)) return false;
     return true;
@@ -550,6 +595,7 @@ function render() {
       const tags = [
         `<span class="tag">${d.typ}</span>`,
         `<span class="tag">${d.region}</span>`,
+        `<span class="tag">UWS: ${d.uwsModell}</span>`,
         d.eco ? `<span class="tag eco">🌱 nachhaltig</span>` : ''
       ].join('');
       return `<div class="card" data-i="${idx}">
@@ -558,8 +604,8 @@ function render() {
         <div class="metrics">
           ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null)}
           ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null)}
-          ${metricCell('Techn. Zins', d.techZinsd, d.techZins==null)}
-          ${metricCell('Verw.-Kosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null)}
+          ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null)}
+          ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null)}
         </div>
       </div>`;
     }).join('');
@@ -568,8 +614,8 @@ function render() {
     $('#tableView').style.display = 'block';
     const cols = [
       ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024'],['dg2025','DG 2025'],
-      ['techzins','Techn. Zins'],['kosten','Kosten/Kopf'],['uws','UWS Überobl.'],
-      ['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
+      ['techzins','Techn. Zins'],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell'],
+      ['uwsObl','UWS Obl.'],['uwsUeber','UWS Überobl.'],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
     ];
     const f = getFilters();
     const [sk] = f.sort.split('-');
@@ -586,7 +632,9 @@ function render() {
         <td class="num${d.dg2025==null?' na':''}">${d.dg2025d}</td>
         <td class="num${d.techZins==null?' na':''}">${d.techZinsd}</td>
         <td class="num${d.kosten==null?' na':''}">${d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten)}</td>
-        <td class="num${d.uws==null?' na':''}">${d.uwsd}</td>
+        <td>${d.uwsModell}</td>
+        <td class="num${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
+        <td class="num${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
         <td class="num${d.vz2024==null?' na':''}">${d.vz2024d}</td>
         <td class="num${d.vz2025==null?' na':''}">${d.vz2025d}</td>
       </tr>`;
@@ -605,9 +653,12 @@ function openModal(i) {
     ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null],
     ['Technischer Zins', d.techZinsd, d.techZins==null],
     ['Rentneranteil', d.rentnerd, false],
-    ['Verzinsung 2024', d.vz2024d, d.vz2024==null],
-    ['Verzinsung 2025', d.vz2025d, d.vz2025==null],
-    ['UWS Überobligatorium (65)', d.uwsd, d.uws==null],
+    ['UWS-Modell', d.uwsModell, false],
+    ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null],
+    ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null],
+    ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false],
+    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null],
+    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
     ['Technische Grundlage', d.grundlage, false]
   ];
@@ -621,6 +672,9 @@ function openModal(i) {
     <div style="font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem">${d.versicherte}</div>
     <div class="dgrid">
       ${cells.map(c=>`<div class="dcell"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
+    </div>
+    <div style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
+      <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
     <h4>Besonderheiten</h4>
     <div class="special">${d.special}</div>`;
@@ -641,13 +695,14 @@ document.addEventListener('click', e => {
   if (th) {
     const col = th.dataset.col;
     const map = { name:'name-asc', modell:'name-asc', dg2024:'dg2024-desc', dg2025:'dg2025-desc',
-      techzins:'techzins-desc', kosten:'kosten-asc', uws:'uws-desc', vz2024:'vz2024-desc', vz2025:'vz2025-desc' };
+      techzins:'techzins-desc', kosten:'kosten-asc', uwsObl:'uwsObl-desc', uwsUeber:'uwsUeber-desc',
+      vz2024:'vz2024-desc', vz2025:'vz2025-desc' };
     if (map[col]) { $('#fSort').value = map[col]; render(); }
   }
 });
 
 // control listeners
-['#q','#fModell','#fTyp','#fRegion','#fSort','#fEco'].forEach(s => {
+['#q','#fModell','#fTyp','#fRegion','#fUwsModell','#fSort','#fEco'].forEach(s => {
   $(s).addEventListener('input', render);
   $(s).addEventListener('change', render);
 });
@@ -657,7 +712,7 @@ $('#fDg').addEventListener('input', () => {
   render();
 });
 $('#reset').addEventListener('click', () => {
-  $('#q').value=''; $('#fModell').value=''; $('#fTyp').value=''; $('#fRegion').value='';
+  $('#q').value=''; $('#fModell').value=''; $('#fTyp').value=''; $('#fRegion').value=''; $('#fUwsModell').value='';
   $('#fSort').value='name-asc'; $('#fEco').checked=false; $('#fDg').value=100; $('#fDgVal').textContent='alle';
   render();
 });
