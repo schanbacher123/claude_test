@@ -168,6 +168,9 @@
   .legend .lg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
   .legend .lg b { color: var(--txt); margin-left: auto; font-variant-numeric: tabular-nums; }
   .assetsrc { font-size: 0.72rem; color: var(--dim); margin-top: 0.5rem; }
+  .assetsrc.na { color: var(--muted); font-style: italic; }
+  .reportlink { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; text-decoration: none; background: var(--bg3); border: 1px solid var(--border); color: var(--accent2); border-radius: 8px; padding: 0.5rem 0.8rem; margin-bottom: 0.7rem; transition: border-color 0.15s; }
+  .reportlink:hover { border-color: var(--accent); color: var(--accent); }
 
   .contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem 1rem; background: var(--bg3); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.4rem; }
   .contact .ci { font-size: 0.85rem; display: flex; gap: 0.5rem; align-items: flex-start; }
@@ -600,21 +603,21 @@ const MORE = {
   "Sammelstiftung Vita (Zurich)": { anlage:"Nachhaltig (Ziel −80 % CO₂ Immobilien bis 2050)", perf:"n. ö.", wsr:"im Aufbau (Verzinsung bis 4,0 % nach Vollaufbau)" },
   "Swiss Life Sammelstiftung": { anlage:"Lebensversicherer; Vollv. + teilautonom", perf:"Performance 2. Säule 2025: 5,75 %", wsr:"n. ö." },
   "Profond Vorsorgeeinrichtung": { anlage:"Realwertstrategie, hoher Aktien-/Immobilienanteil", perf:"Anlagerendite 2020–2024: 4,04 % p.a.; nie saniert", wsr:"n. ö." },
-  "Asga Pensionskasse": { anlage:"n. ö.", perf:">700 Mio. CHF an Mitglieder 2024 (Beteiligungsmodell)", wsr:"DG 117,4 % (2024)" },
-  "PKG Pensionskasse": { anlage:"Anlagevolumen ~12,6 Mrd. CHF", perf:"n. ö.", wsr:"n. ö." },
-  "Servisa Sammelstiftung": { anlage:"n. ö.", perf:"n. ö.", wsr:"n. ö." },
+  "Asga Pensionskasse": { anlage:"Breit diversifiziert; Aktien 35 %, Oblig./Hypotheken 34 %, Immobilien 23 %, übrige Anlagen 9 %", perf:">700 Mio. CHF an Mitglieder 2024 (Beteiligungsmodell)", wsr:"DG 117,4 % (2024)" },
+  "PKG Pensionskasse": { anlage:"Vorsichtig, langfristig & nachhaltig (ESG); liquide Qualitätsanlagen, breit diversifiziert", perf:"n. ö.", wsr:"n. ö." },
+  "Servisa Sammelstiftung": { anlage:"Langfristig auf Substanzerhalt ausgerichtet, nachhaltig über die Servisa Anlagestiftung", perf:"n. ö.", wsr:"n. ö." },
   "GEMINI Sammelstiftung": { anlage:"4 Anlagepools (0–50 % Aktien) + individuelle Strategie ab 10 Mio.", perf:"individuell pro Vorsorgewerk", wsr:"n. ö." },
-  "Noventus Sammelstiftung": { anlage:"ESG; techn. Zins marktgekoppelt", perf:"n. ö.", wsr:"DG Typ K 120,1 % (2025)" },
+  "Noventus Sammelstiftung": { anlage:"Dynamisch, techn. Zins marktgekoppelt (ESG); Aktien 46 %, Oblig./Hyp. 32 %, Immobilien 14 %, übrige 9 %", perf:"n. ö.", wsr:"DG Typ K 120,1 % (2025)" },
   "Baloise Perspectiva": { anlage:"Relax (gemeinschaftlich) / Choice (individuell ab 50 P.)", perf:"Performance 2025: 6,6 %", wsr:"DG 109 % (2025)" },
   "Tellco pkPRO": { anlage:"Konservativ, Aktienquote 18–28 % (PULSE 45 %)", perf:"5-Jahres-Verzinsung 1,45 %", wsr:"pro Vorsorgewerk" },
   "Transparenta Sammelstiftung": { anlage:"~180 Vorsorgewerke, individuell", perf:"Netto-Performance 2024: 10,14 %", wsr:"DG 112,5 % (2024)" },
-  "Revor Sammelstiftung": { anlage:"REVOR INVEST / KONTO", perf:"Anlagerendite 2019–2021: 9,92 % (3J Award)", wsr:"DG 111,8 % (2024)" },
-  "Copré (La Collective de Prévoyance)": { anlage:"n. ö.", perf:"Performance 2024: 6,65 % / 2025: 1,66 %", wsr:"DG 109,6 % (2025)" },
+  "Revor Sammelstiftung": { anlage:"Aktiv verwaltet; strategische Übergewichtung von Aktien und Gold, konsequente Titelselektion", perf:"Anlagerendite 2019–2021: 9,92 % (3J Award)", wsr:"DG 113,6 % (2024)" },
+  "Copré (La Collective de Prévoyance)": { anlage:"Semi-autonome, unabhängige Gemeinschaftseinrichtung mit Mutualisierung der Risiken", perf:"Performance 2024: 6,65 % / 2025: 1,66 %", wsr:"DG 109,1 % (2024/25)" },
   "GastroSocial Pensionskasse": { anlage:"Aktien 39 %, Obligat./Hyp. 39 %, Immo 20 %, Cash 2 %", perf:"Anlagerendite 2024: 6,52 % · Beiträge ~563 Mio. CHF · Vermögen ~9,7 Mrd. CHF", wsr:"DG 118,0 % (31.12.2024)" },
-  "Spida Personalvorsorgestiftung": { anlage:"n. ö.", perf:"Netto-Anlagerendite 2023: 5,0 %", wsr:"ausreichende Sicherheit (Art. 52e)" },
+  "Spida Personalvorsorgestiftung": { anlage:"Bewährte, langfristig überdurchschnittlich performende Anlagestrategie", perf:"Netto-Anlagerendite 2023: 5,0 %", wsr:"DG 112,4 % (2024)" },
   "La CIEPP": { anlage:"LPP 2020, Longevitätsrückstellung", perf:"Performance 2024: 8,87 % · Beiträge >460 Mio. CHF · Renten >120 Mio. CHF · Vermögen >9,5 Mrd. CHF", wsr:"DG 119,1 % (31.12.2024); 51'252 Aktive · 8'149 Rentner; nie saniert" },
-  "Fondation Patrimonia": { anlage:"LPP 2020; Transparenzquote 100 %", perf:"n. ö.", wsr:"DG 105,2 % (2024)" },
-  "FIP (Fonds Interprofessionnel de Prévoyance)": { anlage:"LPP 2020", perf:"Performance 2024: 8,53 %; 5J-Verzinsung 2,8 %", wsr:"11,4 % (Ziel 25 %)" },
+  "Fondation Patrimonia": { anlage:"ALM-gesteuerte Mehrklassen-Allokation; Aktien 27 %, Immobilien 32 %, Obligationen 32 %, übrige 9 %", perf:"n. ö.", wsr:"DG 105,2 % (2024)" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { anlage:"Verantwortungsvolle ESG-Anlagepolitik; Überschüsse fliessen vollständig an Beiträge/Leistungen", perf:"Performance 2024: 8,53 %; 5J-Verzinsung 2,8 %", wsr:"11,4 % (Ziel 25 %)" },
   "Allianz Suisse Sammelstiftung": { anlage:"Vollversicherung (Garantie)", perf:"Anlagerendite 10J: 3,39 % (Vollv. Award)", wsr:"≥ 100 % (Garantie)" },
   "Pax Sammelstiftung BVG": { anlage:"Vollv. + teilautonom (DuoStar)", perf:"Anlagerendite 5J: 0,83 %, 3J: −2,15 %", wsr:"≥ 100 % (Garantie)" },
   "Helvetia Sammelstiftung": { anlage:"Vollv. + teilautonom (BVG Invest)", perf:"Netto-Anlagerendite 2024: 1,9 % / 2025: 2,2 %", wsr:"≥ 100 % (Garantie)" },
@@ -645,20 +648,27 @@ DATA.forEach(d => {
 // Netto-Anlagerendite (Performance) – IMMER als Prozentsatz, mit Bezugszeitraum.
 // null = nicht öffentlich ausgewiesen (es werden KEINE illustrativen Werte gezeigt).
 const RENDITE = {
+  "AXA Stiftung Berufliche Vorsorge": { v:7.30, jahr:"2024" },
+  "Sammelstiftung Vita (Zurich)": { v:6.60, jahr:"2024" },
   "Swiss Life Sammelstiftung": { v:5.75, jahr:"2025" },
-  "Profond Vorsorgeeinrichtung": { v:4.04, jahr:"Ø 2020–2024" },
-  "Baloise Perspectiva": { v:6.60, jahr:"2025" },
+  "Profond Vorsorgeeinrichtung": { v:9.60, jahr:"2024" },
+  "Asga Pensionskasse": { v:7.02, jahr:"2024" },
+  "Noventus Sammelstiftung": { v:9.90, jahr:"2024" },
+  "Baloise Perspectiva": { v:6.60, jahr:"2024" },
+  "Tellco pkPRO": { v:4.70, jahr:"2024" },
   "Transparenta Sammelstiftung": { v:10.14, jahr:"2024" },
   "Revor Sammelstiftung": { v:9.92, jahr:"Ø 2019–2021" },
   "Copré (La Collective de Prévoyance)": { v:1.66, jahr:"2025" },
   "GastroSocial Pensionskasse": { v:6.52, jahr:"2024" },
-  "Spida Personalvorsorgestiftung": { v:5.00, jahr:"2023" },
+  "Spida Personalvorsorgestiftung": { v:7.60, jahr:"2024" },
   "La CIEPP": { v:8.87, jahr:"2024" },
+  "Fondation Patrimonia": { v:7.47, jahr:"2024" },
   "FIP (Fonds Interprofessionnel de Prévoyance)": { v:8.53, jahr:"2024" },
   "Allianz Suisse Sammelstiftung": { v:3.39, jahr:"Ø 10 J." },
   "Pax Sammelstiftung BVG": { v:0.83, jahr:"Ø 5 J." },
   "Helvetia Sammelstiftung": { v:2.20, jahr:"2025" },
-  "Stiftung Abendrot": { v:1.80, jahr:"2024" }
+  "Stiftung Abendrot": { v:1.80, jahr:"2024" },
+  "Nest Sammelstiftung": { v:6.70, jahr:"2024" }
 };
 DATA.forEach(d => {
   const r = RENDITE[d.name];
@@ -668,12 +678,52 @@ DATA.forEach(d => {
 
 // Effektive Betriebsrechnungs-/Bilanzzahlen aus Geschäftsberichten – nur wo real verfügbar.
 const FINANCIALS = {
-  "Profond Vorsorgeeinrichtung": { jahr:"2023", vermoegen:"≈ 10'800 Mio. CHF", einlagen:"734,9 Mio. CHF" },
+  "AXA Stiftung Berufliche Vorsorge": { jahr:"2024", vermoegen:"≈ 32'000 Mio. CHF" },
+  "Profond Vorsorgeeinrichtung": { jahr:"2024", vermoegen:"≈ 12'800 Mio. CHF" },
+  "Asga Pensionskasse": { jahr:"2024", vermoegen:"≈ 29'826 Mio. CHF (Bilanzsumme)" },
+  "PKG Pensionskasse": { jahr:"2024", vermoegen:"> 10'000 Mio. CHF" },
+  "Servisa Sammelstiftung": { jahr:"2024", vermoegen:"720,6 Mio. CHF (Bilanzsumme)" },
+  "GEMINI Sammelstiftung": { jahr:"2024", vermoegen:"≈ 6'900 Mio. CHF" },
+  "Transparenta Sammelstiftung": { jahr:"2024", vermoegen:"≈ 1'600 Mio. CHF" },
+  "Revor Sammelstiftung": { jahr:"2024", vermoegen:"≈ 1'000 Mio. CHF" },
+  "Baloise Perspectiva": { jahr:"2024", vermoegen:"≈ 2'100 Mio. CHF" },
+  "Spida Personalvorsorgestiftung": { jahr:"2024", vermoegen:"2'152,9 Mio. CHF (Bilanzsumme)" },
+  "Fondation Patrimonia": { jahr:"2024", vermoegen:"3'482 Mio. CHF (Bilanzsumme)" },
   "Stiftung Abendrot": { jahr:"2024", vermoegen:"3'109 Mio. CHF" },
   "GastroSocial Pensionskasse": { jahr:"2024", beitraege:"≈ 563 Mio. CHF", vermoegen:"≈ 9'700 Mio. CHF" },
   "La CIEPP": { jahr:"2024", beitraege:"> 460 Mio. CHF", renten:"> 120 Mio. CHF", vermoegen:"> 9'500 Mio. CHF" }
 };
 DATA.forEach(d => d.fin = FINANCIALS[d.name] || null);
+
+// Offizielle Geschäftsberichts-/Betriebsrechnungs-Seiten der Stiftungen (Download bzw. Kennzahlen).
+const REPORTS = {
+  "AXA Stiftung Berufliche Vorsorge": "https://www.axa.ch/de/ueber-axa/unternehmen/stiftungen/stiftung-berufliche-vorsorge/downloads.html",
+  "Sammelstiftung Vita (Zurich)": "https://www.vita.ch/de/rund-um-vita/vita-sammelstiftungen/sammelstiftung-vita/berichterstattung",
+  "Swiss Life Sammelstiftung": "https://www.swisslife.ch/en/enterprises/foundations-facts-figures.html",
+  "Profond Vorsorgeeinrichtung": "https://report.profond.ch/",
+  "Asga Pensionskasse": "https://www.asga.ch/geschaeftsbericht-2024/",
+  "PKG Pensionskasse": "https://pkg.ch/ueber_uns/geschaeftsberichte",
+  "Servisa Sammelstiftung": "https://www.servisa.ch/deutsch/sammelstiftung/",
+  "GEMINI Sammelstiftung": "https://report.gemini.ch/geschaeftsbericht-2024",
+  "Noventus Sammelstiftung": "https://www.noventus.ch/dokumente/",
+  "Baloise Perspectiva": "https://www.baloise.ch/de/unternehmenskunden/versichern/berufliche-vorsorge/arbeitgeber/perspectiva.html",
+  "Tellco pkPRO": "https://tellco.ch/en/pension-fund/key-figures",
+  "Transparenta Sammelstiftung": "https://transparenta.ch/geschaeftsberichte.html",
+  "Revor Sammelstiftung": "https://www.revor.swiss/de/kennzahlen",
+  "Copré (La Collective de Prévoyance)": "https://www.copre.ch/en/copre-figures",
+  "GastroSocial Pensionskasse": "https://gastrosocial.ch/de/ueber-uns/news/geschaeftsbericht2024",
+  "Spida Personalvorsorgestiftung": "https://www.spida.ch/sozialversicherungen/unsere-sozialversicherungen/personalvorsorgestiftung/reglemente-und-jahresberichte",
+  "La CIEPP": "https://www.ciepp.ch",
+  "Fondation Patrimonia": "https://www.patrimonia.ch/en/resources/downloads/",
+  "FIP (Fonds Interprofessionnel de Prévoyance)": "https://www.centrepatronal.ch/assurances-sociales/fonds-de-prevoyance/brochure-et-rapport-de-gestion/",
+  "Allianz Suisse Sammelstiftung": "https://www.allianz.ch/de/ueber-uns/medien/geschaeftsbericht-kennzahlen.html",
+  "Pax Sammelstiftung BVG": "https://www.pax.ch/de/ueber-pax/pax-sammelstiftungen/jahresrechnung",
+  "Helvetia Sammelstiftung": "https://www.helvetia.com/ch/web/de/geschaeftskunden/vorsorge/berufliche-vorsorge/zahlen-und-fakten.html",
+  "Stiftung Abendrot": "https://gb.abendrot.ch/2024/",
+  "Nest Sammelstiftung": "https://www.nest-info.ch/service-center/publikationen/",
+  "Stiftung Auffangeinrichtung BVG": "https://aeis.ch"
+};
+DATA.forEach(d => d.report = REPORTS[d.name] || null);
 
 // Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
 const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
@@ -684,12 +734,15 @@ const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2
 const BENCHMARK_ASSETS = { a:33, i:25, o:29, c:13, src:"Branchenrichtwert", perf:null };
 const ASSETS = {
   "Profond Vorsorgeeinrichtung": { a:50, i:28, o:9, c:13, src:"Kasse (GB 2023)", perf:null },
+  "Asga Pensionskasse": { a:34.6, i:22.8, o:33.5, c:9.1, src:"Kasse (GB 2024)", perf:7.02 },
+  "PKG Pensionskasse": { a:37.4, i:19.8, o:39.8, c:3.0, src:"Kasse (GB 2024)", perf:null },
+  "Noventus Sammelstiftung": { a:45.5, i:13.9, o:31.9, c:8.7, src:"Kasse (GB 2024)", perf:9.90 },
   "Tellco pkPRO": { a:23, i:27, o:42, c:8, src:"Kasse", perf:null },
   "AXA Stiftung Berufliche Vorsorge": { a:35, i:24, o:30, c:11, src:"Kasse", perf:null },
   "Stiftung Abendrot": { a:32, i:30, o:20, c:18, src:"Kasse (GB 2024)", perf:1.8 },
   "Nest Sammelstiftung": { a:29, i:24, o:31, c:16, src:"Kasse (GB 2024)", perf:null },
   "La CIEPP": { a:40, i:24, o:30, c:6, src:"Kasse", perf:8.87 },
-  "Fondation Patrimonia": { a:35, i:25, o:32, c:8, src:"Branchenrichtwert", perf:null },
+  "Fondation Patrimonia": { a:26.8, i:32.4, o:32.0, c:8.8, src:"Kasse (GB 2024)", perf:7.47 },
   "FIP (Fonds Interprofessionnel de Prévoyance)": { a:38, i:24, o:32, c:6, src:"Kasse", perf:8.53 },
   "Transparenta Sammelstiftung": { a:42, i:22, o:30, c:6, src:"Kasse", perf:10.14 },
   "Copré (La Collective de Prévoyance)": { a:38, i:25, o:31, c:6, src:"Kasse", perf:6.65 },
@@ -975,6 +1028,7 @@ function openModal(i) {
       <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
     <h4>Betriebsrechnung &amp; Geldflüsse</h4>
+    ${d.report ? `<a class="reportlink" href="${d.report}" target="_blank" rel="noopener">📄 Geschäftsbericht / Betriebsrechnung der Stiftung ansehen ↗</a>` : ''}
     ${buildFinancials(d)}
     <h4>Anlagestrategie &amp; Rendite</h4>
     ${buildAssetTile(d)}
@@ -1106,8 +1160,10 @@ $('#csvBtn').addEventListener('click', () => {
     ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
     ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['TER %', d=>d.terD], ['Rentneranteil', d=>d.rentnerd],
     ['Anlagestrategie', d=>d.anlage], ['Netto-Anlagerendite', d=>d.renditeD], ['Wertschwankungsreserve', d=>d.wsr],
+    ['Vorsorgevermögen', d=>d.fin&&d.fin.vermoegen?d.fin.vermoegen:'n. v.'],
     ['Adresse', d=>d.contact.addr||'n.v.'], ['Website', d=>d.contact.web||'n.v.'],
-    ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.']
+    ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.'],
+    ['Geschäftsbericht-URL', d=>d.report||'n.v.']
   ];
   const lines = [cols.map(c=>csvField(c[0])).join(';')];
   list.forEach(d => lines.push(cols.map(c=>csvField(c[1](d))).join(';')));
