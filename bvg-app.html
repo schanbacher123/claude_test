@@ -169,6 +169,15 @@
   .legend .lg b { color: var(--txt); margin-left: auto; font-variant-numeric: tabular-nums; }
   .assetsrc { font-size: 0.72rem; color: var(--dim); margin-top: 0.5rem; }
 
+  .contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem 1rem; background: var(--bg3); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.4rem; }
+  .contact .ci { font-size: 0.85rem; display: flex; gap: 0.5rem; align-items: flex-start; }
+  .contact .ci .cic { font-size: 0.95rem; line-height: 1.2; }
+  .contact .ci .ct { color: var(--muted); }
+  .contact .ci .ct b { color: var(--dim); font-weight: 600; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; display: block; }
+  .contact .ci a { color: var(--accent); text-decoration: none; word-break: break-word; }
+  .contact .ci a:hover { text-decoration: underline; }
+  .contact .ci .na { color: var(--dim); }
+
   @media print {
     body { background: #fff; color: #000; }
     .controls, .compare-bar, .home-link, details.tldr, .viewbtns, .cmp-check, footer.note .pad, .stats, #shareBtn, #csvBtn, #printBtn, .resetbtn { display: none !important; }
@@ -641,6 +650,36 @@ const ASSETS = {
 };
 DATA.forEach(d => d.assets = ASSETS[d.name] || BENCHMARK_ASSETS);
 
+// Kontaktdaten (recherchiert von offiziellen Websites/Verzeichnissen; "n.v." = nicht verifiziert gefunden)
+const CONTACT = {
+  "AXA Stiftung Berufliche Vorsorge": { web:"axa.ch", url:"https://www.axa.ch", addr:"c/o AXA Leben AG, General-Guisan-Strasse 40, 8400 Winterthur", tel:"0800 809 810", email:null },
+  "Sammelstiftung Vita (Zurich)": { web:"vita.ch", url:"https://www.vita.ch", addr:"Hagenholzstrasse 60, 8050 Zürich", tel:"044 628 28 28", email:"bvg@zurich.ch" },
+  "Swiss Life Sammelstiftung": { web:"swisslife.ch", url:"https://www.swisslife.ch", addr:"General-Guisan-Quai 40, 8002 Zürich", tel:null, email:null },
+  "Profond Vorsorgeeinrichtung": { web:"profond.ch", url:"https://www.profond.ch", addr:"Zollstrasse 62, 8005 Zürich", tel:"058 589 89 81", email:null },
+  "Asga Pensionskasse": { web:"asga.ch", url:"https://www.asga.ch", addr:"Rosenbergstrasse 16, 9001 St. Gallen", tel:null, email:null },
+  "PKG Pensionskasse": { web:"pkg.ch", url:"https://www.pkg.ch", addr:"Zürichstrasse 16, 6000 Luzern 6", tel:"041 418 50 00", email:"info@pkg.ch" },
+  "Servisa Sammelstiftung": { web:"servisa.ch", url:"https://www.servisa.ch", addr:"St. Alban-Anlage 26, 4052 Basel", tel:"058 280 26 66", email:"info@servisa.ch" },
+  "GEMINI Sammelstiftung": { web:"gemini.ch", url:"https://gemini.ch", addr:"c/o Avadis Vorsorge AG, Zollstrasse 42, 8005 Zürich", tel:"058 585 33 00", email:"service@gemini.ch" },
+  "Noventus Sammelstiftung": { web:"noventus.ch", url:"https://www.noventus.ch", addr:"Grundstrasse 18, 6343 Rotkreuz", tel:"041 798 11 77", email:null },
+  "Baloise Perspectiva": { web:"baloise.ch", url:"https://www.baloise.ch", addr:"Aeschengraben 21, 4051 Basel", tel:"058 285 28 28", email:"customerservice@baloise.ch" },
+  "Tellco pkPRO": { web:"tellco.ch", url:"https://tellco.ch", addr:"Bahnhofstrasse 4, 6431 Schwyz", tel:"058 442 50 00", email:"info@tellcopk.ch" },
+  "Transparenta Sammelstiftung": { web:"transparenta.ch", url:"https://www.transparenta.ch", addr:"Hauptstrasse 105, 4147 Aesch", tel:"061 756 60 80", email:"info@transparenta.ch" },
+  "Revor Sammelstiftung": { web:"revor.swiss", url:"https://www.revor.swiss", addr:"Gutenbergstrasse 48, 3011 Bern", tel:"031 310 58 85", email:"info@revor.swiss" },
+  "Copré (La Collective de Prévoyance)": { web:"copre.ch", url:"https://copre.ch", addr:"Avenue de Champel 4, 1206 Genève", tel:"021 310 12 30", email:"copre@copre.ch" },
+  "GastroSocial Pensionskasse": { web:"gastrosocial.ch", url:"https://gastrosocial.ch", addr:"Bahnhofstrasse 86, 5001 Aarau", tel:"062 837 71 71", email:"info@gastrosocial.ch" },
+  "Spida Personalvorsorgestiftung": { web:"spida.ch", url:"https://www.spida.ch", addr:"Bergstrasse 21, 8044 Zürich", tel:"044 265 50 50", email:"info@spida.ch" },
+  "La CIEPP": { web:"ciepp.ch", url:"https://www.ciepp.ch", addr:"Rue de Saint-Jean 67, 1201 Genève", tel:"058 715 31 11", email:"ciepp@fer-ge.ch" },
+  "Fondation Patrimonia": { web:"patrimonia.ch", url:"https://www.patrimonia.ch", addr:"Rte François-Peyrot 12, 1218 Le Grand-Saconnex; Rue Saint-Martin 7, 1003 Lausanne", tel:"058 806 08 00", email:"info@patrimonia.ch" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { web:"fip.ch", url:"https://www.centrepatronal.ch", addr:"Route du Lac 2, 1094 Paudex", tel:"058 796 32 01", email:"info@fip.ch" },
+  "Allianz Suisse Sammelstiftung": { web:"allianz.ch", url:"https://www.allianz.ch", addr:"Richtiplatz 1, 8304 Wallisellen", tel:"058 358 71 11", email:null },
+  "Pax Sammelstiftung BVG": { web:"pax.ch", url:"https://www.pax.ch", addr:"Aeschenplatz 13, 4052 Basel", tel:"061 277 66 80", email:"kundenservice-bvg@pax.ch" },
+  "Helvetia Sammelstiftung": { web:"helvetia.com", url:"https://www.helvetia.com/ch", addr:"c/o Helvetia Leben AG, St. Alban-Anlage 26, 4052 Basel", tel:null, email:null },
+  "Stiftung Abendrot": { web:"abendrot.ch", url:"https://www.abendrot.ch", addr:"Güterstrasse 133, 4053 Basel", tel:"061 269 90 20", email:"stiftung@abendrot.ch" },
+  "Nest Sammelstiftung": { web:"nest-info.ch", url:"https://www.nest-info.ch", addr:"Molkenstrasse 21, 8004 Zürich", tel:"044 444 57 57", email:"info@nest-info.ch" },
+  "Stiftung Auffangeinrichtung BVG": { web:"aeis.ch", url:"https://aeis.ch", addr:"Elias-Canetti-Strasse 2, 8050 Zürich", tel:"041 799 75 75", email:null }
+};
+DATA.forEach(d => d.contact = CONTACT[d.name] || { web:null, url:null, addr:null, tel:null, email:null });
+
 const $ = s => document.querySelector(s);
 const fmtNum = v => v == null ? null : v.toLocaleString('de-CH');
 const pct = v => v.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' %';
@@ -869,6 +908,22 @@ function buildAssetTile(d) {
     <div class="assetsrc">${srcTxt}</div>`;
 }
 
+function buildContact(d) {
+  const c = d.contact || {};
+  const na = '<span class="na">n.&nbsp;v.</span>';
+  const item = (icon, label, html) => `<div class="ci"><span class="cic">${icon}</span><span class="ct"><b>${label}</b>${html}</span></div>`;
+  const web = c.url ? `<a href="${c.url}" target="_blank" rel="noopener">${c.web}</a>` : na;
+  const tel = c.tel ? `<a href="tel:${c.tel.replace(/\s/g, '')}">${c.tel}</a>` : na;
+  const email = c.email ? `<a href="mailto:${c.email}">${c.email}</a>` : na;
+  const addr = c.addr ? c.addr : na;
+  return `<div class="contact">
+    ${item('📍', 'Adresse', addr)}
+    ${item('🌐', 'Website', web)}
+    ${item('✉️', 'E-Mail', email)}
+    ${item('☎️', 'Telefon', tel)}
+  </div>`;
+}
+
 // modal
 function openModal(i) {
   const d = DATA[i];
@@ -897,6 +952,8 @@ function openModal(i) {
     <div class="sub">${pillFor(d)} &nbsp; ${d.typ} · ${d.region}${d.eco?' · 🌱 nachhaltig':''}</div>
     <div class="descr">${d.descr}</div>
     <div style="font-size:0.82rem;color:var(--dim);margin-bottom:0.8rem">${d.versicherte}</div>
+    <h4 style="margin-top:0.3rem">Kontakt</h4>
+    ${buildContact(d)}
     <div class="dgrid">
       ${cells.map(c=>`<div class="dcell"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
     </div>
@@ -1033,7 +1090,9 @@ $('#csvBtn').addEventListener('click', () => {
     ['Verzinsung 2024', d=>d.vz2024d], ['Verzinsung 2025', d=>d.vz2025d], ['UWS-Modell', d=>d.uwsModell],
     ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
     ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['Rentneranteil', d=>d.rentnerd],
-    ['Anlagestrategie', d=>d.anlage], ['Performance/Rendite', d=>d.perf], ['Wertschwankungsreserve', d=>d.wsr]
+    ['Anlagestrategie', d=>d.anlage], ['Performance/Rendite', d=>d.perf], ['Wertschwankungsreserve', d=>d.wsr],
+    ['Adresse', d=>d.contact.addr||'n.v.'], ['Website', d=>d.contact.web||'n.v.'],
+    ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.']
   ];
   const lines = [cols.map(c=>csvField(c[0])).join(';')];
   list.forEach(d => lines.push(cols.map(c=>csvField(c[1](d))).join(';')));
