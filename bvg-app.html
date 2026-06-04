@@ -251,6 +251,8 @@
           <option value="techzins-desc">Technischer Zins (hoch → tief)</option>
           <option value="uwsObl-desc">UWS Obligatorium (hoch → tief)</option>
           <option value="uwsUeber-desc">UWS Überobligatorium (hoch → tief)</option>
+          <option value="ter-asc">TER Gesamtkosten (tief → hoch)</option>
+          <option value="ter-desc">TER Gesamtkosten (hoch → tief)</option>
         </select>
       </div>
     </div>
@@ -621,6 +623,25 @@ const MORE = {
   "Stiftung Auffangeinrichtung BVG": { anlage:"TER 0,10 % (tiefste); soziale Auffangfunktion", perf:"Zusatzzins 3,0 % (2024/2025)", wsr:"DG Bereich BVG ~123,4 % (2024)" }
 };
 DATA.forEach(d => Object.assign(d, MORE[d.name] || { anlage:"n. ö.", perf:"n. ö.", wsr:"n. ö." }));
+
+// TER (Total Expense Ratio / Gesamtkostenquote) aus Jahresberichten
+const TER_DATA = {
+  "AXA Stiftung Berufliche Vorsorge": 0.33,
+  "PKG Pensionskasse": 0.21,
+  "GEMINI Sammelstiftung": 0.49,
+  "Tellco pkPRO": 0.89,
+  "Revor Sammelstiftung": 0.25,
+  "Fondation Patrimonia": 0.33,
+  "FIP (Fonds Interprofessionnel de Prévoyance)": 0.63,
+  "Stiftung Abendrot": 0.60,
+  "Nest Sammelstiftung": 0.47,
+  "Stiftung Auffangeinrichtung BVG": 0.10
+};
+DATA.forEach(d => {
+  d.ter = TER_DATA[d.name] != null ? TER_DATA[d.name] : null;
+  d.terD = d.ter != null ? d.ter.toFixed(2).replace('.', ',') + ' %' : 'n. ö.';
+});
+
 // Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
 const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
 
@@ -939,6 +960,7 @@ function openModal(i) {
     ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null],
     ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
+    ['TER (Gesamtkostenquote)', d.terD, d.ter==null],
     ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
     ['Performance / Rendite', d.perf, d.perf==='n. ö.'],
     ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.'],
@@ -1040,6 +1062,7 @@ function openCompare() {
     ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max'],
     ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max'],
     ['Verwaltungskosten/Kopf', d => d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d => d.kosten, 'min'],
+    ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min'],
     ['Rentneranteil', d => d.rentnerd],
     ['Anlagestrategie', d => d.anlage],
     ['Performance / Rendite', d => d.perf],
@@ -1089,7 +1112,7 @@ $('#csvBtn').addEventListener('click', () => {
     ['Deckungsgrad 2024', d=>d.dg2024d], ['Deckungsgrad 2025', d=>d.dg2025d], ['Technischer Zins', d=>d.techZinsd],
     ['Verzinsung 2024', d=>d.vz2024d], ['Verzinsung 2025', d=>d.vz2025d], ['UWS-Modell', d=>d.uwsModell],
     ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
-    ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['Rentneranteil', d=>d.rentnerd],
+    ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['TER %', d=>d.terD], ['Rentneranteil', d=>d.rentnerd],
     ['Anlagestrategie', d=>d.anlage], ['Performance/Rendite', d=>d.perf], ['Wertschwankungsreserve', d=>d.wsr],
     ['Adresse', d=>d.contact.addr||'n.v.'], ['Website', d=>d.contact.web||'n.v.'],
     ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.']
