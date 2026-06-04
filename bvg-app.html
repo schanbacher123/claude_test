@@ -642,12 +642,45 @@ DATA.forEach(d => {
   d.terD = d.ter != null ? d.ter.toFixed(2).replace('.', ',') + ' %' : 'n. ö.';
 });
 
+// Netto-Anlagerendite (Performance) – IMMER als Prozentsatz, mit Bezugszeitraum.
+// null = nicht öffentlich ausgewiesen (es werden KEINE illustrativen Werte gezeigt).
+const RENDITE = {
+  "Swiss Life Sammelstiftung": { v:5.75, jahr:"2025" },
+  "Profond Vorsorgeeinrichtung": { v:4.04, jahr:"Ø 2020–2024" },
+  "Baloise Perspectiva": { v:6.60, jahr:"2025" },
+  "Transparenta Sammelstiftung": { v:10.14, jahr:"2024" },
+  "Revor Sammelstiftung": { v:9.92, jahr:"Ø 2019–2021" },
+  "Copré (La Collective de Prévoyance)": { v:1.66, jahr:"2025" },
+  "GastroSocial Pensionskasse": { v:6.52, jahr:"2024" },
+  "Spida Personalvorsorgestiftung": { v:5.00, jahr:"2023" },
+  "La CIEPP": { v:8.87, jahr:"2024" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { v:8.53, jahr:"2024" },
+  "Allianz Suisse Sammelstiftung": { v:3.39, jahr:"Ø 10 J." },
+  "Pax Sammelstiftung BVG": { v:0.83, jahr:"Ø 5 J." },
+  "Helvetia Sammelstiftung": { v:2.20, jahr:"2025" },
+  "Stiftung Abendrot": { v:1.80, jahr:"2024" }
+};
+DATA.forEach(d => {
+  const r = RENDITE[d.name];
+  d.rendite = r ? r.v : null;
+  d.renditeD = r ? r.v.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' % (' + r.jahr + ')' : 'nicht öffentlich';
+});
+
+// Effektive Betriebsrechnungs-/Bilanzzahlen aus Geschäftsberichten – nur wo real verfügbar.
+const FINANCIALS = {
+  "Profond Vorsorgeeinrichtung": { jahr:"2023", vermoegen:"≈ 10'800 Mio. CHF", einlagen:"734,9 Mio. CHF" },
+  "Stiftung Abendrot": { jahr:"2024", vermoegen:"3'109 Mio. CHF" },
+  "GastroSocial Pensionskasse": { jahr:"2024", beitraege:"≈ 563 Mio. CHF", vermoegen:"≈ 9'700 Mio. CHF" },
+  "La CIEPP": { jahr:"2024", beitraege:"> 460 Mio. CHF", renten:"> 120 Mio. CHF", vermoegen:"> 9'500 Mio. CHF" }
+};
+DATA.forEach(d => d.fin = FINANCIALS[d.name] || null);
+
 // Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
 const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
 
-// Asset Allocation (a=Aktien, i=Immobilien, o=Obligationen, c=Cash & Übrige; Summe 100) + Netto-Performance (jüngstes Jahr)
-// src: "Kasse" = an Strategie der Kasse angelehnt; "Vollversicherung" = defensiv (Garantiemodell);
-//      "Branchenrichtwert" = Swisscanto-Durchschnitt 2024 (kassenspezifische Werte im Geschäftsbericht)
+// Asset Allocation (a=Aktien, i=Immobilien, o=Obligationen, c=Cash & Übrige; Summe 100)
+// Nur Aufteilungen mit Quelle "… (GB …)" stammen aus dem Geschäftsbericht und werden visualisiert.
+// Alle übrigen (Richtwert/geschätzt) werden NICHT als illustrative Werte angezeigt, sondern als "nicht öffentlich" deklariert.
 const BENCHMARK_ASSETS = { a:33, i:25, o:29, c:13, src:"Branchenrichtwert", perf:null };
 const ASSETS = {
   "Profond Vorsorgeeinrichtung": { a:50, i:28, o:9, c:13, src:"Kasse (GB 2023)", perf:null },
@@ -675,13 +708,13 @@ DATA.forEach(d => d.assets = ASSETS[d.name] || BENCHMARK_ASSETS);
 const CONTACT = {
   "AXA Stiftung Berufliche Vorsorge": { web:"axa.ch", url:"https://www.axa.ch", addr:"c/o AXA Leben AG, General-Guisan-Strasse 40, 8400 Winterthur", tel:"0800 809 810", email:null },
   "Sammelstiftung Vita (Zurich)": { web:"vita.ch", url:"https://www.vita.ch", addr:"Hagenholzstrasse 60, 8050 Zürich", tel:"044 628 28 28", email:"bvg@zurich.ch" },
-  "Swiss Life Sammelstiftung": { web:"swisslife.ch", url:"https://www.swisslife.ch", addr:"General-Guisan-Quai 40, 8002 Zürich", tel:null, email:null },
+  "Swiss Life Sammelstiftung": { web:"swisslife.ch", url:"https://www.swisslife.ch", addr:"c/o Swiss Life AG, General-Guisan-Quai 40, 8002 Zürich", tel:"0800 472 472", email:"verteilplan@swisslife.ch" },
   "Profond Vorsorgeeinrichtung": { web:"profond.ch", url:"https://www.profond.ch", addr:"Zollstrasse 62, 8005 Zürich", tel:"058 589 89 81", email:null },
-  "Asga Pensionskasse": { web:"asga.ch", url:"https://www.asga.ch", addr:"Rosenbergstrasse 16, 9001 St. Gallen", tel:null, email:null },
+  "Asga Pensionskasse": { web:"asga.ch", url:"https://www.asga.ch", addr:"Rosenbergstrasse 16, 9001 St. Gallen", tel:"071 228 52 52", email:"info@asga.ch" },
   "PKG Pensionskasse": { web:"pkg.ch", url:"https://www.pkg.ch", addr:"Zürichstrasse 16, 6000 Luzern 6", tel:"041 418 50 00", email:"info@pkg.ch" },
   "Servisa Sammelstiftung": { web:"servisa.ch", url:"https://www.servisa.ch", addr:"St. Alban-Anlage 26, 4052 Basel", tel:"058 280 26 66", email:"info@servisa.ch" },
   "GEMINI Sammelstiftung": { web:"gemini.ch", url:"https://gemini.ch", addr:"c/o Avadis Vorsorge AG, Zollstrasse 42, 8005 Zürich", tel:"058 585 33 00", email:"service@gemini.ch" },
-  "Noventus Sammelstiftung": { web:"noventus.ch", url:"https://www.noventus.ch", addr:"Grundstrasse 18, 6343 Rotkreuz", tel:"041 798 11 77", email:null },
+  "Noventus Sammelstiftung": { web:"noventus.ch", url:"https://www.noventus.ch", addr:"Grundstrasse 18, 6343 Rotkreuz", tel:"041 798 11 77", email:"info@noventus.ch" },
   "Baloise Perspectiva": { web:"baloise.ch", url:"https://www.baloise.ch", addr:"Aeschengraben 21, 4051 Basel", tel:"058 285 28 28", email:"customerservice@baloise.ch" },
   "Tellco pkPRO": { web:"tellco.ch", url:"https://tellco.ch", addr:"Bahnhofstrasse 4, 6431 Schwyz", tel:"058 442 50 00", email:"info@tellcopk.ch" },
   "Transparenta Sammelstiftung": { web:"transparenta.ch", url:"https://www.transparenta.ch", addr:"Hauptstrasse 105, 4147 Aesch", tel:"061 756 60 80", email:"info@transparenta.ch" },
@@ -692,9 +725,9 @@ const CONTACT = {
   "La CIEPP": { web:"ciepp.ch", url:"https://www.ciepp.ch", addr:"Rue de Saint-Jean 67, 1201 Genève", tel:"058 715 31 11", email:"ciepp@fer-ge.ch" },
   "Fondation Patrimonia": { web:"patrimonia.ch", url:"https://www.patrimonia.ch", addr:"Rte François-Peyrot 12, 1218 Le Grand-Saconnex; Rue Saint-Martin 7, 1003 Lausanne", tel:"058 806 08 00", email:"info@patrimonia.ch" },
   "FIP (Fonds Interprofessionnel de Prévoyance)": { web:"fip.ch", url:"https://www.centrepatronal.ch", addr:"Route du Lac 2, 1094 Paudex", tel:"058 796 32 01", email:"info@fip.ch" },
-  "Allianz Suisse Sammelstiftung": { web:"allianz.ch", url:"https://www.allianz.ch", addr:"Richtiplatz 1, 8304 Wallisellen", tel:"058 358 71 11", email:null },
+  "Allianz Suisse Sammelstiftung": { web:"allianz.ch", url:"https://www.allianz.ch", addr:"Richtiplatz 1, 8304 Wallisellen", tel:"058 358 71 11", email:"contact@allianzpensionservices.ch" },
   "Pax Sammelstiftung BVG": { web:"pax.ch", url:"https://www.pax.ch", addr:"Aeschenplatz 13, 4052 Basel", tel:"061 277 66 80", email:"kundenservice-bvg@pax.ch" },
-  "Helvetia Sammelstiftung": { web:"helvetia.com", url:"https://www.helvetia.com/ch", addr:"c/o Helvetia Leben AG, St. Alban-Anlage 26, 4052 Basel", tel:null, email:null },
+  "Helvetia Sammelstiftung": { web:"helvetia.com", url:"https://www.helvetia.com/ch", addr:"c/o Helvetia Leben AG, St. Alban-Anlage 26, 4052 Basel", tel:"058 280 36 11", email:null },
   "Stiftung Abendrot": { web:"abendrot.ch", url:"https://www.abendrot.ch", addr:"Güterstrasse 133, 4053 Basel", tel:"061 269 90 20", email:"stiftung@abendrot.ch" },
   "Nest Sammelstiftung": { web:"nest-info.ch", url:"https://www.nest-info.ch", addr:"Molkenstrasse 21, 8004 Zürich", tel:"044 444 57 57", email:"info@nest-info.ch" },
   "Stiftung Auffangeinrichtung BVG": { web:"aeis.ch", url:"https://aeis.ch", addr:"Elias-Canetti-Strasse 2, 8050 Zürich", tel:"041 799 75 75", email:null }
@@ -851,82 +884,41 @@ function render() {
   }
 }
 
-// ---------- Geldfluss-Modell (illustrativ, aus Strukturkennzahlen) ----------
-function computeFlows(d) {
-  const rentner = (d.rentner != null ? d.rentner : 15) / 100;   // Rentneranteil als Bruchteil
-  const active = Math.max(0.4, 1 - rentner);
-  const vz = d.vz2024 != null ? d.vz2024 : (d.assets.perf != null ? d.assets.perf : 3);
-  const kosten = d.kosten != null ? d.kosten : 260;
-  const af = active / 0.85;
-  return {
-    in: [
-      ['Arbeitgeberbeiträge', 3.4 * af, '#38bdf8'],
-      ['Arbeitnehmerbeiträge', 2.8 * af, '#7dd3fc'],
-      ['Einkäufe', 1.2 * af, '#818cf8'],
-      ['Kapitalerträge', Math.max(0.4, vz + 0.8), '#4ade80']
-    ],
-    out: [
-      ['Rentenauszahlungen', 1.5 + rentner * 14, '#fbbf24'],
-      ['Kapitalbezüge (Pensionierung)', 1.0 + active * 2.0, '#fb923c'],
-      ['Freizügigkeitsaustritte', 2.2, '#c084fc'],
-      ['Verwaltungskosten', Math.max(0.3, kosten / 300), '#f87171']
-    ]
-  };
+// ---------- Betriebsrechnung / Geldflüsse (nur effektive Zahlen aus dem Geschäftsbericht) ----------
+function buildFinancials(d) {
+  const f = d.fin;
+  if (!f) {
+    return `<div class="assetsrc na">Detaillierte Betriebsrechnungs-Zahlen (Beiträge, Renten- und Kapitalleistungen, Freizügigkeitsabgänge, Geldflüsse) sind für diese Kasse nicht öffentlich verfügbar.</div>`;
+  }
+  const rows = [];
+  if (f.beitraege) rows.push(['Beiträge (AG + AN)', f.beitraege]);
+  if (f.einlagen)  rows.push(['Einlagen / Einkäufe', f.einlagen]);
+  if (f.renten)    rows.push(['Rentenleistungen', f.renten]);
+  if (f.vermoegen) rows.push(['Vorsorgevermögen', f.vermoegen]);
+  const cells = rows.map(r => `<div class="dcell"><div class="dv">${r[1]}</div><div class="dl">${r[0]}</div></div>`).join('');
+  return `<div class="dgrid">${cells}</div>
+    <div class="assetsrc">Effektive Werte gemäss Geschäftsbericht ${f.jahr}. Weitere Positionen (Kapitalleistungen, Freizügigkeitsabgänge, AG/AN-Aufteilung) werden nicht öffentlich ausgewiesen.</div>`;
 }
-function buildSankey(f) {
-  const VBW = 700, H = 280, TOP = 22, NODE = 14, lx = 150, cl = 300, cr = 320, rx = 470;
-  const inSum = f.in.reduce((s, x) => s + x[1], 0), outSum = f.out.reduce((s, x) => s + x[1], 0);
-  const scale = H / Math.max(inSum, outSum);
-  const p = (v, sum) => Math.round(v / sum * 100) + '%';
-  let s = '';
-  s += `<rect x="${cl}" y="${TOP}" width="${cr - cl}" height="${Math.max(inSum, outSum) * scale}" rx="3" fill="#334155"/>`;
-  s += `<text x="${(cl + cr) / 2}" y="${TOP - 7}" text-anchor="middle" font-size="10" fill="#7dd3fc">Vorsorgewerk</text>`;
-  let cy = TOP;
-  f.in.forEach(([label, val, col]) => {
-    const h = val * scale, my = cy + h / 2;
-    s += `<rect x="${lx}" y="${cy}" width="${NODE}" height="${h}" rx="2" fill="${col}"/>`;
-    s += `<path d="M ${lx + NODE} ${cy} L ${cl} ${cy} L ${cl} ${cy + h} L ${lx + NODE} ${cy + h} Z" fill="${col}" opacity="0.3"/>`;
-    s += `<text x="${lx - 6}" y="${my - 1}" text-anchor="end" font-size="10" fill="#e2e8f0">${label}</text>`;
-    s += `<text x="${lx - 6}" y="${my + 11}" text-anchor="end" font-size="9" fill="#64748b">${p(val, inSum)}</text>`;
-    cy += h;
-  });
-  cy = TOP;
-  f.out.forEach(([label, val, col]) => {
-    const h = val * scale, my = cy + h / 2;
-    s += `<rect x="${rx}" y="${cy}" width="${NODE}" height="${h}" rx="2" fill="${col}"/>`;
-    s += `<path d="M ${cr} ${cy} L ${rx} ${cy} L ${rx} ${cy + h} L ${cr} ${cy + h} Z" fill="${col}" opacity="0.3"/>`;
-    s += `<text x="${rx + NODE + 6}" y="${my - 1}" font-size="10" fill="#e2e8f0">${label}</text>`;
-    s += `<text x="${rx + NODE + 6}" y="${my + 11}" font-size="9" fill="#64748b">${p(val, outSum)}</text>`;
-    cy += h;
-  });
-  const net = (inSum - outSum) / inSum * 100;
-  const netHtml = net >= 0
-    ? `<span class="flownet">Netto: <b class="pos">Reserveaufbau</b> – Zuflüsse übersteigen Abflüsse (≈ ${Math.round(net)} % des Zuflusses).</span>`
-    : `<span class="flownet">Netto: <b class="neg">Kapitalabbau</b> – Abflüsse übersteigen Zuflüsse (≈ ${Math.round(-net)} % über Zufluss).</span>`;
-  return `<div class="sankey"><svg viewBox="0 0 ${VBW} ${H + TOP + 10}" width="100%" role="img" aria-label="Geldflüsse">${s}</svg></div>
-    ${netHtml}
-    <div class="flowdis">Schematische, illustrative Darstellung der Geldflüsse – modelliert aus Strukturkennzahlen (Rentneranteil, Verzinsung, Kosten). Bandbreiten zeigen Anteile, keine effektiven CHF-Beträge.</div>`;
-}
-// ---------- Anlagestrategie-Kachel (Donut + Performance) ----------
+// ---------- Anlagestrategie-Kachel (Donut + Rendite) – nur bei effektiven Geschäftsbericht-Werten ----------
 function buildAssetTile(d) {
   const a = d.assets;
+  const real = a.src && a.src.indexOf('GB') !== -1;
+  if (!real) {
+    return `<div class="assetsrc na">Detaillierte Asset Allocation nicht öffentlich verfügbar – die kassenspezifische Aufteilung ist nur dem Geschäftsbericht der Stiftung zu entnehmen.</div>`;
+  }
   const segs = [['Aktien', a.a, '#38bdf8'], ['Immobilien', a.i, '#4ade80'], ['Obligationen', a.o, '#fbbf24'], ['Cash & Übrige', a.c, '#94a3b8']];
   let acc = 0;
   const stops = segs.map(([, v, c]) => { const seg = `${c} ${acc}% ${acc + v}%`; acc += v; return seg; }).join(', ');
   const legend = segs.map(([l, v, c]) => `<div class="lg"><i style="background:${c}"></i>${l}<b>${v} %</b></div>`).join('');
-  const perf = a.perf;
-  const pf = perf == null ? `<div class="pf na">n. ö.</div>` : `<div class="pf${perf > 0 ? ' pos' : ''}">${perf > 0 ? '+' : ''}${pct(perf)}</div>`;
-  const srcTxt = a.src === 'Branchenrichtwert'
-    ? 'Asset Allocation: Branchenrichtwert (Swisscanto-Ø 2024) – kassenspezifische Werte siehe Geschäftsbericht.'
-    : a.src === 'Vollversicherung'
-      ? 'Asset Allocation: defensives Vollversicherungs-Profil (Garantiemodell, hoher Obligationenanteil).'
-      : 'Asset Allocation: an der Strategie der Kasse angelehnt (Richtwerte).';
+  const r = d.rendite;
+  const pf = r == null ? `<div class="pf na">–</div>` : `<div class="pf${r > 0 ? ' pos' : ''}">${r > 0 ? '+' : ''}${pct(r)}</div>`;
+  const gbYear = (a.src.match(/GB\s*([\d]+)/) || [])[1] || '';
   return `<div class="assetrow">
       <div class="donutwrap"><div class="donut" style="background:conic-gradient(${stops})"></div>
-        <div class="donut-hole">${pf}<div class="pfl">Performance ${perf != null ? 'letztes Jahr' : ''}</div></div></div>
+        <div class="donut-hole">${pf}<div class="pfl">${r != null ? 'Netto-Rendite' : 'Rendite n. ö.'}</div></div></div>
       <div class="legend">${legend}</div>
     </div>
-    <div class="assetsrc">${srcTxt}</div>`;
+    <div class="assetsrc">Asset Allocation gemäss Geschäftsbericht ${gbYear}.</div>`;
 }
 
 function buildContact(d) {
@@ -962,7 +954,7 @@ function openModal(i) {
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
     ['TER (Gesamtkostenquote)', d.terD, d.ter==null],
     ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
-    ['Performance / Rendite', d.perf, d.perf==='n. ö.'],
+    ['Netto-Anlagerendite', d.renditeD, d.rendite==null],
     ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.'],
     ['Technische Grundlage', d.grundlage, false]
   ];
@@ -982,9 +974,9 @@ function openModal(i) {
     <div style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
       <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
-    <h4>Geldflüsse – Zu- und Abflüsse</h4>
-    ${buildSankey(computeFlows(d))}
-    <h4>Anlagestrategie &amp; Performance</h4>
+    <h4>Betriebsrechnung &amp; Geldflüsse</h4>
+    ${buildFinancials(d)}
+    <h4>Anlagestrategie &amp; Rendite</h4>
     ${buildAssetTile(d)}
     <h4>Besonderheiten</h4>
     <div class="special">${d.special}</div>
@@ -1065,7 +1057,7 @@ function openCompare() {
     ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min'],
     ['Rentneranteil', d => d.rentnerd],
     ['Anlagestrategie', d => d.anlage],
-    ['Performance / Rendite', d => d.perf],
+    ['Netto-Anlagerendite', d => d.renditeD, d => d.rendite, 'max'],
     ['Wertschwankungsreserve', d => d.wsr]
   ];
   const head = '<th>Kennzahl</th>' + items.map(d => `<th>${d.name}</th>`).join('');
@@ -1113,7 +1105,7 @@ $('#csvBtn').addEventListener('click', () => {
     ['Verzinsung 2024', d=>d.vz2024d], ['Verzinsung 2025', d=>d.vz2025d], ['UWS-Modell', d=>d.uwsModell],
     ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
     ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['TER %', d=>d.terD], ['Rentneranteil', d=>d.rentnerd],
-    ['Anlagestrategie', d=>d.anlage], ['Performance/Rendite', d=>d.perf], ['Wertschwankungsreserve', d=>d.wsr],
+    ['Anlagestrategie', d=>d.anlage], ['Netto-Anlagerendite', d=>d.renditeD], ['Wertschwankungsreserve', d=>d.wsr],
     ['Adresse', d=>d.contact.addr||'n.v.'], ['Website', d=>d.contact.web||'n.v.'],
     ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.']
   ];
