@@ -117,7 +117,8 @@
   }
 
   /* Vergleichs-Auswahl */
-  .cmp-check { position: absolute; top: 0.7rem; right: 0.7rem; display: flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--dim); background: var(--bg3); padding: 0.2rem 0.45rem; border-radius: 6px; border: 1px solid var(--border); z-index: 2; }
+  .cmp-check { align-self: flex-end; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--dim); background: var(--bg3); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 0.55rem; cursor: pointer; }
+  .cmp-check:hover { border-color: var(--accent); color: var(--accent); }
   .cmp-check input { accent-color: var(--accent); cursor: pointer; }
   .card { position: relative; }
   .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
@@ -180,6 +181,49 @@
   .contact .ci a { color: var(--accent); text-decoration: none; word-break: break-word; }
   .contact .ci a:hover { text-decoration: underline; }
   .contact .ci .na { color: var(--dim); }
+
+  /* ---- Kundenmodus (Präsentationsansicht): helles Theme ---- */
+  body.light-mode {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f1f5f9; --border:#d4dde8;
+    --txt:#0f172a; --muted:#475569; --dim:#64748b;
+    --accent:#0284c7; --accent2:#0369a1;
+    --green:#15803d; --amber:#b45309; --red:#dc2626; --violet:#7e22ce;
+  }
+  body.light-mode { background: var(--bg); }
+  /* Kundenmodus blendet Fachbegriffe/komplexe Felder aus */
+  body.client-mode .expert-only { display: none !important; }
+
+  /* Kundenmodus-Button im aktiven Zustand */
+  .resetbtn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .resetbtn.active:hover { color: #fff; }
+
+  /* ---- Ampelsystem (Conditional Formatting) ---- */
+  .metric.good .mv { color: var(--green); }
+  .metric.mid  .mv { color: var(--amber); }
+  .metric.low  .mv { color: var(--red); }
+  .metric.good { box-shadow: inset 3px 0 0 var(--green); }
+  .metric.mid  { box-shadow: inset 3px 0 0 var(--amber); }
+  .metric.low  { box-shadow: inset 3px 0 0 var(--red); }
+  td.num.good { color: var(--green); font-weight: 700; }
+  td.num.mid  { color: var(--amber); font-weight: 700; }
+  td.num.low  { color: var(--red); font-weight: 700; }
+  .cmptable td.good { color: var(--green); font-weight: 700; }
+  .cmptable td.mid  { color: var(--amber); font-weight: 700; }
+  .cmptable td.low  { color: var(--red); font-weight: 700; }
+  .dcell.good .dv { color: var(--green); }
+  .dcell.mid  .dv { color: var(--amber); }
+  .dcell.low  .dv { color: var(--red); }
+
+  /* ---- Radar-/Spinnennetz-Diagramm (Direktvergleich) ---- */
+  .radarwrap { background: var(--bg3); border-radius: 12px; padding: 1rem 1rem 0.4rem; margin-bottom: 0.4rem; display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; justify-content: center; }
+  .radarwrap svg { flex: 0 0 auto; max-width: 100%; height: auto; }
+  .radarwrap .grid { fill: none; stroke: var(--border); stroke-width: 1; }
+  .radarwrap .axis { stroke: var(--border); stroke-width: 1; }
+  .radarwrap text { fill: var(--muted); font-family: inherit; font-size: 11px; font-weight: 600; }
+  .radar-legend { display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.85rem; }
+  .radar-legend .rl { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); }
+  .radar-legend .rl i { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .radarnote { font-size: 0.72rem; color: var(--dim); margin: 0 0 1.2rem; text-align: center; }
 
   @media print {
     body { background: #fff; color: #000; }
@@ -265,6 +309,7 @@
         <input type="range" id="fDg" min="100" max="124" step="1" value="100">
       </div>
       <div class="toggles">
+        <button class="resetbtn" id="clientMode" title="Präsentationsansicht für Kundengespräche: helles Theme, Fachbegriffe (Techn. Zins, TER, UWS …) ausgeblendet">👁️ Kundenmodus</button>
         <label class="chk"><input type="checkbox" id="fEco"> Nur nachhaltige Kassen</label>
         <button class="resetbtn" id="reset">Filter zurücksetzen</button>
         <button class="resetbtn" id="csvBtn">⬇ CSV</button>
@@ -860,9 +905,15 @@ function applyFilters() {
   return list;
 }
 
-function metricCell(label, val, na) {
-  const cls = na ? 'mv na' : 'mv';
-  return `<div class="metric"><div class="${cls}">${val}</div><div class="ml">${label}</div></div>`;
+// Ampelsystem: Deckungsgrad ≥115 % grün, 105–115 % gelb, <105 % rot;
+// Verzinsung ≥4 % grün, 2–4 % gelb, <2 % rot.
+function dgTone(v) { return v == null ? '' : (v >= 115 ? 'good' : v >= 105 ? 'mid' : 'low'); }
+function vzTone(v) { return v == null ? '' : (v >= 4 ? 'good' : v >= 2 ? 'mid' : 'low'); }
+
+function metricCell(label, val, na, tone, expert) {
+  const mcls = 'metric' + (!na && tone ? ' ' + tone : '') + (expert ? ' expert-only' : '');
+  const vcls = na ? 'mv na' : 'mv';
+  return `<div class="${mcls}"><div class="${vcls}">${val}</div><div class="ml">${label}</div></div>`;
 }
 
 function pillFor(d) {
@@ -892,10 +943,10 @@ function render() {
         <div class="chead"><h3>${d.name}</h3>${pillFor(d)}</div>
         <div class="tags">${tags}</div>
         <div class="metrics">
-          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null)}
-          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null)}
-          ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null)}
-          ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null)}
+          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null, dgTone(d.dg2024))}
+          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null, vzTone(d.vz2024))}
+          ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null, '', true)}
+          ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null, '', true)}
         </div>
       </div>`;
     }).join('');
@@ -904,30 +955,31 @@ function render() {
     $('#tableView').style.display = 'block';
     const cols = [
       ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024'],['dg2025','DG 2025'],
-      ['techzins','Techn. Zins'],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell'],
-      ['uwsObl','UWS Obl.'],['uwsUeber','UWS Überobl.'],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
+      ['techzins','Techn. Zins',true],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell',true],
+      ['uwsObl','UWS Obl.',true],['uwsUeber','UWS Überobl.',true],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
     ];
     const f = getFilters();
     const [sk] = f.sort.split('-');
     const head = '<th class="cmpcol">⇄</th>' + cols.map(c => {
       const active = (c[0]===sk || (c[0]==='techzins'&&sk==='techzins')) ? ' style="color:var(--accent)"' : '';
-      return `<th data-col="${c[0]}"${active}>${c[1]}</th>`;
+      return `<th data-col="${c[0]}"${active}${c[2]?' class="expert-only"':''}>${c[1]}</th>`;
     }).join('');
     const rows = list.map(d => {
       const idx = DATA.indexOf(d);
       const sel = compareSet.has(d.name);
+      const dgC = dgTone(d.dg2024), vzC = vzTone(d.vz2024);
       return `<tr data-i="${idx}">
         <td class="cmpcol"><input type="checkbox" class="cmpbox" data-name="${d.name}"${sel?' checked':''}></td>
         <td>${d.name}</td>
         <td>${pillFor(d)}</td>
-        <td class="num${d.dg2024==null?' na':''}">${d.dg2024d}</td>
+        <td class="num${d.dg2024==null?' na':dgC?' '+dgC:''}">${d.dg2024d}</td>
         <td class="num${d.dg2025==null?' na':''}">${d.dg2025d}</td>
-        <td class="num${d.techZins==null?' na':''}">${d.techZinsd}</td>
+        <td class="num expert-only${d.techZins==null?' na':''}">${d.techZinsd}</td>
         <td class="num${d.kosten==null?' na':''}">${d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten)}</td>
-        <td>${d.uwsModell}</td>
-        <td class="num${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
-        <td class="num${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
-        <td class="num${d.vz2024==null?' na':''}">${d.vz2024d}</td>
+        <td class="expert-only">${d.uwsModell}</td>
+        <td class="num expert-only${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
+        <td class="num expert-only${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
+        <td class="num${d.vz2024==null?' na':vzC?' '+vzC:''}">${d.vz2024d}</td>
         <td class="num${d.vz2025==null?' na':''}">${d.vz2025d}</td>
       </tr>`;
     }).join('');
@@ -994,22 +1046,22 @@ function buildContact(d) {
 function openModal(i) {
   const d = DATA[i];
   const cells = [
-    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null],
-    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null],
-    ['Technischer Zins', d.techZinsd, d.techZins==null],
-    ['Rentneranteil', d.rentnerd, false],
-    ['UWS-Modell', d.uwsModell, false],
-    ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null],
-    ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null],
-    ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false],
-    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null],
-    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null],
+    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null, false, dgTone(d.dg2024)],
+    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null, false, dgTone(d.dg2025)],
+    ['Technischer Zins', d.techZinsd, d.techZins==null, true],
+    ['Rentneranteil', d.rentnerd, false, true],
+    ['UWS-Modell', d.uwsModell, false, true],
+    ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null, true],
+    ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null, true],
+    ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false, true],
+    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null, false, vzTone(d.vz2024)],
+    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null, false, vzTone(d.vz2025)],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
-    ['TER (Gesamtkostenquote)', d.terD, d.ter==null],
+    ['TER (Gesamtkostenquote)', d.terD, d.ter==null, true],
     ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
     ['Netto-Anlagerendite', d.renditeD, d.rendite==null],
-    ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.'],
-    ['Technische Grundlage', d.grundlage, false]
+    ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.', true],
+    ['Technische Grundlage', d.grundlage, false, true]
   ];
   $('#modal').innerHTML = `
     <div class="mhead">
@@ -1022,9 +1074,9 @@ function openModal(i) {
     <h4 style="margin-top:0.3rem">Kontakt</h4>
     ${buildContact(d)}
     <div class="dgrid">
-      ${cells.map(c=>`<div class="dcell"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
+      ${cells.map(c=>`<div class="dcell${c[3]?' expert-only':''}${!c[2]&&c[4]?' '+c[4]:''}"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
     </div>
-    <div style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
+    <div class="expert-only" style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
       <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
     <h4>Betriebsrechnung &amp; Geldflüsse</h4>
@@ -1092,6 +1144,52 @@ $('#cbChips').addEventListener('click', e => {
 $('#cbClear').addEventListener('click', () => { compareSet.clear(); renderCompareBar(); render(); });
 $('#cbCompare').addEventListener('click', openCompare);
 
+// ---------- Radar-/Spinnennetz-Diagramm (überlagert die ausgewählten Kassen) ----------
+const RADAR_COLORS = ['#38bdf8', '#4ade80', '#fbbf24', '#c084fc'];
+function radarValues(d) {
+  const clamp = x => Math.max(0, Math.min(1, x));
+  return [
+    d.dg2024 == null ? null : clamp((d.dg2024 - 100) / 25),   // Sicherheit (DG 100–125 %)
+    d.rendite == null ? null : clamp(d.rendite / 10),         // Rendite (0–10 %)
+    d.ter == null ? null : clamp(1 - (d.ter - 0.1) / 0.8),    // Tiefe Kosten (TER invertiert)
+    d.uwsUeber == null ? null : clamp((d.uwsUeber - 4) / 2.8),// UWS Überobl. (4–6,8 %)
+    d.vz2024 == null ? null : clamp(d.vz2024 / 8)             // Verzinsung (0–8 %)
+  ];
+}
+function buildRadar(items) {
+  const axes = ['Sicherheit', 'Rendite', 'Tiefe Kosten', 'UWS Überobl.', 'Verzinsung'];
+  const S = 320, cx = S / 2, cy = S / 2, R = 108, n = axes.length;
+  const ang = i => -Math.PI / 2 + i * 2 * Math.PI / n;
+  const pt = (i, r) => [cx + R * r * Math.cos(ang(i)), cy + R * r * Math.sin(ang(i))];
+  let grid = '';
+  [0.25, 0.5, 0.75, 1].forEach(r => {
+    grid += `<polygon class="grid" points="${axes.map((_, i) => pt(i, r).map(x => x.toFixed(1)).join(',')).join(' ')}"/>`;
+  });
+  let ax = '';
+  axes.forEach((lbl, i) => {
+    const [x, y] = pt(i, 1);
+    ax += `<line class="axis" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    const [lx, ly] = pt(i, 1.16);
+    const anchor = Math.abs(lx - cx) < 6 ? 'middle' : (lx > cx ? 'start' : 'end');
+    ax += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}">${lbl}</text>`;
+  });
+  let polys = '';
+  items.forEach((d, k) => {
+    const c = RADAR_COLORS[k % RADAR_COLORS.length];
+    const m = radarValues(d);
+    polys += `<polygon points="${m.map((v, i) => pt(i, v == null ? 0 : v).map(x => x.toFixed(1)).join(',')).join(' ')}" fill="${c}30" stroke="${c}" stroke-width="2"/>`;
+    m.forEach((v, i) => { const [x, y] = pt(i, v == null ? 0 : v); polys += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${c}"/>`; });
+  });
+  const legend = items.map((d, k) =>
+    `<div class="rl"><i style="background:${RADAR_COLORS[k % RADAR_COLORS.length]}"></i>${d.name.length > 28 ? d.name.slice(0, 28) + '…' : d.name}</div>`).join('');
+  const anyNull = items.some(d => radarValues(d).some(v => v == null));
+  return `<div class="radarwrap">
+      <svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" role="img" aria-label="Spinnennetz-Diagramm Kennzahlenvergleich">${grid}${ax}${polys}</svg>
+      <div class="radar-legend">${legend}</div>
+    </div>
+    <div class="radarnote">Je weiter aussen, desto besser. Normiert: Sicherheit (DG 100–125 %), Rendite (0–10 %), Tiefe Kosten (TER invertiert), UWS Überobl. (4–6,8 %), Verzinsung (0–8 %).${anyNull ? ' Fehlende Werte (n. ö.) = Mittelpunkt.' : ''}</div>`;
+}
+
 function openCompare() {
   const items = DATA.filter(d => compareSet.has(d.name));
   if (items.length < 2) return;
@@ -1101,22 +1199,22 @@ function openCompare() {
     ['Region', d => d.region],
     ['Deckungsgrad 2024', d => d.dg2024d, d => d.dg2024, 'max'],
     ['Deckungsgrad 2025', d => d.dg2025d, d => d.dg2025, 'max'],
-    ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max'],
+    ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max', true],
     ['Verzinsung 2024', d => d.vz2024d, d => d.vz2024, 'max'],
     ['Verzinsung 2025', d => d.vz2025d, d => d.vz2025, 'max'],
-    ['UWS-Modell', d => d.uwsModell],
-    ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max'],
-    ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max'],
+    ['UWS-Modell', d => d.uwsModell, null, null, true],
+    ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max', true],
+    ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max', true],
     ['Verwaltungskosten/Kopf', d => d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d => d.kosten, 'min'],
-    ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min'],
-    ['Rentneranteil', d => d.rentnerd],
+    ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min', true],
+    ['Rentneranteil', d => d.rentnerd, null, null, true],
     ['Anlagestrategie', d => d.anlage],
     ['Netto-Anlagerendite', d => d.renditeD, d => d.rendite, 'max'],
-    ['Wertschwankungsreserve', d => d.wsr]
+    ['Wertschwankungsreserve', d => d.wsr, null, null, true]
   ];
   const head = '<th>Kennzahl</th>' + items.map(d => `<th>${d.name}</th>`).join('');
   const body = rows.map(r => {
-    const [label, disp, valFn, dir] = r;
+    const [label, disp, valFn, dir, expert] = r;
     let best = null;
     if (valFn) {
       const vals = items.map(valFn).filter(v => v != null);
@@ -1127,12 +1225,13 @@ function openCompare() {
       const isBest = best != null && v != null && v === best && items.filter(x => valFn(x) === best).length < items.length;
       return `<td class="${isBest?'best':''}">${disp(d)}</td>`;
     }).join('');
-    return `<tr><th>${label}</th>${tds}</tr>`;
+    return `<tr${expert?' class="expert-only"':''}><th>${label}</th>${tds}</tr>`;
   }).join('');
   $('#cmpModal').innerHTML = `
     <div class="mhead"><div><h2>Direktvergleich (${items.length})</h2></div>
       <button class="close" id="cmpClose" aria-label="Schliessen">✕</button></div>
     <div class="sub">Grün = bester Wert je Zeile. Werte gem. Datenstand 2024/2025.</div>
+    ${buildRadar(items)}
     <div class="cmptable"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
     <div style="margin-top:1rem;display:flex;gap:0.5rem">
       <button class="resetbtn" id="cmpPrint">🖨 Vergleich drucken / PDF</button>
@@ -1222,6 +1321,16 @@ $('#reset').addEventListener('click', () => {
 });
 $('#vCards').addEventListener('click', () => { viewMode='cards'; $('#vCards').classList.add('active'); $('#vTable').classList.remove('active'); render(); });
 $('#vTable').addEventListener('click', () => { viewMode='table'; $('#vTable').classList.add('active'); $('#vCards').classList.remove('active'); render(); });
+
+// Kundenmodus (Präsentationsansicht): helles Theme + Fachbegriffe ausblenden
+$('#clientMode').addEventListener('click', () => {
+  const on = !document.body.classList.contains('client-mode');
+  document.body.classList.toggle('client-mode', on);
+  document.body.classList.toggle('light-mode', on);
+  $('#clientMode').classList.toggle('active', on);
+  $('#clientMode').textContent = on ? '👁️ Kundenmodus aktiv' : '👁️ Kundenmodus';
+  render();
+});
 
 restoreFromUrl();
 render();
