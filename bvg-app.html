@@ -117,7 +117,8 @@
   }
 
   /* Vergleichs-Auswahl */
-  .cmp-check { position: absolute; top: 0.7rem; right: 0.7rem; display: flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--dim); background: var(--bg3); padding: 0.2rem 0.45rem; border-radius: 6px; border: 1px solid var(--border); z-index: 2; }
+  .cmp-check { align-self: flex-end; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--dim); background: var(--bg3); padding: 0.2rem 0.5rem; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 0.55rem; cursor: pointer; }
+  .cmp-check:hover { border-color: var(--accent); color: var(--accent); }
   .cmp-check input { accent-color: var(--accent); cursor: pointer; }
   .card { position: relative; }
   .card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
@@ -168,6 +169,9 @@
   .legend .lg i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
   .legend .lg b { color: var(--txt); margin-left: auto; font-variant-numeric: tabular-nums; }
   .assetsrc { font-size: 0.72rem; color: var(--dim); margin-top: 0.5rem; }
+  .assetsrc.na { color: var(--muted); font-style: italic; }
+  .reportlink { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; text-decoration: none; background: var(--bg3); border: 1px solid var(--border); color: var(--accent2); border-radius: 8px; padding: 0.5rem 0.8rem; margin-bottom: 0.7rem; transition: border-color 0.15s; }
+  .reportlink:hover { border-color: var(--accent); color: var(--accent); }
 
   .contact { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.5rem 1rem; background: var(--bg3); border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.4rem; }
   .contact .ci { font-size: 0.85rem; display: flex; gap: 0.5rem; align-items: flex-start; }
@@ -177,6 +181,49 @@
   .contact .ci a { color: var(--accent); text-decoration: none; word-break: break-word; }
   .contact .ci a:hover { text-decoration: underline; }
   .contact .ci .na { color: var(--dim); }
+
+  /* ---- Kundenmodus (Präsentationsansicht): helles Theme ---- */
+  body.light-mode {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f1f5f9; --border:#d4dde8;
+    --txt:#0f172a; --muted:#475569; --dim:#64748b;
+    --accent:#0284c7; --accent2:#0369a1;
+    --green:#15803d; --amber:#b45309; --red:#dc2626; --violet:#7e22ce;
+  }
+  body.light-mode { background: var(--bg); }
+  /* Kundenmodus blendet Fachbegriffe/komplexe Felder aus */
+  body.client-mode .expert-only { display: none !important; }
+
+  /* Kundenmodus-Button im aktiven Zustand */
+  .resetbtn.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  .resetbtn.active:hover { color: #fff; }
+
+  /* ---- Ampelsystem (Conditional Formatting) ---- */
+  .metric.good .mv { color: var(--green); }
+  .metric.mid  .mv { color: var(--amber); }
+  .metric.low  .mv { color: var(--red); }
+  .metric.good { box-shadow: inset 3px 0 0 var(--green); }
+  .metric.mid  { box-shadow: inset 3px 0 0 var(--amber); }
+  .metric.low  { box-shadow: inset 3px 0 0 var(--red); }
+  td.num.good { color: var(--green); font-weight: 700; }
+  td.num.mid  { color: var(--amber); font-weight: 700; }
+  td.num.low  { color: var(--red); font-weight: 700; }
+  .cmptable td.good { color: var(--green); font-weight: 700; }
+  .cmptable td.mid  { color: var(--amber); font-weight: 700; }
+  .cmptable td.low  { color: var(--red); font-weight: 700; }
+  .dcell.good .dv { color: var(--green); }
+  .dcell.mid  .dv { color: var(--amber); }
+  .dcell.low  .dv { color: var(--red); }
+
+  /* ---- Radar-/Spinnennetz-Diagramm (Direktvergleich) ---- */
+  .radarwrap { background: var(--bg3); border-radius: 12px; padding: 1rem 1rem 0.4rem; margin-bottom: 0.4rem; display: flex; flex-wrap: wrap; gap: 1.2rem; align-items: center; justify-content: center; }
+  .radarwrap svg { flex: 0 0 auto; max-width: 100%; height: auto; }
+  .radarwrap .grid { fill: none; stroke: var(--border); stroke-width: 1; }
+  .radarwrap .axis { stroke: var(--border); stroke-width: 1; }
+  .radarwrap text { fill: var(--muted); font-family: inherit; font-size: 11px; font-weight: 600; }
+  .radar-legend { display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.85rem; }
+  .radar-legend .rl { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); }
+  .radar-legend .rl i { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .radarnote { font-size: 0.72rem; color: var(--dim); margin: 0 0 1.2rem; text-align: center; }
 
   @media print {
     body { background: #fff; color: #000; }
@@ -262,6 +309,7 @@
         <input type="range" id="fDg" min="100" max="124" step="1" value="100">
       </div>
       <div class="toggles">
+        <button class="resetbtn" id="clientMode" title="Präsentationsansicht für Kundengespräche: helles Theme, Fachbegriffe (Techn. Zins, TER, UWS …) ausgeblendet">👁️ Kundenmodus</button>
         <label class="chk"><input type="checkbox" id="fEco"> Nur nachhaltige Kassen</label>
         <button class="resetbtn" id="reset">Filter zurücksetzen</button>
         <button class="resetbtn" id="csvBtn">⬇ CSV</button>
@@ -600,21 +648,21 @@ const MORE = {
   "Sammelstiftung Vita (Zurich)": { anlage:"Nachhaltig (Ziel −80 % CO₂ Immobilien bis 2050)", perf:"n. ö.", wsr:"im Aufbau (Verzinsung bis 4,0 % nach Vollaufbau)" },
   "Swiss Life Sammelstiftung": { anlage:"Lebensversicherer; Vollv. + teilautonom", perf:"Performance 2. Säule 2025: 5,75 %", wsr:"n. ö." },
   "Profond Vorsorgeeinrichtung": { anlage:"Realwertstrategie, hoher Aktien-/Immobilienanteil", perf:"Anlagerendite 2020–2024: 4,04 % p.a.; nie saniert", wsr:"n. ö." },
-  "Asga Pensionskasse": { anlage:"n. ö.", perf:">700 Mio. CHF an Mitglieder 2024 (Beteiligungsmodell)", wsr:"DG 117,4 % (2024)" },
-  "PKG Pensionskasse": { anlage:"Anlagevolumen ~12,6 Mrd. CHF", perf:"n. ö.", wsr:"n. ö." },
-  "Servisa Sammelstiftung": { anlage:"n. ö.", perf:"n. ö.", wsr:"n. ö." },
+  "Asga Pensionskasse": { anlage:"Breit diversifiziert; Aktien 35 %, Oblig./Hypotheken 34 %, Immobilien 23 %, übrige Anlagen 9 %", perf:">700 Mio. CHF an Mitglieder 2024 (Beteiligungsmodell)", wsr:"DG 117,4 % (2024)" },
+  "PKG Pensionskasse": { anlage:"Vorsichtig, langfristig & nachhaltig (ESG); liquide Qualitätsanlagen, breit diversifiziert", perf:"n. ö.", wsr:"n. ö." },
+  "Servisa Sammelstiftung": { anlage:"Langfristig auf Substanzerhalt ausgerichtet, nachhaltig über die Servisa Anlagestiftung", perf:"n. ö.", wsr:"n. ö." },
   "GEMINI Sammelstiftung": { anlage:"4 Anlagepools (0–50 % Aktien) + individuelle Strategie ab 10 Mio.", perf:"individuell pro Vorsorgewerk", wsr:"n. ö." },
-  "Noventus Sammelstiftung": { anlage:"ESG; techn. Zins marktgekoppelt", perf:"n. ö.", wsr:"DG Typ K 120,1 % (2025)" },
+  "Noventus Sammelstiftung": { anlage:"Dynamisch, techn. Zins marktgekoppelt (ESG); Aktien 46 %, Oblig./Hyp. 32 %, Immobilien 14 %, übrige 9 %", perf:"n. ö.", wsr:"DG Typ K 120,1 % (2025)" },
   "Baloise Perspectiva": { anlage:"Relax (gemeinschaftlich) / Choice (individuell ab 50 P.)", perf:"Performance 2025: 6,6 %", wsr:"DG 109 % (2025)" },
   "Tellco pkPRO": { anlage:"Konservativ, Aktienquote 18–28 % (PULSE 45 %)", perf:"5-Jahres-Verzinsung 1,45 %", wsr:"pro Vorsorgewerk" },
   "Transparenta Sammelstiftung": { anlage:"~180 Vorsorgewerke, individuell", perf:"Netto-Performance 2024: 10,14 %", wsr:"DG 112,5 % (2024)" },
-  "Revor Sammelstiftung": { anlage:"REVOR INVEST / KONTO", perf:"Anlagerendite 2019–2021: 9,92 % (3J Award)", wsr:"DG 111,8 % (2024)" },
-  "Copré (La Collective de Prévoyance)": { anlage:"n. ö.", perf:"Performance 2024: 6,65 % / 2025: 1,66 %", wsr:"DG 109,6 % (2025)" },
+  "Revor Sammelstiftung": { anlage:"Aktiv verwaltet; strategische Übergewichtung von Aktien und Gold, konsequente Titelselektion", perf:"Anlagerendite 2019–2021: 9,92 % (3J Award)", wsr:"DG 113,6 % (2024)" },
+  "Copré (La Collective de Prévoyance)": { anlage:"Semi-autonome, unabhängige Gemeinschaftseinrichtung mit Mutualisierung der Risiken", perf:"Performance 2024: 6,65 % / 2025: 1,66 %", wsr:"DG 109,1 % (2024/25)" },
   "GastroSocial Pensionskasse": { anlage:"Aktien 39 %, Obligat./Hyp. 39 %, Immo 20 %, Cash 2 %", perf:"Anlagerendite 2024: 6,52 % · Beiträge ~563 Mio. CHF · Vermögen ~9,7 Mrd. CHF", wsr:"DG 118,0 % (31.12.2024)" },
-  "Spida Personalvorsorgestiftung": { anlage:"n. ö.", perf:"Netto-Anlagerendite 2023: 5,0 %", wsr:"ausreichende Sicherheit (Art. 52e)" },
+  "Spida Personalvorsorgestiftung": { anlage:"Bewährte, langfristig überdurchschnittlich performende Anlagestrategie", perf:"Netto-Anlagerendite 2023: 5,0 %", wsr:"DG 112,4 % (2024)" },
   "La CIEPP": { anlage:"LPP 2020, Longevitätsrückstellung", perf:"Performance 2024: 8,87 % · Beiträge >460 Mio. CHF · Renten >120 Mio. CHF · Vermögen >9,5 Mrd. CHF", wsr:"DG 119,1 % (31.12.2024); 51'252 Aktive · 8'149 Rentner; nie saniert" },
-  "Fondation Patrimonia": { anlage:"LPP 2020; Transparenzquote 100 %", perf:"n. ö.", wsr:"DG 105,2 % (2024)" },
-  "FIP (Fonds Interprofessionnel de Prévoyance)": { anlage:"LPP 2020", perf:"Performance 2024: 8,53 %; 5J-Verzinsung 2,8 %", wsr:"11,4 % (Ziel 25 %)" },
+  "Fondation Patrimonia": { anlage:"ALM-gesteuerte Mehrklassen-Allokation; Aktien 27 %, Immobilien 32 %, Obligationen 32 %, übrige 9 %", perf:"n. ö.", wsr:"DG 105,2 % (2024)" },
+  "FIP (Fonds Interprofessionnel de Prévoyance)": { anlage:"Verantwortungsvolle ESG-Anlagepolitik; Überschüsse fliessen vollständig an Beiträge/Leistungen", perf:"Performance 2024: 8,53 %; 5J-Verzinsung 2,8 %", wsr:"11,4 % (Ziel 25 %)" },
   "Allianz Suisse Sammelstiftung": { anlage:"Vollversicherung (Garantie)", perf:"Anlagerendite 10J: 3,39 % (Vollv. Award)", wsr:"≥ 100 % (Garantie)" },
   "Pax Sammelstiftung BVG": { anlage:"Vollv. + teilautonom (DuoStar)", perf:"Anlagerendite 5J: 0,83 %, 3J: −2,15 %", wsr:"≥ 100 % (Garantie)" },
   "Helvetia Sammelstiftung": { anlage:"Vollv. + teilautonom (BVG Invest)", perf:"Netto-Anlagerendite 2024: 1,9 % / 2025: 2,2 %", wsr:"≥ 100 % (Garantie)" },
@@ -645,20 +693,27 @@ DATA.forEach(d => {
 // Netto-Anlagerendite (Performance) – IMMER als Prozentsatz, mit Bezugszeitraum.
 // null = nicht öffentlich ausgewiesen (es werden KEINE illustrativen Werte gezeigt).
 const RENDITE = {
+  "AXA Stiftung Berufliche Vorsorge": { v:7.30, jahr:"2024" },
+  "Sammelstiftung Vita (Zurich)": { v:6.60, jahr:"2024" },
   "Swiss Life Sammelstiftung": { v:5.75, jahr:"2025" },
-  "Profond Vorsorgeeinrichtung": { v:4.04, jahr:"Ø 2020–2024" },
-  "Baloise Perspectiva": { v:6.60, jahr:"2025" },
+  "Profond Vorsorgeeinrichtung": { v:9.60, jahr:"2024" },
+  "Asga Pensionskasse": { v:7.02, jahr:"2024" },
+  "Noventus Sammelstiftung": { v:9.90, jahr:"2024" },
+  "Baloise Perspectiva": { v:6.60, jahr:"2024" },
+  "Tellco pkPRO": { v:4.70, jahr:"2024" },
   "Transparenta Sammelstiftung": { v:10.14, jahr:"2024" },
   "Revor Sammelstiftung": { v:9.92, jahr:"Ø 2019–2021" },
   "Copré (La Collective de Prévoyance)": { v:1.66, jahr:"2025" },
   "GastroSocial Pensionskasse": { v:6.52, jahr:"2024" },
-  "Spida Personalvorsorgestiftung": { v:5.00, jahr:"2023" },
+  "Spida Personalvorsorgestiftung": { v:7.60, jahr:"2024" },
   "La CIEPP": { v:8.87, jahr:"2024" },
+  "Fondation Patrimonia": { v:7.47, jahr:"2024" },
   "FIP (Fonds Interprofessionnel de Prévoyance)": { v:8.53, jahr:"2024" },
   "Allianz Suisse Sammelstiftung": { v:3.39, jahr:"Ø 10 J." },
   "Pax Sammelstiftung BVG": { v:0.83, jahr:"Ø 5 J." },
   "Helvetia Sammelstiftung": { v:2.20, jahr:"2025" },
-  "Stiftung Abendrot": { v:1.80, jahr:"2024" }
+  "Stiftung Abendrot": { v:1.80, jahr:"2024" },
+  "Nest Sammelstiftung": { v:6.70, jahr:"2024" }
 };
 DATA.forEach(d => {
   const r = RENDITE[d.name];
@@ -668,12 +723,52 @@ DATA.forEach(d => {
 
 // Effektive Betriebsrechnungs-/Bilanzzahlen aus Geschäftsberichten – nur wo real verfügbar.
 const FINANCIALS = {
-  "Profond Vorsorgeeinrichtung": { jahr:"2023", vermoegen:"≈ 10'800 Mio. CHF", einlagen:"734,9 Mio. CHF" },
+  "AXA Stiftung Berufliche Vorsorge": { jahr:"2024", vermoegen:"≈ 32'000 Mio. CHF" },
+  "Profond Vorsorgeeinrichtung": { jahr:"2024", vermoegen:"≈ 12'800 Mio. CHF" },
+  "Asga Pensionskasse": { jahr:"2024", vermoegen:"≈ 29'826 Mio. CHF (Bilanzsumme)" },
+  "PKG Pensionskasse": { jahr:"2024", vermoegen:"> 10'000 Mio. CHF" },
+  "Servisa Sammelstiftung": { jahr:"2024", vermoegen:"720,6 Mio. CHF (Bilanzsumme)" },
+  "GEMINI Sammelstiftung": { jahr:"2024", vermoegen:"≈ 6'900 Mio. CHF" },
+  "Transparenta Sammelstiftung": { jahr:"2024", vermoegen:"≈ 1'600 Mio. CHF" },
+  "Revor Sammelstiftung": { jahr:"2024", vermoegen:"≈ 1'000 Mio. CHF" },
+  "Baloise Perspectiva": { jahr:"2024", vermoegen:"≈ 2'100 Mio. CHF" },
+  "Spida Personalvorsorgestiftung": { jahr:"2024", vermoegen:"2'152,9 Mio. CHF (Bilanzsumme)" },
+  "Fondation Patrimonia": { jahr:"2024", vermoegen:"3'482 Mio. CHF (Bilanzsumme)" },
   "Stiftung Abendrot": { jahr:"2024", vermoegen:"3'109 Mio. CHF" },
   "GastroSocial Pensionskasse": { jahr:"2024", beitraege:"≈ 563 Mio. CHF", vermoegen:"≈ 9'700 Mio. CHF" },
   "La CIEPP": { jahr:"2024", beitraege:"> 460 Mio. CHF", renten:"> 120 Mio. CHF", vermoegen:"> 9'500 Mio. CHF" }
 };
 DATA.forEach(d => d.fin = FINANCIALS[d.name] || null);
+
+// Offizielle Geschäftsberichts-/Betriebsrechnungs-Seiten der Stiftungen (Download bzw. Kennzahlen).
+const REPORTS = {
+  "AXA Stiftung Berufliche Vorsorge": "https://www.axa.ch/de/ueber-axa/unternehmen/stiftungen/stiftung-berufliche-vorsorge/downloads.html",
+  "Sammelstiftung Vita (Zurich)": "https://www.vita.ch/de/rund-um-vita/vita-sammelstiftungen/sammelstiftung-vita/berichterstattung",
+  "Swiss Life Sammelstiftung": "https://www.swisslife.ch/en/enterprises/foundations-facts-figures.html",
+  "Profond Vorsorgeeinrichtung": "https://report.profond.ch/",
+  "Asga Pensionskasse": "https://www.asga.ch/geschaeftsbericht-2024/",
+  "PKG Pensionskasse": "https://pkg.ch/ueber_uns/geschaeftsberichte",
+  "Servisa Sammelstiftung": "https://www.servisa.ch/deutsch/sammelstiftung/",
+  "GEMINI Sammelstiftung": "https://report.gemini.ch/geschaeftsbericht-2024",
+  "Noventus Sammelstiftung": "https://www.noventus.ch/dokumente/",
+  "Baloise Perspectiva": "https://www.baloise.ch/de/unternehmenskunden/versichern/berufliche-vorsorge/arbeitgeber/perspectiva.html",
+  "Tellco pkPRO": "https://tellco.ch/en/pension-fund/key-figures",
+  "Transparenta Sammelstiftung": "https://transparenta.ch/geschaeftsberichte.html",
+  "Revor Sammelstiftung": "https://www.revor.swiss/de/kennzahlen",
+  "Copré (La Collective de Prévoyance)": "https://www.copre.ch/en/copre-figures",
+  "GastroSocial Pensionskasse": "https://gastrosocial.ch/de/ueber-uns/news/geschaeftsbericht2024",
+  "Spida Personalvorsorgestiftung": "https://www.spida.ch/sozialversicherungen/unsere-sozialversicherungen/personalvorsorgestiftung/reglemente-und-jahresberichte",
+  "La CIEPP": "https://www.ciepp.ch",
+  "Fondation Patrimonia": "https://www.patrimonia.ch/en/resources/downloads/",
+  "FIP (Fonds Interprofessionnel de Prévoyance)": "https://www.centrepatronal.ch/assurances-sociales/fonds-de-prevoyance/brochure-et-rapport-de-gestion/",
+  "Allianz Suisse Sammelstiftung": "https://www.allianz.ch/de/ueber-uns/medien/geschaeftsbericht-kennzahlen.html",
+  "Pax Sammelstiftung BVG": "https://www.pax.ch/de/ueber-pax/pax-sammelstiftungen/jahresrechnung",
+  "Helvetia Sammelstiftung": "https://www.helvetia.com/ch/web/de/geschaeftskunden/vorsorge/berufliche-vorsorge/zahlen-und-fakten.html",
+  "Stiftung Abendrot": "https://gb.abendrot.ch/2024/",
+  "Nest Sammelstiftung": "https://www.nest-info.ch/service-center/publikationen/",
+  "Stiftung Auffangeinrichtung BVG": "https://aeis.ch"
+};
+DATA.forEach(d => d.report = REPORTS[d.name] || null);
 
 // Hinweis Vermittlerentschädigung (Courtage): gesetzlich offenzulegen (Art. 48k BVV2), kassen-/offertspezifisch
 const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2 offenzulegen und wird kassen- bzw. offertspezifisch festgelegt (nicht öffentlich pauschal verfügbar).";
@@ -684,12 +779,15 @@ const COURTAGE_NOTE = "Vermittlerentschädigung/Courtage ist gem. Art. 48k BVV 2
 const BENCHMARK_ASSETS = { a:33, i:25, o:29, c:13, src:"Branchenrichtwert", perf:null };
 const ASSETS = {
   "Profond Vorsorgeeinrichtung": { a:50, i:28, o:9, c:13, src:"Kasse (GB 2023)", perf:null },
+  "Asga Pensionskasse": { a:34.6, i:22.8, o:33.5, c:9.1, src:"Kasse (GB 2024)", perf:7.02 },
+  "PKG Pensionskasse": { a:37.4, i:19.8, o:39.8, c:3.0, src:"Kasse (GB 2024)", perf:null },
+  "Noventus Sammelstiftung": { a:45.5, i:13.9, o:31.9, c:8.7, src:"Kasse (GB 2024)", perf:9.90 },
   "Tellco pkPRO": { a:23, i:27, o:42, c:8, src:"Kasse", perf:null },
   "AXA Stiftung Berufliche Vorsorge": { a:35, i:24, o:30, c:11, src:"Kasse", perf:null },
   "Stiftung Abendrot": { a:32, i:30, o:20, c:18, src:"Kasse (GB 2024)", perf:1.8 },
   "Nest Sammelstiftung": { a:29, i:24, o:31, c:16, src:"Kasse (GB 2024)", perf:null },
   "La CIEPP": { a:40, i:24, o:30, c:6, src:"Kasse", perf:8.87 },
-  "Fondation Patrimonia": { a:35, i:25, o:32, c:8, src:"Branchenrichtwert", perf:null },
+  "Fondation Patrimonia": { a:26.8, i:32.4, o:32.0, c:8.8, src:"Kasse (GB 2024)", perf:7.47 },
   "FIP (Fonds Interprofessionnel de Prévoyance)": { a:38, i:24, o:32, c:6, src:"Kasse", perf:8.53 },
   "Transparenta Sammelstiftung": { a:42, i:22, o:30, c:6, src:"Kasse", perf:10.14 },
   "Copré (La Collective de Prévoyance)": { a:38, i:25, o:31, c:6, src:"Kasse", perf:6.65 },
@@ -807,9 +905,15 @@ function applyFilters() {
   return list;
 }
 
-function metricCell(label, val, na) {
-  const cls = na ? 'mv na' : 'mv';
-  return `<div class="metric"><div class="${cls}">${val}</div><div class="ml">${label}</div></div>`;
+// Ampelsystem: Deckungsgrad ≥115 % grün, 105–115 % gelb, <105 % rot;
+// Verzinsung ≥4 % grün, 2–4 % gelb, <2 % rot.
+function dgTone(v) { return v == null ? '' : (v >= 115 ? 'good' : v >= 105 ? 'mid' : 'low'); }
+function vzTone(v) { return v == null ? '' : (v >= 4 ? 'good' : v >= 2 ? 'mid' : 'low'); }
+
+function metricCell(label, val, na, tone, expert) {
+  const mcls = 'metric' + (!na && tone ? ' ' + tone : '') + (expert ? ' expert-only' : '');
+  const vcls = na ? 'mv na' : 'mv';
+  return `<div class="${mcls}"><div class="${vcls}">${val}</div><div class="ml">${label}</div></div>`;
 }
 
 function pillFor(d) {
@@ -839,10 +943,10 @@ function render() {
         <div class="chead"><h3>${d.name}</h3>${pillFor(d)}</div>
         <div class="tags">${tags}</div>
         <div class="metrics">
-          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null)}
-          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null)}
-          ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null)}
-          ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null)}
+          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null, dgTone(d.dg2024))}
+          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null, vzTone(d.vz2024))}
+          ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null, '', true)}
+          ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null, '', true)}
         </div>
       </div>`;
     }).join('');
@@ -851,30 +955,31 @@ function render() {
     $('#tableView').style.display = 'block';
     const cols = [
       ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024'],['dg2025','DG 2025'],
-      ['techzins','Techn. Zins'],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell'],
-      ['uwsObl','UWS Obl.'],['uwsUeber','UWS Überobl.'],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
+      ['techzins','Techn. Zins',true],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell',true],
+      ['uwsObl','UWS Obl.',true],['uwsUeber','UWS Überobl.',true],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
     ];
     const f = getFilters();
     const [sk] = f.sort.split('-');
     const head = '<th class="cmpcol">⇄</th>' + cols.map(c => {
       const active = (c[0]===sk || (c[0]==='techzins'&&sk==='techzins')) ? ' style="color:var(--accent)"' : '';
-      return `<th data-col="${c[0]}"${active}>${c[1]}</th>`;
+      return `<th data-col="${c[0]}"${active}${c[2]?' class="expert-only"':''}>${c[1]}</th>`;
     }).join('');
     const rows = list.map(d => {
       const idx = DATA.indexOf(d);
       const sel = compareSet.has(d.name);
+      const dgC = dgTone(d.dg2024), vzC = vzTone(d.vz2024);
       return `<tr data-i="${idx}">
         <td class="cmpcol"><input type="checkbox" class="cmpbox" data-name="${d.name}"${sel?' checked':''}></td>
         <td>${d.name}</td>
         <td>${pillFor(d)}</td>
-        <td class="num${d.dg2024==null?' na':''}">${d.dg2024d}</td>
+        <td class="num${d.dg2024==null?' na':dgC?' '+dgC:''}">${d.dg2024d}</td>
         <td class="num${d.dg2025==null?' na':''}">${d.dg2025d}</td>
-        <td class="num${d.techZins==null?' na':''}">${d.techZinsd}</td>
+        <td class="num expert-only${d.techZins==null?' na':''}">${d.techZinsd}</td>
         <td class="num${d.kosten==null?' na':''}">${d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten)}</td>
-        <td>${d.uwsModell}</td>
-        <td class="num${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
-        <td class="num${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
-        <td class="num${d.vz2024==null?' na':''}">${d.vz2024d}</td>
+        <td class="expert-only">${d.uwsModell}</td>
+        <td class="num expert-only${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
+        <td class="num expert-only${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
+        <td class="num${d.vz2024==null?' na':vzC?' '+vzC:''}">${d.vz2024d}</td>
         <td class="num${d.vz2025==null?' na':''}">${d.vz2025d}</td>
       </tr>`;
     }).join('');
@@ -941,22 +1046,22 @@ function buildContact(d) {
 function openModal(i) {
   const d = DATA[i];
   const cells = [
-    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null],
-    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null],
-    ['Technischer Zins', d.techZinsd, d.techZins==null],
-    ['Rentneranteil', d.rentnerd, false],
-    ['UWS-Modell', d.uwsModell, false],
-    ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null],
-    ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null],
-    ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false],
-    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null],
-    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null],
+    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null, false, dgTone(d.dg2024)],
+    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null, false, dgTone(d.dg2025)],
+    ['Technischer Zins', d.techZinsd, d.techZins==null, true],
+    ['Rentneranteil', d.rentnerd, false, true],
+    ['UWS-Modell', d.uwsModell, false, true],
+    ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null, true],
+    ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null, true],
+    ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false, true],
+    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null, false, vzTone(d.vz2024)],
+    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null, false, vzTone(d.vz2025)],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
-    ['TER (Gesamtkostenquote)', d.terD, d.ter==null],
+    ['TER (Gesamtkostenquote)', d.terD, d.ter==null, true],
     ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
     ['Netto-Anlagerendite', d.renditeD, d.rendite==null],
-    ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.'],
-    ['Technische Grundlage', d.grundlage, false]
+    ['Wertschwankungsreserve / Stabilität', d.wsr, d.wsr==='n. ö.', true],
+    ['Technische Grundlage', d.grundlage, false, true]
   ];
   $('#modal').innerHTML = `
     <div class="mhead">
@@ -969,12 +1074,13 @@ function openModal(i) {
     <h4 style="margin-top:0.3rem">Kontakt</h4>
     ${buildContact(d)}
     <div class="dgrid">
-      ${cells.map(c=>`<div class="dcell"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
+      ${cells.map(c=>`<div class="dcell${c[3]?' expert-only':''}${!c[2]&&c[4]?' '+c[4]:''}"><div class="dv${c[2]?' na':''}">${c[1]}</div><div class="dl">${c[0]}</div></div>`).join('')}
     </div>
-    <div style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
+    <div class="expert-only" style="font-size:0.8rem;color:var(--dim);background:var(--bg3);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem">
       <b style="color:var(--accent2)">Obligatorium vs. Überobligatorium:</b> Auf dem gesetzlichen <b>Obligatorium</b> gelten BVG-Mindestzins (1,25 %) und Mindestumwandlungssatz 6,8 %. Das <b>Überobligatorium</b> (Lohnteile über CHF 90'720, Kader) darf die Kasse mit eigenem Zins und tieferem Satz verzinsen/umwandeln. ${d.uwsModell.startsWith('Umhüllend') ? 'Diese Kasse rechnet <b>umhüllend</b> – ein Satz aufs ganze Guthaben, wobei das BVG-Minimum über eine Schattenrechnung garantiert bleibt.' : d.uwsModell.startsWith('Gesplittet') ? 'Diese Kasse rechnet <b>gesplittet</b> – getrennte Sätze für Obligatorium und Überobligatorium.' : 'Bei dieser Kasse werden Sätze pro Vorsorgewerk festgelegt.'}
     </div>
     <h4>Betriebsrechnung &amp; Geldflüsse</h4>
+    ${d.report ? `<a class="reportlink" href="${d.report}" target="_blank" rel="noopener">📄 Geschäftsbericht / Betriebsrechnung der Stiftung ansehen ↗</a>` : ''}
     ${buildFinancials(d)}
     <h4>Anlagestrategie &amp; Rendite</h4>
     ${buildAssetTile(d)}
@@ -1038,6 +1144,52 @@ $('#cbChips').addEventListener('click', e => {
 $('#cbClear').addEventListener('click', () => { compareSet.clear(); renderCompareBar(); render(); });
 $('#cbCompare').addEventListener('click', openCompare);
 
+// ---------- Radar-/Spinnennetz-Diagramm (überlagert die ausgewählten Kassen) ----------
+const RADAR_COLORS = ['#38bdf8', '#4ade80', '#fbbf24', '#c084fc'];
+function radarValues(d) {
+  const clamp = x => Math.max(0, Math.min(1, x));
+  return [
+    d.dg2024 == null ? null : clamp((d.dg2024 - 100) / 25),   // Sicherheit (DG 100–125 %)
+    d.rendite == null ? null : clamp(d.rendite / 10),         // Rendite (0–10 %)
+    d.ter == null ? null : clamp(1 - (d.ter - 0.1) / 0.8),    // Tiefe Kosten (TER invertiert)
+    d.uwsUeber == null ? null : clamp((d.uwsUeber - 4) / 2.8),// UWS Überobl. (4–6,8 %)
+    d.vz2024 == null ? null : clamp(d.vz2024 / 8)             // Verzinsung (0–8 %)
+  ];
+}
+function buildRadar(items) {
+  const axes = ['Sicherheit', 'Rendite', 'Tiefe Kosten', 'UWS Überobl.', 'Verzinsung'];
+  const S = 320, cx = S / 2, cy = S / 2, R = 108, n = axes.length;
+  const ang = i => -Math.PI / 2 + i * 2 * Math.PI / n;
+  const pt = (i, r) => [cx + R * r * Math.cos(ang(i)), cy + R * r * Math.sin(ang(i))];
+  let grid = '';
+  [0.25, 0.5, 0.75, 1].forEach(r => {
+    grid += `<polygon class="grid" points="${axes.map((_, i) => pt(i, r).map(x => x.toFixed(1)).join(',')).join(' ')}"/>`;
+  });
+  let ax = '';
+  axes.forEach((lbl, i) => {
+    const [x, y] = pt(i, 1);
+    ax += `<line class="axis" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    const [lx, ly] = pt(i, 1.16);
+    const anchor = Math.abs(lx - cx) < 6 ? 'middle' : (lx > cx ? 'start' : 'end');
+    ax += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anchor}">${lbl}</text>`;
+  });
+  let polys = '';
+  items.forEach((d, k) => {
+    const c = RADAR_COLORS[k % RADAR_COLORS.length];
+    const m = radarValues(d);
+    polys += `<polygon points="${m.map((v, i) => pt(i, v == null ? 0 : v).map(x => x.toFixed(1)).join(',')).join(' ')}" fill="${c}30" stroke="${c}" stroke-width="2"/>`;
+    m.forEach((v, i) => { const [x, y] = pt(i, v == null ? 0 : v); polys += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${c}"/>`; });
+  });
+  const legend = items.map((d, k) =>
+    `<div class="rl"><i style="background:${RADAR_COLORS[k % RADAR_COLORS.length]}"></i>${d.name.length > 28 ? d.name.slice(0, 28) + '…' : d.name}</div>`).join('');
+  const anyNull = items.some(d => radarValues(d).some(v => v == null));
+  return `<div class="radarwrap">
+      <svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" role="img" aria-label="Spinnennetz-Diagramm Kennzahlenvergleich">${grid}${ax}${polys}</svg>
+      <div class="radar-legend">${legend}</div>
+    </div>
+    <div class="radarnote">Je weiter aussen, desto besser. Normiert: Sicherheit (DG 100–125 %), Rendite (0–10 %), Tiefe Kosten (TER invertiert), UWS Überobl. (4–6,8 %), Verzinsung (0–8 %).${anyNull ? ' Fehlende Werte (n. ö.) = Mittelpunkt.' : ''}</div>`;
+}
+
 function openCompare() {
   const items = DATA.filter(d => compareSet.has(d.name));
   if (items.length < 2) return;
@@ -1047,22 +1199,22 @@ function openCompare() {
     ['Region', d => d.region],
     ['Deckungsgrad 2024', d => d.dg2024d, d => d.dg2024, 'max'],
     ['Deckungsgrad 2025', d => d.dg2025d, d => d.dg2025, 'max'],
-    ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max'],
+    ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max', true],
     ['Verzinsung 2024', d => d.vz2024d, d => d.vz2024, 'max'],
     ['Verzinsung 2025', d => d.vz2025d, d => d.vz2025, 'max'],
-    ['UWS-Modell', d => d.uwsModell],
-    ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max'],
-    ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max'],
+    ['UWS-Modell', d => d.uwsModell, null, null, true],
+    ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max', true],
+    ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max', true],
     ['Verwaltungskosten/Kopf', d => d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d => d.kosten, 'min'],
-    ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min'],
-    ['Rentneranteil', d => d.rentnerd],
+    ['TER (Gesamtkosten)', d => d.terD, d => d.ter, 'min', true],
+    ['Rentneranteil', d => d.rentnerd, null, null, true],
     ['Anlagestrategie', d => d.anlage],
     ['Netto-Anlagerendite', d => d.renditeD, d => d.rendite, 'max'],
-    ['Wertschwankungsreserve', d => d.wsr]
+    ['Wertschwankungsreserve', d => d.wsr, null, null, true]
   ];
   const head = '<th>Kennzahl</th>' + items.map(d => `<th>${d.name}</th>`).join('');
   const body = rows.map(r => {
-    const [label, disp, valFn, dir] = r;
+    const [label, disp, valFn, dir, expert] = r;
     let best = null;
     if (valFn) {
       const vals = items.map(valFn).filter(v => v != null);
@@ -1073,12 +1225,13 @@ function openCompare() {
       const isBest = best != null && v != null && v === best && items.filter(x => valFn(x) === best).length < items.length;
       return `<td class="${isBest?'best':''}">${disp(d)}</td>`;
     }).join('');
-    return `<tr><th>${label}</th>${tds}</tr>`;
+    return `<tr${expert?' class="expert-only"':''}><th>${label}</th>${tds}</tr>`;
   }).join('');
   $('#cmpModal').innerHTML = `
     <div class="mhead"><div><h2>Direktvergleich (${items.length})</h2></div>
       <button class="close" id="cmpClose" aria-label="Schliessen">✕</button></div>
     <div class="sub">Grün = bester Wert je Zeile. Werte gem. Datenstand 2024/2025.</div>
+    ${buildRadar(items)}
     <div class="cmptable"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
     <div style="margin-top:1rem;display:flex;gap:0.5rem">
       <button class="resetbtn" id="cmpPrint">🖨 Vergleich drucken / PDF</button>
@@ -1106,8 +1259,10 @@ $('#csvBtn').addEventListener('click', () => {
     ['UWS Obligatorium', d=>d.uwsOblD], ['UWS Überobligatorium', d=>d.uwsUeberD],
     ['Verwaltungskosten/Kopf CHF', d=>d.kosten==null?'n. ö.':d.kosten], ['TER %', d=>d.terD], ['Rentneranteil', d=>d.rentnerd],
     ['Anlagestrategie', d=>d.anlage], ['Netto-Anlagerendite', d=>d.renditeD], ['Wertschwankungsreserve', d=>d.wsr],
+    ['Vorsorgevermögen', d=>d.fin&&d.fin.vermoegen?d.fin.vermoegen:'n. v.'],
     ['Adresse', d=>d.contact.addr||'n.v.'], ['Website', d=>d.contact.web||'n.v.'],
-    ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.']
+    ['E-Mail', d=>d.contact.email||'n.v.'], ['Telefon', d=>d.contact.tel||'n.v.'],
+    ['Geschäftsbericht-URL', d=>d.report||'n.v.']
   ];
   const lines = [cols.map(c=>csvField(c[0])).join(';')];
   list.forEach(d => lines.push(cols.map(c=>csvField(c[1](d))).join(';')));
@@ -1166,6 +1321,16 @@ $('#reset').addEventListener('click', () => {
 });
 $('#vCards').addEventListener('click', () => { viewMode='cards'; $('#vCards').classList.add('active'); $('#vTable').classList.remove('active'); render(); });
 $('#vTable').addEventListener('click', () => { viewMode='table'; $('#vTable').classList.add('active'); $('#vCards').classList.remove('active'); render(); });
+
+// Kundenmodus (Präsentationsansicht): helles Theme + Fachbegriffe ausblenden
+$('#clientMode').addEventListener('click', () => {
+  const on = !document.body.classList.contains('client-mode');
+  document.body.classList.toggle('client-mode', on);
+  document.body.classList.toggle('light-mode', on);
+  $('#clientMode').classList.toggle('active', on);
+  $('#clientMode').textContent = on ? '👁️ Kundenmodus aktiv' : '👁️ Kundenmodus';
+  render();
+});
 
 restoreFromUrl();
 render();
