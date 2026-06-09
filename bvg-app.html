@@ -1026,8 +1026,8 @@ function render() {
         <div class="chead"><h3>${d.name}</h3>${pillFor(d)}</div>
         <div class="tags">${tags}</div>
         <div class="metrics">
-          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null, dgTone(d.dg2024))}
-          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null, vzTone(d.vz2024))}
+          ${metricCell('Deckungsgrad 2024', d.dg2024d, d.dg2024==null, dgTone(d.dg2024), true)}
+          ${metricCell('Verzinsung 2024', d.vz2024d, d.vz2024==null, vzTone(d.vz2024), true)}
           ${metricCell('UWS Obligatorium', d.uwsObl==null?'pro VW':pct(d.uwsObl), d.uwsObl==null, '', true)}
           ${metricCell('UWS Überobligatorium', d.uwsUeber==null?'n. ö.':pct(d.uwsUeber), d.uwsUeber==null, '', true)}
         </div>
@@ -1037,9 +1037,9 @@ function render() {
     $('#cardsView').style.display = 'none';
     $('#tableView').style.display = 'block';
     const cols = [
-      ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024'],['dg2025','DG 2025'],
+      ['name','Stiftung'],['modell','Modell'],['dg2024','DG 2024',true],['dg2025','DG 2025',true],
       ['techzins','Techn. Zins',true],['kosten','Kosten/Kopf'],['uwsModellCol','UWS-Modell',true],
-      ['uwsObl','UWS Obl.',true],['uwsUeber','UWS Überobl.',true],['vz2024','Verz. 2024'],['vz2025','Verz. 2025']
+      ['uwsObl','UWS Obl.',true],['uwsUeber','UWS Überobl.',true],['vz2024','Verz. 2024',true],['vz2025','Verz. 2025',true]
     ];
     const f = getFilters();
     const [sk] = f.sort.split('-');
@@ -1055,15 +1055,15 @@ function render() {
         <td class="cmpcol"><input type="checkbox" class="cmpbox" data-name="${d.name}"${sel?' checked':''}></td>
         <td>${d.name}</td>
         <td>${pillFor(d)}</td>
-        <td class="num${d.dg2024==null?' na':dgC?' '+dgC:''}">${d.dg2024d}</td>
-        <td class="num${d.dg2025==null?' na':''}">${d.dg2025d}</td>
+        <td class="num expert-only${d.dg2024==null?' na':dgC?' '+dgC:''}">${d.dg2024d}</td>
+        <td class="num expert-only${d.dg2025==null?' na':''}">${d.dg2025d}</td>
         <td class="num expert-only${d.techZins==null?' na':''}">${d.techZinsd}</td>
         <td class="num${d.kosten==null?' na':''}">${d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten)}</td>
         <td class="expert-only">${d.uwsModell}</td>
         <td class="num expert-only${d.uwsObl==null?' na':''}">${d.uwsObl==null?'pro VW':pct(d.uwsObl)}</td>
         <td class="num expert-only${d.uwsUeber==null?' na':''}">${d.uwsUeber==null?'n. ö.':pct(d.uwsUeber)}</td>
-        <td class="num${d.vz2024==null?' na':vzC?' '+vzC:''}">${d.vz2024d}</td>
-        <td class="num${d.vz2025==null?' na':''}">${d.vz2025d}</td>
+        <td class="num expert-only${d.vz2024==null?' na':vzC?' '+vzC:''}">${d.vz2024d}</td>
+        <td class="num expert-only${d.vz2025==null?' na':''}">${d.vz2025d}</td>
       </tr>`;
     }).join('');
     $('#tableView').innerHTML = list.length
@@ -1129,16 +1129,16 @@ function buildContact(d) {
 function openModal(i) {
   const d = DATA[i];
   const cells = [
-    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null, false, dgTone(d.dg2024)],
-    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null, false, dgTone(d.dg2025)],
+    ['Deckungsgrad 2024', d.dg2024d, d.dg2024==null, true, dgTone(d.dg2024)],
+    ['Deckungsgrad 2025', d.dg2025d, d.dg2025==null, true, dgTone(d.dg2025)],
     ['Technischer Zins', d.techZinsd, d.techZins==null, true],
     ['Rentneranteil', d.rentnerd, false, true],
     ['UWS-Modell', d.uwsModell, false, true],
     ['UWS Obligatorium (65)', d.uwsOblD, d.uwsObl==null, true],
     ['UWS Überobligatorium (65)', d.uwsUeberD, d.uwsUeber==null, true],
     ['Verzinsung Obligatorium (Garantie)', 'mind. ' + pct(BVG_MINZINS) + ' (BVG-Mindestzins)', false, true],
-    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null, false, vzTone(d.vz2024)],
-    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null, false, vzTone(d.vz2025)],
+    ['Verzinsung 2024 (gutgeschrieben)', d.vz2024d, d.vz2024==null, true, vzTone(d.vz2024)],
+    ['Verzinsung 2025 (gutgeschrieben)', d.vz2025d, d.vz2025==null, true, vzTone(d.vz2025)],
     ['Verwaltungskosten/Kopf', d.kosten==null?'n. ö.':'CHF '+fmtNum(d.kosten), d.kosten==null],
     ['TER (Gesamtkostenquote)', d.terD, d.ter==null, true],
     ['Anlagestrategie', d.anlage, d.anlage==='n. ö.'],
@@ -1280,11 +1280,11 @@ function openCompare() {
     ['Vorsorgemodell', d => d.modell],
     ['Stiftungstyp', d => d.typ],
     ['Region', d => d.region],
-    ['Deckungsgrad 2024', d => d.dg2024d, d => d.dg2024, 'max'],
-    ['Deckungsgrad 2025', d => d.dg2025d, d => d.dg2025, 'max'],
+    ['Deckungsgrad 2024', d => d.dg2024d, d => d.dg2024, 'max', true],
+    ['Deckungsgrad 2025', d => d.dg2025d, d => d.dg2025, 'max', true],
     ['Technischer Zins', d => d.techZinsd, d => d.techZins, 'max', true],
-    ['Verzinsung 2024', d => d.vz2024d, d => d.vz2024, 'max'],
-    ['Verzinsung 2025', d => d.vz2025d, d => d.vz2025, 'max'],
+    ['Verzinsung 2024', d => d.vz2024d, d => d.vz2024, 'max', true],
+    ['Verzinsung 2025', d => d.vz2025d, d => d.vz2025, 'max', true],
     ['UWS-Modell', d => d.uwsModell, null, null, true],
     ['UWS Obligatorium', d => d.uwsOblD, d => d.uwsObl, 'max', true],
     ['UWS Überobligatorium', d => d.uwsUeberD, d => d.uwsUeber, 'max', true],
