@@ -203,10 +203,12 @@ canvas {
 
 <div id="controls">
   <span class="desktop">
-    <strong>Linksklick</strong>: Einheit wählen &nbsp;|&nbsp;
-    <strong>Rechtsklick</strong>: Bewegen / Angreifen &nbsp;|&nbsp;
+    <strong>Linksklick</strong>: Einheit wählen → Ziel/Position befehlen → erneut wählen = abwählen &nbsp;|&nbsp;
+    <strong>Rechtsklick</strong>: direkt befehlen &nbsp;|&nbsp;
+    <strong>[J]</strong>/Doppelklick: Ninja-Sprung &nbsp;|&nbsp;
     <strong>[A]</strong>: Alle angreifen &nbsp;|&nbsp;
     <strong>[G]</strong>: Rückzug &nbsp;|&nbsp;
+    <strong>[Esc]</strong>: Abwählen &nbsp;|&nbsp;
     <strong>[Space]</strong>: Pause
   </span>
   <span class="touch">
@@ -1292,6 +1294,39 @@ class Game {
     return { mx: cx * scaleX, my: cy * scaleY };
   }
 
+  // Smart primary click (left mouse): selects, switches, commands or deselects
+  // depending on what is under the cursor — so the whole game is playable
+  // with the left mouse button alone.
+  _handlePrimaryClick(mx, my) {
+    if (this.over) return;
+
+    // Is there a blue unit under the cursor?
+    const blueHit = this.entities.find(e =>
+      !e.dead && e.team === TEAM.BLUE && Math.hypot(e.x - mx, e.y - my) < e.r + 10
+    );
+
+    if (this.selectedBlue && !this.selectedBlue.dead) {
+      // Clicking the already-selected unit → deselect (path keeps running)
+      if (blueHit === this.selectedBlue) {
+        this.selectedBlue.selected = false;
+        this.selectedBlue = null;
+        this._updateModeIndicator();
+        return;
+      }
+      // Clicking a different friendly unit → switch selection
+      if (blueHit) {
+        this._doSelect(mx, my);
+        return;
+      }
+      // Otherwise: issue a move/attack command at the clicked location
+      this._doCommand(mx, my);
+      return;
+    }
+
+    // Nothing selected yet → select the unit under the cursor (if any)
+    this._doSelect(mx, my);
+  }
+
   _doSelect(mx, my) {
     if (this.over) return;
     const hit = this.entities.find(e =>
@@ -1329,12 +1364,15 @@ class Game {
   _updateModeIndicator() {
     const el = document.getElementById('modeIndicator');
     if (!el) return;
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const verb = coarse ? 'Tippe' : 'Klick';
     if (this.selectedBlue && !this.selectedBlue.dead) {
       const role = this.selectedBlue.role === ROLE.KING ? 'König' : 'Untertan';
-      el.textContent = `✅ ${role} gewählt – tippe Ziel/Position`;
+      const jump = this.selectedBlue.ninjaOn ? (coarse ? ' · Doppeltipp = Sprung' : ' · [J] = Sprung') : '';
+      el.textContent = `✅ ${role} gewählt – ${verb} Ziel/Position${jump}`;
       el.style.color = '#4af';
     } else {
-      el.textContent = 'Tippe auf eine 🔵 Einheit';
+      el.textContent = `${verb} auf eine 🔵 Einheit`;
       el.style.color = '#ffd700';
     }
   }
@@ -1343,19 +1381,23 @@ class Game {
     const canvas = this.canvas;
 
     // ---- Mouse (Desktop) ----
+    // Left click does everything: select → command → deselect (smart).
     canvas.addEventListener('click', (ev) => {
       const { mx, my } = this._eventPos(ev);
-      this._doSelect(mx, my);
+      this._handlePrimaryClick(mx, my);
     });
 
+    // Double-click a selected ninja unit → jump (alternative to the J key).
     canvas.addEventListener('dblclick', (ev) => {
+      ev.preventDefault();
       const { mx, my } = this._eventPos(ev);
       if (this.selectedBlue && this.selectedBlue.ninjaOn) {
-        const onSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 14;
+        const onSelf = Math.hypot(this.selectedBlue.x - mx, this.selectedBlue.y - my) < this.selectedBlue.r + 18;
         if (onSelf) this.selectedBlue.startNinjaJump();
       }
     });
 
+    // Right click is an explicit command shortcut (move/attack without deselect).
     canvas.addEventListener('contextmenu', (ev) => {
       ev.preventDefault();
       const { mx, my } = this._eventPos(ev);
@@ -1445,6 +1487,16 @@ class Game {
       if (ev.code === 'KeyR') this.restart();
       if (ev.code === 'KeyA') this.cmdAttackAll();
       if (ev.code === 'KeyG') this.cmdRetreat();
+      // J = Ninja-Sprung der gewählten Figur
+      if (ev.code === 'KeyJ' && this.selectedBlue && this.selectedBlue.ninjaOn) {
+        this.selectedBlue.startNinjaJump();
+      }
+      // Escape = Auswahl aufheben (Pfad läuft weiter)
+      if (ev.code === 'Escape' && this.selectedBlue) {
+        this.selectedBlue.selected = false;
+        this.selectedBlue = null;
+        this._updateModeIndicator();
+      }
     });
   }
 
